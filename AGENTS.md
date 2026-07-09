@@ -1,6 +1,6 @@
 # AGENTS.md — Instructions for AI agents in this repository
 
-Version: 0.2
+Version: 0.3
 Status: Active
 Owner: Vidar
 Last updated: 2026-07-09
@@ -144,6 +144,24 @@ Adapted from Filterful: every implementation ticket must leave the human able to
 
 - `docs/agent-prompts/RUN_NEXT_AGENT.md` — reusable runner protocol (paste one line, agent finds its ticket prompt).
 - `docs/agent-notes/` — per-ticket agent outputs: `wow-XXX-<role>-<topic>.md` (implementation notes, review verdicts, audit reports).
+
+## Skills (slash commands)
+
+Project skills in `.claude/skills/` drive the ticket pipeline (pattern ported from Filterful):
+
+| Skill | Purpose |
+| --- | --- |
+| `/preflight WOW-XXX` | Verify all prerequisites before starting a ticket |
+| `/prep-ticket WOW-XXX` | Generate per-role prompt files from the ticket definition |
+| `/run-ticket [WOW-XXX]` | Run exactly one pipeline phase (implement + PR → Copilot round → test review → fixes → review → fixes → gate) |
+| `/ship-feature WOW-XXX` | Full pipeline autopilot; `checkpoint` arg pauses between phases |
+| `/address-reviews` | Collect and resolve all open review findings on a branch/PR |
+| `/review-board` | Parallel multi-lens review with one consolidated verdict |
+| `/sync-docs` | Documentation-maintainer consistency pass |
+
+**Commit authorisation nuance:** invoking a pipeline skill is the human's explicit authorisation for the commits *and ticket-branch pushes* that phase requires, on ticket/docs branches only. Everything else in the git rules stands: never `main`, never merge.
+
+**Copilot reviews (human policy 2026-07-09):** every PR gets a GitHub Copilot review. Phase A ends by opening the PR and requesting it; the Copilot round resolves all its threads before agent reviews run; the gate fails on unresolved Copilot threads. If the repo has Copilot auto-review enabled in settings, verify it triggered instead of requesting manually.
 
 ## Standard "Decision needed" format
 

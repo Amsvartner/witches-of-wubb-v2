@@ -4,7 +4,7 @@ Agent profiles for Claude Code subagents working on Witches of Wubb. Every agent
 
 > **Current phase (ADR-004): frontend-only.** `audio-ableton-reviewer` and `hardware-safety-reviewer` are dormant — invoke only if a diff unexpectedly touches the socket event contract, `backend/`, or `Arduino/`. `creative-tech-integrator`'s active duty is the offline simulator (ADR-001).
 >
-> Runner protocol: `docs/agent-prompts/RUN_NEXT_AGENT.md`. Output notes: `docs/agent-notes/`.
+> Runner protocol: `docs/agent-prompts/RUN_NEXT_AGENT.md`. Output notes: `docs/agent-notes/`. Pipeline skills: `.claude/skills/` (`/preflight`, `/prep-ticket`, `/run-ticket`, `/ship-feature`, `/address-reviews`, `/review-board`, `/sync-docs`) — see the skills table in `AGENTS.md`.
 
 ## Roster
 

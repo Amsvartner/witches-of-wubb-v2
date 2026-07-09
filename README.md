@@ -2,7 +2,7 @@
 
 ## Documentation
 
-Project docs live in [`docs/`](docs/). Start with the [project brief](docs/PROJECT_BRIEF.md) and [architecture](docs/ARCHITECTURE.md). AI agents must read [`AGENTS.md`](AGENTS.md) first; agent profiles live in [`.claude/agents/`](.claude/agents/README.md). Open questions for humans are tracked in [decisions needed](docs/DECISIONS_NEEDED.md); current work in [tickets](docs/TICKETS_001_INITIAL.md) and the [implementation plan](docs/IMPLEMENTATION_PLAN.md).
+Project docs live in [`docs/`](docs/). Start with the [project brief](docs/PROJECT_BRIEF.md) and [architecture](docs/ARCHITECTURE.md). AI agents must read [`AGENTS.md`](AGENTS.md) first; agent profiles live in [`.claude/agents/`](.claude/agents/README.md) and pipeline skills in `.claude/skills/`. Open questions for humans are tracked in [decisions needed](docs/DECISIONS_NEEDED.md); current work in [tickets](docs/TICKETS_001_INITIAL.md) and the [implementation plan](docs/IMPLEMENTATION_PLAN.md).
 
 ⚠️ `yarn start-backend` connects to Ableton Live and the lighting server — see safety rules in `AGENTS.md` before running anything.
 

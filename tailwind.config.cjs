@@ -6,8 +6,9 @@ module.exports = {
       fontFamily: {
         fondamento: ['Fondamento', 'sans-serif'],
       },
-      backgroundImage: theme => ({
-        'recipe-bg': "radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%), url('/images/script_bg.jpg')"
+      backgroundImage: (theme) => ({
+        'recipe-bg':
+          "radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%), url('/images/script_bg.jpg')",
       }),
       colors: {
         'blue-400': 'hsl(180, 100%, 80%)',
@@ -29,18 +30,18 @@ module.exports = {
         scale: 'scale 2s infinite',
       },
       transitionDuration: {
-        '200': '200ms',
-        '2000': '2000ms',
+        200: '200ms',
+        2000: '2000ms',
       },
     },
   },
 
   plugins: [
     require('@headlessui/tailwindcss')({ prefix: 'ui' }),
-    function({ addBase, config }) {
+    function ({ addBase, config }) {
       addBase({
         'html::-webkit-scrollbar': { display: 'none' },
-        'html': { scrollbarWidth: 'none', msOverflowStyle: 'none' }
+        html: { scrollbarWidth: 'none', msOverflowStyle: 'none' },
       });
     },
     function ({ addComponents }) {
@@ -57,9 +58,9 @@ module.exports = {
             '@apply appearance-none h-32 w-9 bg-center bg-no-repeat border-none scale-100': {},
             'background-image': "url('/images/arcane_tempo_slider_120.png')",
           },
-
         },
-        'input[type="range"].custom-volume-slider': { // Add new CSS class here
+        'input[type="range"].custom-volume-slider': {
+          // Add new CSS class here
           '@apply appearance-none -rotate-90 rounded-lg translate-y-20': {},
           '&:focus': {
             '@apply outline-none': {},
@@ -69,8 +70,8 @@ module.exports = {
             'background-image': "url('/images/arcane_volume_slider_120.png')", // Use new image URL here
           },
         },
-      }
-      addComponents(newComponents)
+      };
+      addComponents(newComponents);
     },
   ],
 };

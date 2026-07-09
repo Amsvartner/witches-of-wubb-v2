@@ -18,6 +18,7 @@ The deliverable is an exact report of what is present and what is missing. Never
 4. **Required context docs** — `AGENTS.md`, `docs/PRD.md`, `docs/CODING_GUIDELINES.md`, `docs/ARCHITECTURE.md`; plus `docs/UX_UI_PRINCIPLES.md` and the approved design docs for UI work; plus the relevant ADRs.
 5. **Git state** — current branch name; working tree clean (`git status --short`); local branch not behind `origin` (fetch first). Flag stale `.git/*.lock*` files (known sandbox issue) for the human to remove.
 6. **Tooling** — `node_modules` present at root (note to run `yarn install` if not — human runs installs); `yarn lint` and `yarn test` runnable. Never `yarn start-backend`.
+7. **Fork safety** — `gh repo set-default` resolves to the fork `Amsvartner/witches-of-wubb-v2`, not the upstream parent (this repo is a fork; PRs must never target the parent).
 
 ## Output
 

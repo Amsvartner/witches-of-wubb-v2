@@ -186,7 +186,7 @@ yes/no
 ## Git / commit rules
 
 - Never work directly on `main`. Never push to `main`. **Never merge PRs.** Never push at all without explicit approval.
-- PRs target the **`origin`** remote (confirmed 2026-07-09; ignore `upstream`).
+- **This repo is a fork.** PRs target the fork (`origin`, `Amsvartner/witches-of-wubb-v2`) — **never the upstream/parent repo** (`gh pr create` defaults to the parent on forks; always pass `--repo Amsvartner/witches-of-wubb-v2`, and verify `gh repo set-default` points at the fork). Never open PRs, issues, or comments against `upstream`.
 - Do not commit, rebase, squash, amend, tag, or force-push unless the human explicitly says to commit.
 - Branch naming: `docs/…`, `feat/…`, `fix/…`, `chore/…`.
 - One ticket per branch/PR where practical.

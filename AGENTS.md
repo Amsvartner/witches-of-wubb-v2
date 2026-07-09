@@ -190,6 +190,7 @@ yes/no
 - Do not commit, rebase, squash, amend, tag, or force-push unless the human explicitly says to commit.
 - Branch naming: `docs/…`, `feat/…`, `fix/…`, `chore/…`.
 - One ticket per branch/PR where practical.
+- Every PR fills `.github/pull_request_template.md` completely — real demo steps, ticked validation/safety checklists. A sparse PR body fails the gate.
 - Commit messages (when approved): short imperative subject, matching existing history style (e.g. "Adjust UI to make sure key adjuster is always visible").
 
 ## Stop-and-ask rules

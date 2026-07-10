@@ -56,3 +56,38 @@ None.
 ## Verdict
 
 **approve-with-nits** — clear should-fix items 1–4 in the fix phase; nits 5–7 roll into PR 3. No specialist reviews required for this PR.
+
+## Re-review @ a551c9a
+
+Reviewer: Claude Fable 5 (reviewer role, read-only). Date: 2026-07-10. Delta reviewed: `git diff 5b309e1..a551c9a` (single fix commit, 5 files).
+
+### Should-fix resolution (items 1–4)
+
+| #   | Finding                                                         | Status                                                                                                                                                                                                                                                     |
+| --- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `docs/ARCHITECTURE.md:32` stale `src/lib/database-output.ts`    | **Fixed** — now `src/util/ClipDatabaseUtil.ts`; sentence reads correctly.                                                                                                                                                                                  |
+| 2   | `docs/ARCHITECTURE.md:29` stale `spec/` description             | **Fixed** — reworded to sim suites / legacy location, page smoke test at `src/page/test/`, remaining moves deferred to the WOW-011 test migration. Accurate.                                                                                               |
+| 3   | `.claude/agents/frontend-ui-designer.md:16` stale context paths | **Fixed** — now `src/page/`, `src/container/`, `src/component/`, `src/context/`, `src/hook/`. Matches the tree.                                                                                                                                            |
+| 4   | Unresolved Copilot thread (stale test name)                     | **Fixed** — test renamed to `renders the cauldron centerpiece` (description-only, assertion unchanged); thread replied ("Fixed in a551c9a") and resolved. GraphQL check: PR #7 has exactly one review thread, `isResolved: true`. Zero unresolved threads. |
+
+### Delta scope check
+
+Only the claimed fixes plus two acknowledged extras, both clean:
+
+- `src/container/CurrentlyPlayingListContainer.tsx` — the previously noted uncommitted **human** edit, now committed and disclosed in the commit message: removes a commented-out `LoggerContext` import + its commented-out `useContext` line and one blank line; adds two blank lines inside the map callback. Runtime-inert; no scope creep beyond it.
+- `docs/agent-notes/wow-011-reviewer-verdict-pr1.md` — this verdict note committed (process artifact, expected).
+
+No code-behavior changes, no `backend/`, no config, no dependency, no event-string changes in the delta.
+
+### Re-verified green (run at a551c9a, clean tree)
+
+- `yarn lint` — clean (pre-existing React-version warning only).
+- `yarn test` — 48/48 across 6 files, including the renamed `renders the cauldron centerpiece`.
+
+### Nit deferrals
+
+Nits 5–7 (ClipButton root `key`, `useGrimoire` return type, `FC<PropsWithChildren>` guidelines addendum) deferred to PR 3 with rationale — consistent with the original verdict, which already scoped them to PR 3. Acceptable.
+
+### Final verdict
+
+**approve** — all four should-fixes resolved, delta is exactly the fix round plus the disclosed human comment removal, lint/test green, zero unresolved PR threads. No specialist reviews required for PR 1. Residual carried forward: simulator demo steps 1–4 still unexecuted by a reviewer (gate runner or human should run once); nits 5–7 land in PR 3.

@@ -80,3 +80,5 @@ Output:
 ### Prompt 1 — run record
 
 _Append after execution: date, executor (model/agent), branch + head SHA, outcome, note path._
+
+- 2026-07-10 — (out-of-band test REVIEW of PR 1, not the PR 3 implementation) executor: Claude Fable 5 (test-engineer subagent) — branch `feat/wow-011-frontend-sweep` @ `fcf78cc`, PR https://github.com/Amsvartner/witches-of-wubb-v2/pull/7 — verdict: **approve-with-nits** (Required: none; Recommended: util test coverage → PR 3). Note: `docs/agent-notes/wow-011-test-engineer-review.md`.

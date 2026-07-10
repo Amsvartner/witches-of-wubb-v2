@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { AbletonContext } from '~/context/AbletonProvider';
-import { ClipTypes } from 'backend/types';
+import { ClipTypes } from 'backend/type/ClipTypes';
 import { ClipDatabaseUtil } from '~/util/ClipDatabaseUtil';
 import { SpellRecipeType } from '~/type/SpellRecipeType';
 

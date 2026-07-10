@@ -13,7 +13,7 @@ Read-only reviewer for physical-installation safety. Assume the code runs unatte
 
 - `/AGENTS.md` (physical-installation safety rules)
 - `docs/HARDWARE_INTEGRATION.md`, `docs/ARCHITECTURE.md`
-- `backend/events/outgoing-events.ts`, `backend/events/incoming-events.ts`, volume-related code
+- `backend/event/OutgoingEvents.ts`, `backend/adapter/LightingAdapter.ts`, `backend/event/IncomingEvents.ts`, volume-related code
 - The diff under review
 
 ## Primary responsibilities

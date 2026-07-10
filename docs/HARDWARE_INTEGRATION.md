@@ -12,7 +12,7 @@ Status: observed from `Arduino/` sketches and backend code. **Entirely out of sc
 ## Pillars
 
 - 4 pillars, indexed 0–3 in code, 1–4 in outgoing OSC addresses.
-- Identified by static IPs: 192.168.0.101–104 (`backend/events/incoming-events.ts`).
+- Identified by static IPs: 192.168.0.101–104 (`backend/event/IncomingEvents.ts`).
 - Each has: speaker (audio path TBD — presumably per-track routing from the Ableton machine's interface), LEDs, RFID reader.
 
 ## RFID readers
@@ -53,5 +53,5 @@ Status: observed from `Arduino/` sketches and backend code. **Entirely out of sc
 - Reader loses WiFi → tags silently missed (TBD: any heartbeat?)
 - Ableton not running → backend startup fails (TBD: retry behavior)
 - Clip name mismatch CSV↔Ableton set → tag maps but nothing plays (logged warning)
-- Lighting server down → OSC sends error-logged, audio unaffected (per `outgoing-events.ts`)
+- Lighting server down → OSC sends error-logged, audio unaffected (per `LightingAdapter.ts`/`OutgoingEvents.ts`)
 - 3-minute inactivity timeout stops all clips by design — not a failure

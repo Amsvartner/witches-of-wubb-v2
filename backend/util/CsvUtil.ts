@@ -1,6 +1,8 @@
-import { ClipNameToInfoMapType, ClipTypes, RFIDToClipMapType } from '../types';
+import { ClipTypes } from '../type/ClipTypes';
+import { ClipNameToInfoMapType } from '../type/ClipNameToInfoMapType';
+import { RFIDToClipMapType } from '../type/RFIDToClipMapType';
 
-export default function ParseCSV(
+function parseCsv(
   RFIDToClipMap: RFIDToClipMapType,
   ClipNameToInfoMap: ClipNameToInfoMapType,
   row: any,
@@ -38,7 +40,7 @@ export default function ParseCSV(
   }
 }
 
-export function EnrichRecommendations(
+function enrichRecommendations(
   RFIDToClipMap: RFIDToClipMapType,
   ClipNameToInfoMap: ClipNameToInfoMapType,
   csv: any[],
@@ -82,3 +84,8 @@ export function EnrichRecommendations(
     recommendedClips,
   };
 }
+
+export const CsvUtil = {
+  parseCsv,
+  enrichRecommendations,
+};

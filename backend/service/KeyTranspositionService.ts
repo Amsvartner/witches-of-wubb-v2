@@ -1,4 +1,4 @@
-export const transpositions: { [key: string]: { [key: string]: number } } = {
+const TRANSPOSITIONS: { [key: string]: { [key: string]: number } } = {
   '6B': {
     // Bb Major
     '8B': 2,
@@ -337,4 +337,8 @@ export const transpositions: { [key: string]: { [key: string]: number } } = {
     '3A': -1,
     '5A': 1,
   },
+};
+
+export const KeyTranspositionService = {
+  TRANSPOSITIONS,
 };

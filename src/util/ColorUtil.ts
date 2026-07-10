@@ -1,4 +1,4 @@
-import { ClipTypes } from 'backend/types';
+import { ClipTypes } from 'backend/type/ClipTypes';
 
 const getBackgroundColorFromType = (type?: ClipTypes | string): string => {
   let className = 'bg-white';

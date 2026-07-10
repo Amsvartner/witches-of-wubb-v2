@@ -47,3 +47,5 @@ Output:
 ### Prompt 1 — run record
 
 _Append after execution: date, executor (model/agent), branch + head SHA, verdict, note path._
+
+- 2026-07-10 — executor: Claude Fable 5 (hardware-safety-reviewer subagent) — branch `feat/wow-011-backend-sweep` @ `5b4ef0d`, PR https://github.com/Amsvartner/witches-of-wubb-v2/pull/8 — **approve** (volume/lighting/IP-map/emission-surface/startup all verified identical; no safety findings). Note: `docs/agent-notes/wow-011-hardware-safety-reviewer-signoff.md`.

@@ -3,6 +3,8 @@
 Ticket: WOW-004 — UI audit report (read-only)
 Role profile: `.claude/agents/reviewer.md` (read first, plus `AGENTS.md` in full). Read-only — no edits to anything except your verdict note.
 
+Regenerated 2026-07-11 against the post-WOW-011 tree (see the frontend-ui-designer prompt file header for the mapping). Supersedes the 2026-07-10 version.
+
 ## Prompt 1 — review the audit diff
 
 Goal:
@@ -28,10 +30,12 @@ Acceptance criteria to verify (verbatim from ticket):
 
 - Every file in `src/components|contexts|hooks` covered; recipe-removal blast radius listed; issues tagged severity; no fixes made.
 
+> Migration note (annotation, not a change of criteria): post-WOW-011 these directories correspond to `src/component|container|context|hook|screen`; "every file" = the 19-file non-test inventory listed in the frontend-ui-designer prompt file.
+
 Review checklist (ticket-specific):
 
 1. **Diff purity (blocking)**: `git diff main...HEAD --stat` shows only `docs/UI_AUDIT.md`, `docs/agent-notes/wow-004-*.md`, and run-record appends to `docs/agent-prompts/wow-004-*.md`. Any `src/**`, `backend/**`, `Arduino/**`, CSV, or `.env` change is an automatic block ("no fixes made" is an acceptance criterion).
-2. **Coverage**: all 6 components + 3 contexts + 1 hook have substantive sections (spot-check at least three against the actual source for accuracy, not just presence).
+2. **Coverage**: all 19 inventory files (1 component, 6 containers, 10 context files incl. `context/hook|type|util`, 1 hook, 1 screen — list in the frontend-ui-designer prompt file) have substantive sections (spot-check at least three against the actual source for accuracy, not just presence).
 3. **Severity tags** on every issue, with file:line evidence; display-target (1024×1280 portrait touch) assessment present; a11y findings present.
 4. **Recipe-removal blast radius** section present and consistent with the architecture-reviewer's independent trace.
 5. **Visitor/operator inventory** present and complete per ADR-003.

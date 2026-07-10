@@ -58,8 +58,7 @@ Forbidden scope:
 Required tests/checks:
 
 - May run `yarn dev` (UI only) and `yarn test`; `yarn lint` before handoff (the audit adds no lintable files, but the tree must stay green).
-- `git diff --stat` must show only the two allowed docs files.
-
+- `git diff --stat` must show only `docs/UI_AUDIT.md`, `docs/agent-notes/wow-004-frontend-ui-designer-audit.md`, and the run-record append to `docs/agent-prompts/wow-004-frontend-ui-designer-prompts.md`.
 Hardware/audio/LED/RFID safety notes:
 
 - **Never run `yarn start-backend`** (connects to live Ableton + lighting). The simulator (`yarn sim`) is the only backend you may run.

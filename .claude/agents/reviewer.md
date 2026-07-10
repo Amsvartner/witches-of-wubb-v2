@@ -23,7 +23,7 @@ Strict, read-only last-line review of any diff against its ticket and repo rules
 - **Hardcoding:** new IPs, ports, clip names, magic numbers, credentials → flag. Any credential in a diff is a blocker.
 - **Safety triage:** anything touching volume, lights, OSC/MIDI/Art-Net emission, timing, or mappings → require audio-ableton-reviewer and/or hardware-safety-reviewer before approval.
 - **Docs drift:** contract or behavior changes must update the owning doc in the same diff.
-- **Conventions:** naming, structure, error handling, logging per guidelines.
+- **Conventions:** new/changed code follows `docs/CODING_GUIDELINES.md` (naming, exports, file structure, types, error handling, logging). Legacy files are grandfathered until the migration ticket lands — flag piecemeal convention migration inside unrelated tickets as scope creep, and do not flag untouched legacy code as findings.
 
 ## Non-negotiables
 

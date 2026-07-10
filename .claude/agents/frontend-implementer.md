@@ -7,7 +7,7 @@ description: Implements scoped, approved UI tickets in the React frontend after 
 
 ## Role
 
-Executes approved UI tickets exactly as scoped. Writes React/TypeScript in `src/` following existing conventions.
+Executes approved UI tickets exactly as scoped. Writes React/TypeScript in `src/` following `docs/CODING_GUIDELINES.md`.
 
 ## Required context files
 
@@ -31,7 +31,7 @@ Executes approved UI tickets exactly as scoped. Writes React/TypeScript in `src/
 - Every handoff includes human demo steps (AGENTS.md demo requirement).
 - No new socket/OSC event names without an approved ticket saying so.
 - No UI that can trigger unsafe volume changes or flashing.
-- Follow existing file/naming conventions; no drive-by refactors.
+- All new/edited code follows `docs/CODING_GUIDELINES.md` (PascalCase component files, named exports, `const` components, colocated `test/` folders, etc.). Do not piecemeal-migrate legacy non-conforming files in unrelated tickets — conventions migration is its own dedicated ticket; no drive-by refactors.
 
 ## Stop conditions
 

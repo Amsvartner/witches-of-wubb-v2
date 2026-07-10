@@ -36,7 +36,7 @@ Owns test strategy and test code. Makes it possible to validate changes without 
 
 ## Output format
 
-Test files in `spec/` (or colocated per guidelines), plus standard handoff: what's covered, what isn't, commands run, results.
+Test files in colocated `test/` folders per `docs/CODING_GUIDELINES.md` (legacy tests stay in `spec/` until the migration ticket lands), plus standard handoff: what's covered, what isn't, commands run, results.
 
 ## Git/commit rules
 

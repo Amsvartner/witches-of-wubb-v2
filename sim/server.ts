@@ -40,14 +40,24 @@ if (!scenario) {
   process.exit(1);
 }
 
+// Demo aid: the real 3m/30s idle timeout (backend/ableton-api.ts:19-20) can
+// be shortened to see timeout_warning quickly. Invalid values are ignored
+// with a warning so a typo can't produce 0ms/NaN timers.
+function envMs(name: string): number | undefined {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return undefined;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) {
+    console.warn(`[sim] Ignoring ${name}="${raw}" — must be a positive number of milliseconds`);
+    return undefined;
+  }
+  return value;
+}
+
 const simulator = new Simulator({
   database,
-  // Demo aid: the real 3m/30s idle timeout (backend/ableton-api.ts:19-20) can
-  // be shortened to see timeout_warning quickly.
-  timeoutMs: process.env.SIM_TIMEOUT_MS ? Number(process.env.SIM_TIMEOUT_MS) : undefined,
-  timeoutWarningMs: process.env.SIM_TIMEOUT_WARNING_MS
-    ? Number(process.env.SIM_TIMEOUT_WARNING_MS)
-    : undefined,
+  timeoutMs: envMs('SIM_TIMEOUT_MS'),
+  timeoutWarningMs: envMs('SIM_TIMEOUT_WARNING_MS'),
   logger: {
     info: (message) => log(message),
     warn: (message) => log(`WARN ${message}`),

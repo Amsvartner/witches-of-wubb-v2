@@ -53,6 +53,16 @@ type ClipSlot = BrowserClipInfo | null;
 
 const normalizeClipName = (clipName: string) => clipName.replace(/[* ]/g, '');
 
+const positiveOrDefault = (value: number | undefined, fallback: number) =>
+  value !== undefined && Number.isFinite(value) && value > 0 ? value : fallback;
+
+// The real backend derives the pillar from the RFID reader's source IP, so it
+// can never see an out-of-range index; a websocket client can send anything.
+// Guard so bad input can't stretch the fixed 4-slot state arrays and break
+// the BrowserClipInfoList/TrackVolumesType ack shapes.
+const isValidPillar = (pillar: number) =>
+  Number.isInteger(pillar) && pillar >= 0 && pillar < PILLAR_COUNT;
+
 export class Simulator {
   private readonly database: MusicDatabase;
   private readonly logger: SimulatorLogger;
@@ -78,9 +88,19 @@ export class Simulator {
     this.logger = options.logger ?? console;
     this.tempo = options.initialTempo ?? 120;
     this.trackVolumes = options.initialTrackVolumes ?? new Array(PILLAR_COUNT).fill(0.6);
-    this.phraseLengthMs = options.phraseLengthMs ?? 8000;
-    this.timeoutMs = options.timeoutMs ?? TIMEOUT_IN_MILISECONDS;
-    this.timeoutWarningMs = options.timeoutWarningMs ?? TIMEOUT_WARNING_IN_MILISECONDS;
+    this.phraseLengthMs = positiveOrDefault(options.phraseLengthMs, 8000);
+    this.timeoutMs = positiveOrDefault(options.timeoutMs, TIMEOUT_IN_MILISECONDS);
+    this.timeoutWarningMs = positiveOrDefault(
+      options.timeoutWarningMs,
+      TIMEOUT_WARNING_IN_MILISECONDS,
+    );
+    if (this.timeoutWarningMs >= this.timeoutMs) {
+      this.logger.warn(
+        `timeoutWarningMs (${this.timeoutWarningMs}) must be smaller than timeoutMs (${this.timeoutMs}) — using defaults`,
+      );
+      this.timeoutMs = TIMEOUT_IN_MILISECONDS;
+      this.timeoutWarningMs = TIMEOUT_WARNING_IN_MILISECONDS;
+    }
   }
 
   onEvent(listener: SimEventListener) {
@@ -154,6 +174,10 @@ export class Simulator {
   // --- Tag events (mirrors backend/events/incoming-events.ts:42-101) -------
 
   handleNewTag(data: TagDetectionData) {
+    if (!isValidPillar(data.pillar)) {
+      this.logger.warn(`Ignoring /new/tag with invalid pillar index: ${data.pillar}`);
+      return;
+    }
     const requestAddress = getPillarIPAddressFromIndex(data.pillar);
     this.logger.info(`New tag detected with ${data.rfid} from machine: ${requestAddress}`);
     const clipMetadata = this.database.rfidToClipMap[data.rfid];
@@ -174,6 +198,10 @@ export class Simulator {
   }
 
   handleDepartedTag(data: TagDetectionData) {
+    if (!isValidPillar(data.pillar)) {
+      this.logger.warn(`Ignoring /departed/tag with invalid pillar index: ${data.pillar}`);
+      return;
+    }
     const requestAddress = getPillarIPAddressFromIndex(data.pillar);
     this.logger.info(`Departed tag detected with ${data.rfid} from machine: ${requestAddress}`);
     const clipMetadata = this.database.rfidToClipMap[data.rfid];
@@ -340,6 +368,10 @@ export class Simulator {
   // Fire-and-forget in the real contract — no ack callback
   // (backend/events/incoming-events.ts:164).
   setTrackVolume({ pillar, volume }: SetTrackVolumeInputType) {
+    if (!isValidPillar(pillar)) {
+      this.logger.warn(`Ignoring set_track_volume with invalid pillar index: ${pillar}`);
+      return;
+    }
     this.logger.info(`Setting volume for pillar ${pillar + 1} to ${volume}`);
     this.trackVolumes[pillar] = volume;
     this.emit('volume_changed', { pillar, volume });

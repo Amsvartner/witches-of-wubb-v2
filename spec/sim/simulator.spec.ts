@@ -140,6 +140,18 @@ describe('Simulator', () => {
       });
     });
 
+    it('ignores out-of-range pillar indices without stretching the 4-slot state', () => {
+      [-1, 4, 7, 1.5, NaN].forEach((pillar) => {
+        simulator.handleNewTag({ rfid: drums.rfid, pillar });
+        simulator.handleDepartedTag({ rfid: drums.rfid, pillar });
+        simulator.setTrackVolume({ pillar, volume: 0.5 });
+      });
+      expect(events).toEqual([]);
+      expect(simulator.getPlayingClips()).toHaveLength(4);
+      expect(simulator.getQueuedClips()).toHaveLength(4);
+      expect(simulator.getTrackVolumes()).toEqual([0.6, 0.6, 0.6, 0.6]);
+    });
+
     it('ignores unknown RFIDs without crashing or emitting', () => {
       simulator.handleNewTag({ rfid: 'not-a-real-tag', pillar: 0 });
       expect(events).toEqual([]);
@@ -250,6 +262,26 @@ describe('Simulator', () => {
       events = [];
       vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS * 2);
       expect(events).toEqual([]);
+    });
+
+    it('falls back to the real defaults when configured with warning >= timeout', () => {
+      const misconfigured = new Simulator({
+        database,
+        timeoutMs: 1000,
+        timeoutWarningMs: 5000,
+        logger: silentLogger,
+      });
+      const misconfiguredEvents: SimEmittedEvent[] = [];
+      misconfigured.onEvent((event) => misconfiguredEvents.push(event));
+      misconfigured.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      misconfiguredEvents.length = 0;
+
+      // No immediate/near-immediate warning from a negative delay
+      vi.advanceTimersByTime(60 * 1000);
+      expect(misconfiguredEvents).toEqual([]);
+      vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS - 60 * 1000);
+      expect(misconfiguredEvents.map((e) => e.eventName)).toEqual(['timeout_warning']);
+      misconfigured.dispose();
     });
 
     it('is pushed back by new activity', () => {

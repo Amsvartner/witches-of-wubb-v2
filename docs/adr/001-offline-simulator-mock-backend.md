@@ -35,9 +35,9 @@ Status: **accepted — human approved 2026-07-10** (as drafted, plus three desig
 
 ### Context
 
-The mock backend approximates exactly the behaviors only a live Ableton set can produce: quantized `clip_started` timing, phrase-leader/loop-end queue triggering, transposition/key-lock, warp-marker BPM. The real backend already accepts simulated hardware: `/new/tag` and `/departed/tag` have first-class **websocket** handlers (`backend/events/incoming-events.ts:42-65`, used today by the hidden debug panel), with the pillar index mapped back through the pillar-IP table. Only tooling, documentation, and guardrails are missing.
+The behaviors the mock backend can only approximate are precisely the ones a live Ableton set produces: quantized `clip_started` timing, phrase-leader/loop-end queue triggering, transposition/key-lock, warp-marker BPM. The real backend already accepts simulated hardware: `/new/tag` and `/departed/tag` have first-class **websocket** handlers (`backend/events/incoming-events.ts:42-65`, used today by the hidden debug panel), with the pillar index mapped back through the pillar-IP table. Only tooling, documentation, and guardrails are missing.
 
-### Decision (proposed)
+### Decision
 
 Define two simulation tiers:
 
@@ -54,7 +54,7 @@ Design decisions (human, 2026-07-10):
 
 - `yarn start-backend` remains a live-hardware command: **agents never run it**; `yarn sim:tags` is inert without it and is itself safe to run (it only emits tag events to localhost:3335).
 - Tier 2 sessions use a local Ableton set on a dev machine — never the installation machine; real volume is in play (`SetTrackVolume(pillar, 0.6)` on clip start).
-- Precondition: `.env` `LIGHTING_SERVER_ADDRESS` must point at localhost — the backend emits OSC to it unconditionally on every event (`backend/events/outgoing-events.ts:7`).
+- Precondition: `.env` `LIGHTING_SERVER_ADDRESS` must point at localhost — every emitted event goes through `Emit`, which calls `SendOSCMessage` toward the lighting address unconditionally (`backend/events/outgoing-events.ts:21-32`; client constructed at `:5-7`).
 - Known exposure to note in the runbook: the backend's OSC server binds `0.0.0.0:9000` (`backend/index.ts`), so the dev machine is reachable on its LAN while tier 2 runs.
 
 ### Scope carve-out

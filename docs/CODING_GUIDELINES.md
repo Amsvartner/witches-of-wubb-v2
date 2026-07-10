@@ -103,7 +103,7 @@ socket.emit('clip-queued', toClipLabel(getClipFromRfid(tag)));
 
 ### Imports
 
-- Combine value and type imports from the same module into one declaration: `import { queueClip, type ClipMetadata } from 'backend/type/ClipMetadata';`
+- Combine value and type imports from the same module into one declaration: `import { TempoSlider, type TempoSliderProps } from '~/component/TempoSlider';`
 - Side-effect imports stay separate.
 - Import only the named React exports you use; do not import the React namespace.
 - Path aliases: `~/` → `src/`; `backend/` is importable from frontend and sim.
@@ -206,7 +206,7 @@ The simulator implements the same event contract as the real backend. Sim-only c
 
 ## Error handling and logging
 
-- Backend: pino (`backend/util/logger.ts`). Levels: `trace` chatty OSC traffic, `info` lifecycle, `warn` recoverable, `error` failures. Wrap RFID/Ableton lookups in try/catch and log rather than crash — the installation must keep running.
+- Backend: pino (`backend/utils/logger.ts`; becomes `backend/util/logger.ts` when the migration lands). Levels: `trace` chatty OSC traffic, `info` lifecycle, `warn` recoverable, `error` failures. Wrap RFID/Ableton lookups in try/catch and log rather than crash — the installation must keep running.
 - Frontend: js-logger via the logger provider. No `console.log` in committed code.
 - Represent expected failures explicitly with discriminated-union results rather than thrown strings:
 

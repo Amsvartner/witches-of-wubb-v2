@@ -75,10 +75,6 @@ export const CurrentlyPlayingListContainer = (): JSX.Element => {
                     <VolumeSliderContainer pillar={index} />
                   </div>
                 ) : null}
-                {/* {playing || queued ? (
-                  ) : (
-                    <div className="w-full h-full object-cover rounded-md border border-1"></div>
-                  )} */}
               </div>
               {index % 2 === 0 ? (
                 <div className='grid grid-cols-4'>

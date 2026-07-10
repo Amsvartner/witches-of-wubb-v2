@@ -1,14 +1,15 @@
 import { ClipTypes } from '../type/ClipTypes';
+import { ClipMetadataType } from '../type/ClipMetadataType';
 import { ClipNameToInfoMapType } from '../type/ClipNameToInfoMapType';
+import { CsvRow } from '../type/CsvRow';
 import { RFIDToClipMapType } from '../type/RFIDToClipMapType';
 
 function parseCsv(
   RFIDToClipMap: RFIDToClipMapType,
   ClipNameToInfoMap: ClipNameToInfoMapType,
-  row: any,
+  row: CsvRow,
 ) {
   const rfid = row['RFID'];
-  // const rfid = String(row['Asset ID']);
   const clipName = String(row['Clip Name']);
   const type = row['Clip Type (e.g. Vocals)'] as ClipTypes;
   const assetName = String(row['Icon / Asset Name']);
@@ -16,7 +17,6 @@ function parseCsv(
   const songTitle = String(row['Song Title']);
   const ingredientName = String(row['Ingredient Name / Description']);
   const key = String(row['Key']);
-  // console.log(recommendedClips);
 
   if (clipName?.trim() && rfid?.trim()) {
     RFIDToClipMap[rfid] = {
@@ -43,29 +43,33 @@ function parseCsv(
 function enrichRecommendations(
   RFIDToClipMap: RFIDToClipMapType,
   ClipNameToInfoMap: ClipNameToInfoMapType,
-  csv: any[],
-  row: any,
+  csv: CsvRow[],
+  row: CsvRow,
 ) {
   const keyHeader = 'Key Numerical';
-  // const bpmHeader = 'BPM';
   const clipNameHeader = 'Clip Name';
 
   const rfid = row['RFID'];
   const clipName = String(row[clipNameHeader]);
 
   const recommendedClips = csv
-    .filter((compRow: any) => {
+    .filter((compRow: CsvRow) => {
+      // The CSV values are strings; the original arithmetic relies on JS
+      // string-to-number coercion, so the casts below are type-only.
       return (
-        Math.abs(compRow[keyHeader] - row[keyHeader]) <= 1 &&
-        compRow[clipNameHeader] !== row[clipNameHeader]
-        // && Math.abs(compRow[bpmHeader] - row[bpmHeader]) <= 20
+        Math.abs(
+          (compRow[keyHeader] as unknown as number) - (row[keyHeader] as unknown as number),
+        ) <= 1 && compRow[clipNameHeader] !== row[clipNameHeader]
       );
     })
-    .map((row: any) => ({
-      ...RFIDToClipMap[row['RFID']],
-      rfid: row['RFID'],
-    }))
-    .reduce((acc: any, curr: any) => {
+    .map(
+      (row: CsvRow) =>
+        ({
+          ...RFIDToClipMap[row['RFID']],
+          rfid: row['RFID'],
+        } as ClipMetadataType),
+    )
+    .reduce((acc: Record<string, ClipMetadataType[]>, curr: ClipMetadataType) => {
       if (acc[curr.type]) {
         acc[curr.type].push(curr);
       } else {

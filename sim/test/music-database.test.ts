@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
-import { ClipTypes, buildMusicDatabase, getPillarIPAddressFromIndex } from '../../sim/core';
+import { ClipTypes, buildMusicDatabase, getPillarIPAddressFromIndex } from '../core';
 
 const csvText = fs.readFileSync(
   path.join(process.cwd(), 'src', 'assets', 'Music Database.csv'),

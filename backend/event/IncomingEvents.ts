@@ -23,8 +23,15 @@ function getPillarIPAddressFromIndex(index: number) {
   return Object.entries(IP_ADDRESS_TO_PILLAR_INDEX_MAP).find(([_, i]) => i === index)?.[0] ?? '';
 }
 
+type IncomingEventSpec = {
+  osc: boolean;
+  websocket: boolean;
+  oscHandler: (message: [string, ...ArgumentType[]], rinfo: RequestInfo) => void;
+  wsHandler: (data: TagDetectionData) => void;
+};
+
 // This is a list of incoming events, their source, and their handlers
-const incomingEvents: { [key: string]: any } = {
+const incomingEvents: { [key: string]: IncomingEventSpec } = {
   '/new/tag': {
     osc: true,
     websocket: true,

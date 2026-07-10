@@ -9,8 +9,8 @@ The rework mandate covers UI design and new frontend functionality. The `backend
 
 ## Decision
 
-- All work in this phase is **frontend-only** (`src/`, `spec/`, plus the simulator from ADR-001 in `sim/`).
-- `backend/` and `Arduino/` stay in the repo but are **read-only** this phase; the frontend keeps importing `backend/types`.
+- All work in this phase is **frontend-only** (`src/` incl. colocated `test/` folders, plus the simulator from ADR-001 in `sim/`).
+- `backend/` and `Arduino/` stay in the repo but are **read-only** this phase (one-time exception: the WOW-011 conventions migration, AGENTS.md v0.4); the frontend keeps importing from `backend/type/`.
 - Definition of done: the UI works frontend-side and **sends the correct API calls** (existing socket.io contract). Verification via simulator and mocked-socket tests only.
 - Volume ceiling is enforced on hardware, not in software; the UI keeps a plain volume slider.
 

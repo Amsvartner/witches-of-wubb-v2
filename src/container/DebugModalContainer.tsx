@@ -25,18 +25,8 @@ export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX
   const { playingClips, queuedClips, stoppingClips } = useContext(AbletonContext);
 
   function toggleSong(rfid: string, pillar: number, start: boolean) {
-    // for (let i = 0; i < 4; i++) {
-    //   if (start) {
-    //     socket.emit('/new/tag', { rfid, pillar: i });
-    //   } else {
-    //     socket.emit('/departed/tag', { rfid, pillar: i });
-    //   }
-    // }
     if (start) {
       socket.emit('/new/tag', { rfid, pillar });
-      // setTimeout(() => {
-      //   socket.emit('/departed/tag', { rfid, pillar });
-      // }, 100);
     } else {
       socket.emit('/departed/tag', { rfid, pillar });
     }
@@ -54,15 +44,6 @@ export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen]);
 
-  /* <div className='absolute bottom-0 left-0 flex items-center justify-center'>
-    <button
-      type='button'
-      onClick={openModal}
-      className='rounded-md bg-blue-500 px-4 py-2 text-sm font-medium text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75'
-    >
-      Open debug
-    </button>
-  </div> */
   return (
     <Transition appear show={isModalOpen} as={Fragment}>
       <Dialog as='div' className='relative z-10' onClose={closeModal}>
@@ -92,7 +73,6 @@ export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX
               <Dialog.Panel className='w-screen max-w-xxl transform rounded-md bg-white text-black text-left align-middle shadow-xl transition-all'>
                 <div className='overflow-scroll max-h-[calc(100vh-4rem)]'>
                   <div className='grid gap-8 grid-flow-col'>
-                    {/* <div className='grid grid-flow-col gap-8 auto-cols-max px-6 w-full max-w-screen max-h-[calc(100vh-8rem)] overflow-scroll'> */}
                     {[1, 2, 3, 4].map((pillar, index) => {
                       const stopping = Boolean(stoppingClips[index]?.clipName);
                       const playingClip = stoppingClips[index] ?? playingClips[index];

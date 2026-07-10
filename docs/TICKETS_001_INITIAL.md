@@ -136,3 +136,21 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 - Summary: Await human's feature list (PRD "Candidate features").
 - Dependencies: PRD confirmation.
 - Stop conditions: Features not confirmed by human.
+
+---
+
+- ID: WOW-012
+- Title: Fix `findIndex` truthiness bug in `ingredient_removed` handler
+- Summary: Pre-existing bug surfaced by Copilot review on WOW-011 PR 3 (thread on `src/context/AbletonProvider.tsx` `ingredient_removed`): the `else if (queuedClips.findIndex(...))` branch treats `findIndex`'s return as a boolean — `-1` (not found) is truthy and `0` (found at index 0) is falsy, so the queued-clip cleanup fires/skips incorrectly. Out of scope for WOW-011 (zero-behavior-change constraint); fix is `> -1` like the sibling branch, plus a mocked-socket test covering both edge cases.
+- Allowed files: `src/context/AbletonProvider.tsx`, `src/context/test/**`
+- Risk: low (isolated conditional; UI state only, no backend/hardware path)
+- Dependencies: WOW-011 stack merged.
+
+---
+
+- ID: WOW-013
+- Title: Harden sim import-guard against side-effect imports
+- Summary: The import-guard regex in `sim/test/import-guard.test.ts` matches `import ... from '<mod>'` but not bare side-effect imports (`import 'node-osc'`), which today fail the suite only indirectly via module resolution. Extend the regex to catch side-effect imports (and `require(...)`), with a bite-proof documented in the test. Found during WOW-011 PR 3 bite-proofing (`docs/agent-notes/wow-011-test-engineer-enforcement.md`).
+- Allowed files: `sim/test/import-guard.test.ts`
+- Risk: low (test-only)
+- Dependencies: WOW-011 stack merged.

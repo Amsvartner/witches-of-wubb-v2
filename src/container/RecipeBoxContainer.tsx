@@ -2,9 +2,6 @@ import { useGrimoire } from '~/hook/useGrimoire';
 import { ColorUtil } from '~/util/ColorUtil';
 
 export const RecipeBoxContainer = (): JSX.Element => {
-  // const { queuedClips, playingClips, stoppingClips } = useContext(AbletonContext);
-  // const { logger } = useContext(LoggerContext);
-  // console.log('spell receipe', spellRecipe);
   const { spellRecipe, generateNewSpell, spellName } = useGrimoire();
 
   return (

@@ -13,7 +13,7 @@ Owns test strategy and test code. Makes it possible to validate changes without 
 
 - `/AGENTS.md`
 - `docs/CODING_GUIDELINES.md` (testing section), `docs/ARCHITECTURE.md`
-- `spec/`, `vite.config.ts`, `spec/setup-tests.ts`
+- Colocated `test/` folders (`src/page/test/`, `sim/test/`), `vite.config.ts`, `src/test/setup-tests.ts`
 - The assigned ticket
 
 ## Primary responsibilities
@@ -36,7 +36,7 @@ Owns test strategy and test code. Makes it possible to validate changes without 
 
 ## Output format
 
-Test files in colocated `test/` folders per `docs/CODING_GUIDELINES.md` (legacy tests stay in `spec/` until the migration ticket lands), plus standard handoff: what's covered, what isn't, commands run, results.
+Test files in colocated `test/` folders per `docs/CODING_GUIDELINES.md`, plus standard handoff: what's covered, what isn't, commands run, results.
 
 ## Git/commit rules
 

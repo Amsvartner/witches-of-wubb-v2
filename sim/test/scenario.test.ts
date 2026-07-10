@@ -11,7 +11,7 @@ import {
   buildScenarios,
   pickScenarioIngredients,
   runScenario,
-} from '../../sim/core';
+} from '../core';
 
 const csvText = fs.readFileSync(
   path.join(process.cwd(), 'src', 'assets', 'Music Database.csv'),

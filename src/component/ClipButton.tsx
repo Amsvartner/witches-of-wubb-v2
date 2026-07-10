@@ -20,7 +20,6 @@ export const ClipButton = ({
     'text-red-600 animate-pulse': stopping,
     'text-green-600': playing && !stopping,
     'text-green-500 animate-pulse': queued,
-    // 'text-sm': !loopLeader,
     'gap-4': true,
   });
 

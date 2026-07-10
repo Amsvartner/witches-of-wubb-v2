@@ -46,7 +46,7 @@ const SPELL_NAMES = [
   'Flower Shower',
 ];
 
-const chooseRandomElementFrom = (array: any[]) => {
+const chooseRandomElementFrom = <T>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)];
 };
 

@@ -1,7 +1,7 @@
 # 001. Offline simulator as standalone mock backend with shared core module
 
 Date: 2026-07-09
-Status: accepted (amended 2026-07-09: shared-module structure added after revisiting; amendment proposed 2026-07-10: hardware-sim tier — pending human approval)
+Status: accepted (amended 2026-07-09: shared-module structure added after revisiting; amended 2026-07-10: hardware-sim tier — human approved 2026-07-10)
 
 ## Context
 
@@ -29,9 +29,9 @@ Chosen over option 2 because the backend is out of scope/read-only this phase (A
 - Drift risk vs. the real backend remains; reviewer checks contract fidelity (event names/shapes per ARCHITECTURE.md) on every sim or socket-adjacent diff.
 - One extra dev process (`sim/server.ts`) alongside `yarn dev`.
 
-## Amendment (proposed 2026-07-10): hardware-sim tier — real Ableton, simulated tags
+## Amendment (2026-07-10): hardware-sim tier — real Ableton, simulated tags
 
-Status: **proposed, pending human approval** (see WOW-010 in `docs/TICKETS_001_INITIAL.md`).
+Status: **accepted — human approved 2026-07-10** (as drafted, plus three design decisions recorded below; implementation ticket WOW-010).
 
 ### Context
 
@@ -43,6 +43,12 @@ Define two simulation tiers:
 
 - **Tier 1 — mock everything** (existing `yarn sim`): mock socket.io backend, no Ableton, no hardware. The only tier agents and CI may run. Unchanged.
 - **Tier 2 — hardware-sim** (new, human-run only): the human runs `yarn start-backend` with a **local** Ableton set; a new thin scenario client `sim/tag-client.ts` (`yarn sim:tags <scenario>`) connects to the real backend on `localhost:3335` as a socket.io client and replays the existing `sim/core` scenario scripts by emitting `/new/tag`/`/departed/tag`. Zero backend changes (ADR-004 holds); the scenario engine, CSV row selection, and scripts are reused unchanged.
+
+Design decisions (human, 2026-07-10):
+
+- **Lighting guardrail — hard abort**: the tag client reads `.env` and refuses to start when `LIGHTING_SERVER_ADDRESS` is not localhost/127.0.0.1 (the backend emits OSC to it unconditionally); override only by editing `.env`.
+- **Manual mode included**: besides scripted scenarios, `yarn sim:tags manual` offers keyboard-driven tag placement/removal per pillar for jamming against real Ableton without the UI debug panel.
+- **Fidelity-validation checklist included**: the tier-2 runbook gets a checklist that walks each documented tier-1 approximation (quantized `clip_started`, phrase-boundary queue triggering, warp-marker BPM vs. CSV BPM, key/transposition behavior) against real Ableton, recording observed behavior next to the mock's fidelity table.
 
 ### Safety rules for tier 2 (non-negotiable)
 

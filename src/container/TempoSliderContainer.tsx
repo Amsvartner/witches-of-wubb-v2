@@ -1,10 +1,11 @@
 import { useContext } from 'react';
-import { AbletonContext } from '../contexts/ableton-provider';
-// import { LoggerContext } from '../contexts/logger-provider';
+import { AbletonContext } from '~/context/AbletonProvider';
+// import { LoggerContext } from '~/context/LoggerProvider';
 
 const MIN_VALUE = 75;
 const MAX_VALUE = 155;
-export default function TempoSlider() {
+
+export const TempoSliderContainer = (): JSX.Element => {
   const { changeTempo, tempo } = useContext(AbletonContext);
   // const { logger } = useContext(LoggerContext);
 
@@ -40,4 +41,4 @@ export default function TempoSlider() {
       </div>
     </div>
   );
-}
+};

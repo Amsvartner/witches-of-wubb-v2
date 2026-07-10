@@ -64,7 +64,7 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 - ID: WOW-006
 - Title: Grimoire design proposal (visitor display + operator surface)
 - Summary: Design direction doc for the overhaul — no implementation.
-- Description: For 1024×1280 portrait touch: visitor display with **category icon + category name per pillar** (no song/picture names — PRD F3), **category legend** (F4, colors from `src/lib/utils.ts`: Vox red-700, Bass green-700, Drums blue-700, Melody yellow-700), grimoire-extension background, no recipes/spell names (F5). Operator surface: present **both** a separate-view and a full-screen-overlay concept (ADR-003 amendment; hand-rolled navigation per ADR-005) with the long-press themed element (ADR-006) — propose the element (wax seal/sigil/bookmark) and hold feedback. 2–3 palette/typography options for the artists.
+- Description: For 1024×1280 portrait touch: visitor display with **category icon + category name per pillar** (no song/picture names — PRD F3), **category legend** (F4, colors from `src/util/ColorUtil.ts`: Vox red-700, Bass green-700, Drums blue-700, Melody yellow-700), grimoire-extension background, no recipes/spell names (F5). Operator surface: present **both** a separate-view and a full-screen-overlay concept (ADR-003 amendment; hand-rolled navigation per ADR-005) with the long-press themed element (ADR-006) — propose the element (wax seal/sigil/bookmark) and hold feedback. 2–3 palette/typography options for the artists.
 - Acceptance criteria: `docs/DESIGN_PROPOSAL_001.md` with clearly marked options for human choice (page vs. overlay, palette, gesture element); consistent with UX_UI_PRINCIPLES; no code.
 - Required tests/checks: none.
 - Hardware/Ableton/LED/RFID safety notes: none (docs).

@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
-import { SocketioContext } from '../contexts/socketio-provider';
-import { LoggerContext } from './logger-provider';
+import { SocketioContext } from './SocketioProvider';
+import { LoggerContext } from './LoggerProvider';
 import { BrowserClipInfo, BrowserClipInfoList, SetTrackVolumeInputType } from 'backend/types';
 
 export const AbletonContext = createContext({
@@ -33,13 +33,15 @@ export const AbletonContext = createContext({
   changeKeylock: (keylock: boolean) => void;
 });
 
-function UpdateIndex(index: number, newValue: any, initialArray: any[]) {
+const updateIndex = (index: number, newValue: any, initialArray: any[]) => {
   const newArray = [...initialArray];
   newArray[index] = newValue;
   return newArray;
-}
+};
 
-export default function AbletonProvider({ children }: { children: ReactNode }) {
+type Props = { children: ReactNode };
+
+export const AbletonProvider = ({ children }: Props): JSX.Element => {
   const socket = useContext(SocketioContext);
   const { logger } = useContext(LoggerContext);
   const [tempo, setTempo] = useState(120);
@@ -56,14 +58,14 @@ export default function AbletonProvider({ children }: { children: ReactNode }) {
       getTracksAndClips();
 
       socket.on('ingredient_detected', (data: BrowserClipInfo) => {
-        setQueuedClips(UpdateIndex.bind(null, data.pillar, data));
+        setQueuedClips(updateIndex.bind(null, data.pillar, data));
       });
 
       socket.on('clip_queued', (data: BrowserClipInfo) => {
-        setQueuedClips(UpdateIndex.bind(null, data.pillar, data));
+        setQueuedClips(updateIndex.bind(null, data.pillar, data));
       });
       socket.on('clip_unqueued', (data: BrowserClipInfo) => {
-        setQueuedClips(UpdateIndex.bind(null, data.pillar, null));
+        setQueuedClips(updateIndex.bind(null, data.pillar, null));
       });
 
       socket.on('clip_started', handlePlayingState);
@@ -72,26 +74,26 @@ export default function AbletonProvider({ children }: { children: ReactNode }) {
 
       socket.on('ingredient_removed', (data: BrowserClipInfo) => {
         if (playingClips.findIndex((item) => item?.clipName === data.clipName) > -1) {
-          setPlayingClips(UpdateIndex.bind(null, data.pillar, null));
-          setStoppingClips(UpdateIndex.bind(null, data.pillar, data));
+          setPlayingClips(updateIndex.bind(null, data.pillar, null));
+          setStoppingClips(updateIndex.bind(null, data.pillar, data));
         } else if (queuedClips.findIndex((item) => item?.clipName === data.clipName)) {
-          setQueuedClips(UpdateIndex.bind(null, data.pillar, null));
+          setQueuedClips(updateIndex.bind(null, data.pillar, null));
         }
       });
       socket.on('clip_stopping', (data: BrowserClipInfo) => {
-        setPlayingClips(UpdateIndex.bind(null, data.pillar, null));
-        setStoppingClips(UpdateIndex.bind(null, data.pillar, data));
+        setPlayingClips(updateIndex.bind(null, data.pillar, null));
+        setStoppingClips(updateIndex.bind(null, data.pillar, data));
       });
       socket.on('clip_stopped', ({ pillar }: { pillar: number }) => {
-        setClipTempo(UpdateIndex.bind(null, pillar, null));
-        setPlayingClips(UpdateIndex.bind(null, pillar, null));
-        setStoppingClips(UpdateIndex.bind(null, pillar, null));
+        setClipTempo(updateIndex.bind(null, pillar, null));
+        setPlayingClips(updateIndex.bind(null, pillar, null));
+        setStoppingClips(updateIndex.bind(null, pillar, null));
       });
       socket.on('tempo_changed', ({ tempo }: { tempo: number }) => {
         setTempo(tempo);
       });
       socket.on('volume_changed', (data: SetTrackVolumeInputType) => {
-        setTrackVolume(UpdateIndex.bind(null, data.pillar, data.volume));
+        setTrackVolume(updateIndex.bind(null, data.pillar, data.volume));
       });
       socket.on('master-key_changed', ({ key }: { key: string }) => {
         setMasterKey(key);
@@ -136,10 +138,10 @@ export default function AbletonProvider({ children }: { children: ReactNode }) {
   }
 
   function handlePlayingState(data: BrowserClipInfo) {
-    setClipTempo(UpdateIndex.bind(null, data.pillar, data.bpm));
-    setPlayingClips(UpdateIndex.bind(null, data.pillar, data));
-    setQueuedClips(UpdateIndex.bind(null, data.pillar, null));
-    setStoppingClips(UpdateIndex.bind(null, data.pillar, null));
+    setClipTempo(updateIndex.bind(null, data.pillar, data.bpm));
+    setPlayingClips(updateIndex.bind(null, data.pillar, data));
+    setQueuedClips(updateIndex.bind(null, data.pillar, null));
+    setStoppingClips(updateIndex.bind(null, data.pillar, null));
   }
 
   function changeMasterKey(key: string) {
@@ -174,4 +176,4 @@ export default function AbletonProvider({ children }: { children: ReactNode }) {
       {children}
     </AbletonContext.Provider>
   );
-}
+};

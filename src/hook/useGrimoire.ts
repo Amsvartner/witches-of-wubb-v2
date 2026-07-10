@@ -1,9 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
-import { AbletonContext } from '../contexts/ableton-provider';
-import { ClipTypes, ClipMetadataType } from 'backend/types';
-import { RFIDToClipMap } from '~/lib/database-output';
-
-export type SpellRecipeType = { [key: string]: ClipMetadataType };
+import { AbletonContext } from '~/context/AbletonProvider';
+import { ClipTypes } from 'backend/types';
+import { ClipDatabaseUtil } from '~/util/ClipDatabaseUtil';
+import { SpellRecipeType } from '~/type/SpellRecipeType';
 
 const SPELL_NAMES = [
   'Dancing Unicorn Vibez',
@@ -47,11 +46,11 @@ const SPELL_NAMES = [
   'Flower Shower',
 ];
 
-function ChooseRandomElementFrom(array: any[]) {
+const chooseRandomElementFrom = (array: any[]) => {
   return array[Math.floor(Math.random() * array.length)];
-}
+};
 
-export default function useGrimoire() {
+export const useGrimoire = () => {
   const { playingClips } = useContext(AbletonContext);
   const [spellRecipe, setSpellRecipe] = useState<SpellRecipeType>({});
   const [spellName, setSpellName] = useState<string>('');
@@ -59,16 +58,16 @@ export default function useGrimoire() {
     .filter((clip) => clip)
     .map((clip) => {
       if (clip) {
-        return RFIDToClipMap[clip.rfid];
+        return ClipDatabaseUtil.rfidToClipMap[clip.rfid];
       }
       return clip;
     });
 
   function generateNewSpellName() {
     setSpellName((name) => {
-      let newName = ChooseRandomElementFrom(SPELL_NAMES);
+      let newName = chooseRandomElementFrom(SPELL_NAMES);
       while (newName === name) {
-        newName = ChooseRandomElementFrom(SPELL_NAMES);
+        newName = chooseRandomElementFrom(SPELL_NAMES);
       }
       return newName;
     });
@@ -77,9 +76,9 @@ export default function useGrimoire() {
   function generateNewSpell() {
     let randomClip;
     if (actuallyPlayingClips.length) {
-      randomClip = ChooseRandomElementFrom(actuallyPlayingClips);
+      randomClip = chooseRandomElementFrom(actuallyPlayingClips);
     } else {
-      randomClip = ChooseRandomElementFrom(Object.values(RFIDToClipMap));
+      randomClip = chooseRandomElementFrom(Object.values(ClipDatabaseUtil.rfidToClipMap));
     }
 
     const newSpell = {} as SpellRecipeType;
@@ -102,4 +101,4 @@ export default function useGrimoire() {
   }, [actuallyPlayingClips.length]);
 
   return { spellRecipe, spellName, generateNewSpell };
-}
+};

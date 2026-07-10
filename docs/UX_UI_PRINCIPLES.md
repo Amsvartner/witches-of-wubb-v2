@@ -18,8 +18,8 @@ Principles for the UI rework. These are working principles, not visual identity 
 ## Confirmed design direction (2026-07-09)
 
 - Complete visual overhaul; **witchy/occult theme stays**; background = extension of the physical grimoire.
-- Recipe suggestions AND random spell names removed entirely (`use-grimoire` goes).
-- Visitor display is **category-centric**: per-pillar category icon + category name (no song/picture names), plus a category legend. Category colors come from `src/lib/utils.ts`: Vox red, Bass green, Drums blue, Melody yellow (Tailwind -700 shades).
+- Recipe suggestions AND random spell names removed entirely (`useGrimoire` goes).
+- Visitor display is **category-centric**: per-pillar category icon + category name (no song/picture names), plus a category legend. Category colors come from `src/util/ColorUtil.ts`: Vox red, Bass green, Drums blue, Melody yellow (Tailwind -700 shades).
 - Volume stays a plain slider (hardware enforces max volume).
 - Operator access: long-press ~3 s on themed element (ADR-006); hand-rolled view switching (ADR-005).
 

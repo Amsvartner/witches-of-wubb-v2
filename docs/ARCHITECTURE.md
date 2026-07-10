@@ -25,7 +25,7 @@ Status: **observed** — documented from code reading on 2026-07-09.
 
 ### Repo layout
 
-- `src/` — React 18 + TS frontend (Vite, Tailwind). Contexts (`socketio-provider`, `ableton-provider`, `logger-provider`), components (currently-playing-list, recipe-box, key-adjuster, tempo-slider, volume-slider, debug), hook `use-grimoire`.
+- `src/` — React 18 + TS frontend (Vite, Tailwind). Contexts (`src/context/`: `SocketioProvider`, `AbletonProvider`, `LoggerProvider`), page `InstallationPage`, containers (`src/container/`: CurrentlyPlayingList, RecipeBox, KeyAdjuster, TempoSlider, VolumeSlider, DebugModal), component `ClipButton`, hook `useGrimoire`.
 - `backend/` — Node/TS (ts-node + nodemon). Own package.json/lockfile; installed via root `postinstall`.
 - `Arduino/` — firmware for RFID readers (OSC sender) and LED nodes (Art-Net receiver). Deployed to hardware; contains committed WiFi credentials.
 - `spec/` — vitest tests (currently one App smoke test).

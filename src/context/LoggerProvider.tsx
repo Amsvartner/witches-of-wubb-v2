@@ -17,20 +17,22 @@ export const LoggerContext = createContext({
   },
 });
 
-export default function LoggerProvider({ children }: { children: ReactNode }) {
-  function enableDebug() {
+type Props = { children: ReactNode };
+
+export const LoggerProvider = ({ children }: Props): JSX.Element => {
+  const enableDebug = () => {
     logger.info('Enabling debug mode');
     logger.setLevel(Logger.DEBUG);
-  }
+  };
 
-  function disableDebug() {
+  const disableDebug = () => {
     logger.info('Disabling debug mode');
     logger.setLevel(Logger.INFO);
-  }
+  };
 
   return (
     <LoggerContext.Provider value={{ logger, enableDebug, disableDebug }}>
       {children}
     </LoggerContext.Provider>
   );
-}
+};

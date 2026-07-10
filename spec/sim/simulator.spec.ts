@@ -239,6 +239,102 @@ describe('Simulator', () => {
     });
   });
 
+  describe('clip lifecycle details', () => {
+    it('exposes the queued clip through get_queued_clips with the ack field subset', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      simulator.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar });
+
+      const queued = simulator.getQueuedClips();
+      expect(queued).toHaveLength(4);
+      const metadata = database.rfidToClipMap[melody.rfid];
+      // Exact 7-field projection (backend/events/incoming-events.ts:129-147):
+      // ingredientName/key are dropped, and no live `clip` object leaks.
+      expect(queued[melody.pillar]).toEqual({
+        pillar: melody.pillar,
+        clipName: metadata.clipName,
+        type: metadata.type,
+        assetName: metadata.assetName,
+        rfid: melody.rfid,
+        artist: metadata.artist,
+        songTitle: metadata.songTitle,
+      });
+      queued.forEach((slot, pillar) => {
+        if (pillar !== melody.pillar) expect(slot).toBeNull();
+      });
+    });
+
+    it('does not emit a second clip_queued when the same clip is already queued', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      events = [];
+
+      // Mirrors the "already queued" early return (backend/ableton-api.ts:150)
+      simulator.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar });
+      simulator.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar });
+      expect(eventNames().filter((name) => name === 'clip_queued')).toHaveLength(1);
+      // ingredient_detected still fires for each physical detection
+      expect(eventNames().filter((name) => name === 'ingredient_detected')).toHaveLength(2);
+    });
+
+    it('re-triggering the clip already playing on a pillar emits clip_playing, not clip_started', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      events = [];
+
+      // Same tag placed again on its own pillar: it queues (the queue slot is
+      // empty) and at the phrase boundary restarts the same clip — the real
+      // backend's playing_slot_index handler then takes the clip_playing
+      // branch (backend/ableton-api.ts:330-331) with no volume reset.
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      expect(eventNames()).toEqual(['ingredient_detected', 'clip_queued']);
+
+      vi.advanceTimersByTime(PHRASE_LENGTH_MS);
+      expect(eventNames()).toEqual(['ingredient_detected', 'clip_queued', 'clip_playing']);
+      const playing = lastEvent('clip_playing')?.data;
+      expect(playing).toMatchObject({
+        clipName: database.rfidToClipMap[drums.rfid].clipName,
+        pillar: drums.pillar,
+        bpm: database.bpmByRfid[drums.rfid],
+      });
+      expect(simulator.getPlayingClips()[drums.pillar]).toMatchObject({ rfid: drums.rfid });
+    });
+
+    it('clip_stopping and clip_stopped carry the stopping clip metadata and no live clip object', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      events = [];
+
+      simulator.handleDepartedTag({ rfid: drums.rfid, pillar: drums.pillar });
+      const metadata = database.rfidToClipMap[drums.rfid];
+      const stopping = lastEvent('clip_stopping')?.data;
+      expect(stopping).toMatchObject({
+        clipName: metadata.clipName,
+        pillar: drums.pillar,
+        rfid: drums.rfid,
+      });
+      // `clip: undefined` in the real payload spread (backend/ableton-api.ts:216-219)
+      // — must never be a live object (socket.io drops undefined on the wire)
+      expect(stopping?.clip).toBeUndefined();
+      const stopped = lastEvent('clip_stopped')?.data;
+      expect(stopped).toMatchObject({
+        clipName: metadata.clipName,
+        pillar: drums.pillar,
+      });
+      expect(stopped?.clip).toBeUndefined();
+    });
+
+    it('does not re-adopt tempo or key when a clip triggers into already-playing music', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      const adoptedTempo = simulator.getTempo();
+      const adoptedKey = simulator.getMasterKey();
+      events = [];
+
+      simulator.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar });
+      vi.advanceTimersByTime(PHRASE_LENGTH_MS);
+      // Adoption only happens when coming from silence (backend/ableton-api.ts:336-340)
+      expect(eventNames()).not.toContain('tempo_changed');
+      expect(simulator.getTempo()).toBe(adoptedTempo);
+      expect(simulator.getMasterKey()).toBe(adoptedKey);
+    });
+  });
+
   describe('idle timeout', () => {
     it('emits timeout_warning 30s before the 3-minute timeout, then stops all clips', () => {
       simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
@@ -292,5 +388,72 @@ describe('Simulator', () => {
       vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS - 1000);
       expect(eventNames()).not.toContain('timeout_warning');
     });
+  });
+});
+
+// Key-adoption semantics from QueueClip (backend/ableton-api.ts:160-163) need
+// clips with known, distinct keys — and one without a key — so this block uses
+// a synthetic database with the real CSV column headers instead of relying on
+// whatever rows the production CSV happens to contain.
+describe('Simulator key adoption (synthetic database)', () => {
+  const syntheticCsv = [
+    'RFID,Clip Name,Clip Type (e.g. Vocals),Icon / Asset Name,Artist,Song Title,Ingredient Name / Description,Key,BPM',
+    'rfid-drums,Synth Drums 100,Drums,drums.png,Artist A,Song A,Toad Legs,4A,100',
+    'rfid-melody,Synth Melody 90,Melody,melody.png,Artist B,Song B,Newt Eyes,7B,90',
+    'rfid-keyless,Synth Bass 80,Bass,bass.png,Artist C,Song C,Bat Wings,,80',
+  ].join('\n');
+  const syntheticDatabase = buildMusicDatabase(syntheticCsv);
+
+  let simulator: Simulator;
+  let events: SimEmittedEvent[];
+  const eventNames = () => events.map((event) => event.eventName);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    simulator = new Simulator({
+      database: syntheticDatabase,
+      phraseLengthMs: PHRASE_LENGTH_MS,
+      logger: silentLogger,
+    });
+    events = [];
+    simulator.onEvent((event) => events.push(event));
+  });
+
+  afterEach(() => {
+    simulator.dispose();
+    vi.useRealTimers();
+  });
+
+  it('keeps the first clip’s master key when a different-key clip joins', () => {
+    simulator.handleNewTag({ rfid: 'rfid-drums', pillar: 0 });
+    expect(simulator.getMasterKey()).toBe('4A');
+    expect(simulator.getTempo()).toBe(100);
+    events = [];
+
+    simulator.handleNewTag({ rfid: 'rfid-melody', pillar: 1 });
+    vi.advanceTimersByTime(PHRASE_LENGTH_MS);
+    // Music playing + master key set → no re-adoption of the 7B key
+    expect(eventNames()).not.toContain('master-key_changed');
+    expect(simulator.getMasterKey()).toBe('4A');
+    expect(simulator.getTempo()).toBe(100);
+  });
+
+  it('starting from silence with a keyless clip leaves the master key empty', () => {
+    simulator.handleNewTag({ rfid: 'rfid-keyless', pillar: 2 });
+    expect(eventNames()).not.toContain('master-key_changed');
+    expect(simulator.getMasterKey()).toBe('');
+    // Tempo is still adopted from the clip's bpm
+    expect(simulator.getTempo()).toBe(80);
+  });
+
+  it('adopts a queued clip’s key immediately when the master key is empty mid-playback', () => {
+    simulator.handleNewTag({ rfid: 'rfid-keyless', pillar: 2 });
+    events = [];
+
+    // Music is playing but masterKey === '': QueueClip adopts the new clip's
+    // key at queue time, before the phrase boundary (backend/ableton-api.ts:160-163)
+    simulator.handleNewTag({ rfid: 'rfid-melody', pillar: 1 });
+    expect(eventNames()).toEqual(['ingredient_detected', 'master-key_changed', 'clip_queued']);
+    expect(simulator.getMasterKey()).toBe('7B');
   });
 });

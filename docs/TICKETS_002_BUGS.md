@@ -1,10 +1,10 @@
 # Tickets 002 — Bug fixes (repo review 2026-07-10)
 
-Created 2026-07-10 from a full-repo review (Claude, Fable 5, effort high). Ten findings, ticketed WOW-014…WOW-023. WOW-024 added later the same day from a live debugging session. Ticket format follows `docs/TICKETS_001_INITIAL.md`. Agent output notes go to `docs/agent-notes/wow-XXX-<role>-<topic>.md`.
+Created 2026-07-10 from a full-repo review (Claude, Fable 5, effort high). Ten findings, ticketed WOW-014…WOW-023. WOW-024 added later the same day from a live debugging session. WOW-025…WOW-031 added the same day from a second review pass covering the CSV data, Arduino firmware, sim server, and frontend event handling. WOW-032 added from the same live debugging session as WOW-024.
 
-**Suggested order of attack:** WOW-014 → WOW-016 → WOW-017 (small crash/diagnosability fixes) → WOW-015 (test harness, locking behavior before further backend work) → WOW-018, WOW-019, WOW-020, WOW-021 (behavioral correctness) → WOW-022, WOW-023 (process + hygiene).
+**Suggested order of attack:** WOW-028 first (public credential leak — rotation is a human action and can happen today) → WOW-014 → WOW-016 → WOW-017 (small crash/diagnosability fixes) → WOW-015 + WOW-025 (test harness + data validation, locking behavior before further backend work) → WOW-018, WOW-019, WOW-020, WOW-021, WOW-026, WOW-027, WOW-031 (behavioral correctness) → WOW-029, WOW-030 (firmware, needs a hardware day) → WOW-022, WOW-023 (process + hygiene).
 
-Tickets touching the Ableton/hardware path (WOW-014, WOW-017, WOW-018, WOW-020, WOW-021) require **audio-ableton-reviewer and/or hardware-safety-reviewer sign-off** per AGENTS.md. Agents never run `yarn start-backend`.
+Tickets touching the Ableton/hardware path (WOW-014, WOW-017, WOW-018, WOW-020, WOW-021, WOW-025, WOW-027, WOW-031) require **audio-ableton-reviewer and/or hardware-safety-reviewer sign-off** per AGENTS.md. Firmware tickets (WOW-028, WOW-029, WOW-030) additionally require a human to flash and bench-test — agents never touch hardware. Agents never run `yarn start-backend`.
 
 ---
 
@@ -155,7 +155,7 @@ Tickets touching the Ableton/hardware path (WOW-014, WOW-017, WOW-018, WOW-020, 
 - ID: WOW-023
 - Title: Hygiene sweep — typos in exported names, dead code, stray console.log, fragile patterns
 - Summary: A cluster of small defects that are individually harmless but collectively misleading; one deliberate zero-behavior-change PR in the spirit of WOW-011.
-- Description: (1) `WS_SEVER_PORT` typo in both `.env` and `backend/index.ts:9` — rename to `WS_SERVER_PORT` in code and `.env` together (**`.env` edits need human approval per conventions — obtain before starting**); (2) `TIMEOUT_IN_MILISECONDS` / `TIMEOUT_WARNING_IN_MILISECONDS` (`backend/adapter/AbletonAdapter.ts:24-25`) and `emitEventWithoutResetingTimout` (`backend/event/OutgoingEvents.ts:19`) — correct spellings at every call site; (3) raw `console.log('clips', clips)` at `AbletonAdapter.ts:142` — remove or convert to `Logger.debug`; (4) never-read `KEY_LEADER_ORDER` export (`AbletonAdapter.ts:45`) and never-read `ATTRACTOR_STATE_CLIP_NAME` (`:29`) — delete or ticket their intended feature; (5) `[1, 2, 3, 4]?.map` optional chaining on array literals in `src/container/CurrentlyPlayingListContainer.tsx:11` — plain `.map`; (6) dead `trimStart()` assignment at `CurrentlyPlayingListContainer.tsx:17` (unconditionally overwritten by the if/else below — while there, confirm the else-branch's empty-name behavior is intended and comment it); (7) `ingredients_contianer` id in `src/container/RecipeBoxContainer.tsx:24`; (8) dynamic Tailwind class `` `col-start-${…}` `` at `CurrentlyPlayingListContainer.tsx:33` — works only because literal `col-start-1`/`col-start-2` happen to appear later in the same file; replace with a conditional between two full literal class strings; (9) the commented-out `enrichRecommendations` block in `backend/service/MusicDatabaseService.ts:22-24` — delete the dead code and add a short comment documenting the intentional divergence: the frontend (`src/util/ClipDatabaseUtil.ts:11`) **does** run enrichment (grimoire recommendations) while the backend does not (sim test asserts this).
+- Description: (1) `WS_SEVER_PORT` typo in both `.env` and `backend/index.ts:9` — rename to `WS_SERVER_PORT` in code and `.env` together (**`.env` edits need human approval per conventions — obtain before starting**); (2) `TIMEOUT_IN_MILISECONDS` / `TIMEOUT_WARNING_IN_MILISECONDS` (`backend/adapter/AbletonAdapter.ts:24-25`) and `emitEventWithoutResetingTimout` (`backend/event/OutgoingEvents.ts:19`) — correct spellings at every call site; (3) raw `console.log('clips', clips)` at `AbletonAdapter.ts:142` — remove or convert to `Logger.debug`; (4) never-read `KEY_LEADER_ORDER` export (`AbletonAdapter.ts:45`) and never-read `ATTRACTOR_STATE_CLIP_NAME` (`:29`) — delete or ticket their intended feature; (5) `[1, 2, 3, 4]?.map` optional chaining on array literals in `src/container/CurrentlyPlayingListContainer.tsx:11` — plain `.map`; (6) dead `trimStart()` assignment at `CurrentlyPlayingListContainer.tsx:17` (unconditionally overwritten by the if/else below — while there, confirm the else-branch's empty-name behavior is intended and comment it); (7) `ingredients_contianer` id in `src/container/RecipeBoxContainer.tsx:24`; (8) dynamic Tailwind class `` `col-start-${…}` `` at `CurrentlyPlayingListContainer.tsx:33` — works only because literal `col-start-1`/`col-start-2` happen to appear later in the same file; replace with a conditional between two full literal class strings; (9) the commented-out `enrichRecommendations` block in `backend/service/MusicDatabaseService.ts:22-24` — delete the dead code and add a short comment documenting the intentional divergence: the frontend (`src/util/ClipDatabaseUtil.ts:11`) **does** run enrichment (grimoire recommendations) while the backend does not (sim test asserts this); (10) comments in `sim/server.ts` (`:4`, `:43`, `:91`, `:101`, `:136`) reference pre-WOW-011 paths (`backend/events/incoming-events.ts`, `backend/ableton-api.ts`) — update to the current `backend/event/`/`backend/adapter/` paths.
 - Allowed files: `backend/adapter/AbletonAdapter.ts`, `backend/event/OutgoingEvents.ts`, `backend/service/MusicDatabaseService.ts`, `backend/index.ts`, `.env` (item 1, approval required), `src/container/CurrentlyPlayingListContainer.tsx`, `src/container/RecipeBoxContainer.tsx`, plus every call site of renamed symbols
 - Acceptance criteria: `yarn lint`, `yarn test`, `yarn build` green; zero behavioral change (emitted events/payloads byte-for-byte identical); UI renders identically via sim smoke; grep confirms no old symbol names remain.
 - Required tests/checks: `yarn test`, `yarn lint`, `yarn build`, sim + UI smoke.
@@ -181,3 +181,131 @@ Tickets touching the Ableton/hardware path (WOW-014, WOW-017, WOW-018, WOW-020, 
 - Suggested agent(s): frontend-implementer, test-engineer, reviewer
 - Risk: low
 - Stop conditions: If exposing connection state requires changing the context API surface consumed by other containers → align with WOW-019's stop condition: stop and propose first.
+
+---
+
+- ID: WOW-032
+- Title: Backend hangs forever on ableton-js remote-script version mismatch — add startup timeout and version-mismatch alerting
+- Summary: A version mismatch between the `ableton-js` npm package (3.1.5) and the AbletonJS remote script installed in Live (was 3.7.0) changes the UDP framing, so `ableton.start()` blocks at "Checking connection..." forever with no error, no timeout, and no hint of the cause. Cost a full evening of live debugging 2026-07-10; at the venue it would read as "installation dead, no logs".
+- Description: Three complementary fixes, all in backend startup. (1) **Connection timeout:** `backend/adapter/AbletonAdapter.ts:49` calls `await ableton.start()` bare; the library supports `start(timeoutMs)` and rejects with "Connection timed out." Pass a timeout (~30–60s, `.env`-overridable), catch the rejection, log an actionable error-level message listing the three known causes (Live not running; AbletonJS control surface not enabled in Preferences → Link/Tempo/MIDI; remote-script/npm version mismatch — remediation: copy `backend/node_modules/ableton-js/midi-script/` into Live's Remote Scripts folder as `AbletonJS` and restart Live), then exit non-zero. (2) **Pre-flight version cross-check, before `ableton.start()`:** the npm package ships its matching script version at `node_modules/ableton-js/midi-script/version.py`; the installed script lives at `~/Music/Ableton/User Library/Remote Scripts/AbletonJS/version.py` (path `.env`-overridable — the script can also be installed inside the Live app bundle). Read both, compare, and log a loud warning naming both versions on mismatch. Must be warn-and-continue: a missing file at the expected path is an info-level note, never fatal (the heuristic must not block a working setup). (3) **Post-connect exact-version log:** after a successful `start()`, call the remote script's version endpoint (`internal.get('version')`) and log both versions at info level on every startup, warning on any inequality — the library's built-in check only warns when the plugin is _older_ than the JS library and never runs at all when the handshake itself is incompatible, which is exactly the observed failure.
+- Allowed files: `backend/adapter/AbletonAdapter.ts`, `backend/index.ts`, `.env` (new optional vars — approval required per conventions), `backend/adapter/test/**` or `backend/util/test/**` (pre-flight check is pure file-reading logic — testable if WOW-015's harness exists), `README.md` (troubleshooting note)
+- Acceptance criteria: with no Ableton running, `yarn start-backend` exits within the timeout with the actionable error instead of hanging; with a deliberately wrong `version.py` planted at the checked path, startup logs a mismatch warning naming both versions before connecting; healthy startup logs both versions at info; connected happy-path behavior byte-for-byte unchanged; missing script path does not block startup.
+- Required tests/checks: unit test for the version-file parse/compare (pure function); `yarn lint`; `yarn test`; manual verification of the timeout path (no Ableton needed — that is the scenario).
+- Hardware/Ableton/LED/RFID safety notes: startup/shutdown path (hardware-safety-reviewer per AGENTS.md scope) — but strictly additive diagnostics: no change to Ableton commands, event names, payloads, or timing once connected. Exit-on-timeout interacts with crash-restart supervision — coordinate with WOW-014's Decision-needed entry (a supervisor restarting a misconfigured backend would loop; the log message is what makes the loop diagnosable).
+- Dependencies: none hard; coordinate with WOW-014 (same file, process-exit semantics) and WOW-015 (test harness for the pure parse/compare).
+- Out of scope: upgrading the `ableton-js` npm package (belongs to WOW-009 dependency audit); auto-installing or auto-copying the remote script (mutating files outside the repo is a human action); protocol-level version negotiation.
+- Suggested agent(s): creative-tech-integrator (build), reviewer, hardware-safety-reviewer (sign-off)
+- Risk: low (additive diagnostics on the startup path)
+- Stop conditions: `.env` addition not approved → land the timeout with a hardcoded default and skip the overrides. If the timeout's exit-on-failure conflicts with a supervision decision from WOW-014 → align there before merging.
+
+---
+
+- ID: WOW-025
+- Title: CSV data integrity — duplicate clip name corrupts metadata lookup; add validation tests
+- Summary: Two rows in `Music Database.csv` share the clip name `Flashback Drums 10A 135` (line 72, type Drums, and line 74, type Melody/Synth) — `clipNameToInfoMap` is keyed by space-stripped clip name, so the last-parsed row silently overwrites the first, and the backend resolves playing-clip metadata by that map: a pillar playing the Drums clip reports Melody metadata — wrong type feeds `PhraseLeaderService`'s `TRIGGER_ORDER` sorting (musical behavior), the UI category color, and the icon.
+- Description: Line 74 (RFID `e280f3372000f00003effc3f`, "bone powder", instrument Synth) is almost certainly a data-entry error — its clip name duplicates the Drums row above it instead of naming its own Melody clip (compare line 95's `Flashback Bass 1A 135` naming pattern). The correct name must be confirmed against the Ableton Live set by a human — agents must not guess it. Alongside the fix, add data-validation tests so this class of error can't recur silently: unique RFIDs, unique space-stripped clip names, `Key` values present in `KeyTranspositionService.TRANSPOSITIONS` (empty allowed — keyless clips exist), `Clip Type` in the `ClipTypes` enum, and every `Icon / Asset Name` present in `public/ingredients/` (all of these pass today except the name collision). Natural homes: extend `sim/test/music-database.test.ts` and `src/util/test/ClipDatabaseUtil.test.ts`, or a dedicated `src/assets/test/` validation suite — implementer's choice, but it must run in `yarn test`.
+- Allowed files: `src/assets/Music Database.csv` (**human edit only** — the CSV is agent-read-only per repo conventions), `sim/test/**`, `src/util/test/**`, `src/assets/test/**`
+- Acceptance criteria: validation tests exist, run in `yarn test`, and fail on the current CSV until the human corrects line 74; after correction, full suite green; no parser/production code changes.
+- Required tests/checks: `yarn test`, `yarn lint`.
+- Hardware/Ableton/LED/RFID safety notes: the clip name must match the real Live set exactly — wrong name means the tag silently stops triggering (see `FindAllClipsInLoop`). audio-ableton-reviewer sign-off on the corrected row.
+- Dependencies: pairs with WOW-015 (same test-first spirit); none blocking.
+- Out of scope: renaming any other CSV row; normalization changes (WOW-031); parser changes.
+- Suggested agent(s): test-engineer (validation suite), human + audio-ableton-reviewer (CSV correction)
+- Risk: low (test-only for agents; one-cell data fix for the human)
+- Stop conditions: Intended clip name cannot be confirmed from the Live set → artist decision, do not guess.
+
+---
+
+- ID: WOW-026
+- Title: `ingredient_removed` handler matches clip names across all pillars instead of the event's pillar
+- Summary: The frontend `ingredient_removed` handler decides the "was it playing or queued?" branch by searching **all** pillars for a matching clip name, then mutates the event's pillar slot — if the same clip name exists on two pillars (possible today: two RFID tags map to the same clip name, see WOW-025), removing a tag on one pillar can incorrectly clear or set stopping-state on the other pillar's UI slot.
+- Description: `src/context/hook/useAbletonContextProviderState.ts:132-137`: `playingClipsRef.current.some((item) => item?.clipName === data.clipName)` and the sibling `queuedClipsRef` check scan every pillar; the state updates then target `data.pillar`. The branch condition and the mutation target disagree. Fix: compare the specific slot — `playingClipsRef.current[data.pillar]?.clipName === data.clipName` (and same for queued). Note: this site is WOW-012's location — the `findIndex` truthiness bug WOW-012 describes was already fixed by the context restructure (commit `0aaa123` introduced the current `.some`), so WOW-012 in `TICKETS_001_INITIAL.md` should be closed as done when this lands, with this ticket superseding it.
+- Allowed files: `src/context/hook/useAbletonContextProviderState.ts`, `src/context/hook/test/**`, `docs/TICKETS_001_INITIAL.md` (WOW-012 status note only)
+- Acceptance criteria: mocked-socket test covers: same clip name playing on pillar A while `ingredient_removed` arrives for pillar B → pillar A untouched; the normal single-pillar removal path unchanged; suite green.
+- Required tests/checks: `yarn test` (new hook test), `yarn lint`.
+- Hardware/Ableton/LED/RFID safety notes: UI state only; no emissions change.
+- Dependencies: none (WOW-025's CSV fix removes today's known duplicate, but the handler should be correct regardless).
+- Out of scope: backend `ingredient_removed` payload changes; the stopping-clips visual treatment.
+- Suggested agent(s): frontend-implementer, test-engineer, reviewer
+- Risk: low
+- Stop conditions: none anticipated.
+
+---
+
+- ID: WOW-027
+- Title: Tempo/volume sliders flood the backend, Ableton, and the lighting server on every drag pixel
+- Summary: Both sliders emit one socket event per `input` event (per pixel of drag). Each `set_tempo` triggers an Ableton API call, a `tempo_changed` broadcast to every client, an OSC message to the lighting server, and a timeout-timer reset — a single slider drag produces hundreds of each.
+- Description: `src/container/TempoSliderContainer.tsx:9-12` and `src/container/VolumeSliderContainer.tsx:13-16` call `changeTempo`/`changeTrackVolume` unthrottled from `onChange`. Backend cost per event: `ableton.song.set('tempo', …)` (`backend/adapter/AbletonAdapter.ts:376-380`), broadcast + lighting OSC (`backend/event/OutgoingEvents.ts:6-17`), `clearTimeout`×2 + `setTimeout`×2 (`restartTimeoutTimer`). Fix on the frontend only: throttle the emission (~75–100ms, trailing edge included so the released position always lands) while updating the local slider position immediately for responsiveness. Do not throttle the backend — that would change behavior for all callers. No new dependency without approval: a ~10-line local `throttle` util in `src/util/` is sufficient (the frontend has no lodash; `lodash.throttle` exists only in `backend/`).
+- Allowed files: `src/container/TempoSliderContainer.tsx`, `src/container/VolumeSliderContainer.tsx`, `src/util/` (new throttle util + test), `src/container/test/**`, `src/util/test/**`
+- Acceptance criteria: dragging a slider end-to-end against the simulator produces a bounded stream of `set_tempo`/`set_track_volume` events (sim logs every received event — count them) with the final value always emitted; slider UI stays responsive during the drag; util covered by unit tests incl. trailing-edge behavior.
+- Required tests/checks: `yarn test`, `yarn lint`; manual sim smoke with event-count check in the sim log.
+- Hardware/Ableton/LED/RFID safety notes: reduces load on the Ableton and lighting/OSC paths; no payload or event-name changes. audio-ableton-reviewer sign-off (tempo is musical).
+- Dependencies: none.
+- Out of scope: backend throttling; debouncing other controls; new dependencies.
+- Suggested agent(s): frontend-implementer, test-engineer, reviewer, audio-ableton-reviewer (sign-off)
+- Risk: low-medium (touch interaction feel on the installation screen — verify on-device before the venue)
+- Stop conditions: Throttling makes the on-screen slider feel laggy on the actual touch hardware → tune or stop and ask.
+
+---
+
+- ID: WOW-028
+- Title: SECURITY — Wi-Fi credentials committed to a public repo; rotate and remove
+- Summary: Both Arduino sketches contain the installation network's SSID and password in plaintext (`Arduino/Unit_RFID_M5Core/Unit_RFID_M5Core.ino:37-38`, `Arduino/ArtnetWifiFastLED/ArtnetWifiFastLED.ino:11-12`), plus commented-out credentials for two other networks (`Unit_RFID_M5Core.ino:31-41`). The repo is **public** on GitHub, and the credentials are in git history (commit `e4b22c2`). The installation network carries unauthenticated OSC and Art-Net — anyone in radio range who reads GitHub can join and inject control traffic (trigger/stop music, drive the LEDs).
+- Description: (1) **Human, immediately and independent of any code change:** rotate the `wubb-net` password, and treat the two commented-out networks' credentials as leaked too (rotate if they are real home/venue networks). (2) Move credentials out of source: `#include "secrets.h"` with a gitignored `secrets.h` per sketch and a committed `secrets.h.example`; delete the commented-out credential blocks entirely. (3) Record a Decision-needed on git-history scrubbing (BFG/filter-repo) — rotation makes the old secrets worthless, so scrubbing is optional hygiene, but decide explicitly. (4) While touching the sketches, do not change any behavior — this ticket is credentials-only.
+- Allowed files: `Arduino/Unit_RFID_M5Core/Unit_RFID_M5Core.ino`, `Arduino/ArtnetWifiFastLED/ArtnetWifiFastLED.ino`, `Arduino/**/secrets.h.example` (new), `.gitignore`, `docs/DECISIONS_NEEDED.md`, `docs/HARDWARE_INTEGRATION.md` (flashing note)
+- Acceptance criteria: no credential strings anywhere in the working tree (grep-verified); sketches compile with a provided `secrets.h` (human-verified — agents cannot compile/flash); `.gitignore` covers `Arduino/**/secrets.h`; rotation confirmed by the human; Decision-needed entry recorded.
+- Required tests/checks: grep for the removed strings; human compile/flash verification on one device of each type before venue redeploy.
+- Hardware/Ableton/LED/RFID safety notes: firmware changes are flashed by humans only; a mis-flashed reader/LED node degrades the show — schedule alongside a hardware day. Reflashing all devices requires the rotated credentials in each device's `secrets.h`.
+- Dependencies: none — the rotation (step 1) must not wait for the code change.
+- Out of scope: any functional firmware change (WOW-029/WOW-030); network redesign (VLANs, OSC auth) — worth a separate security discussion, noted in DECISIONS_NEEDED.
+- Suggested agent(s): creative-tech-integrator (code move only), hardware-safety-reviewer (review), human (rotation + flash)
+- Risk: the code change is low; the exposure it fixes is high (public, unauthenticated show-control network)
+- Stop conditions: none — if anything blocks the code change, the credential rotation still proceeds.
+
+---
+
+- ID: WOW-029
+- Title: LED firmware ignores Wi-Fi failure and never reconnects — LEDs freeze mid-show on a network blip
+- Summary: `ArtnetWifiFastLED.ino` gives up on Wi-Fi after ~10s but `setup()` ignores `ConnectWifi()`'s return value and proceeds anyway, and `loop()` never checks `WiFi.status()` — an AP reboot or signal dropout mid-show leaves the LED node frozen on its last frame until someone power-cycles it.
+- Description: `Arduino/ArtnetWifiFastLED/ArtnetWifiFastLED.ino:155` (`ConnectWifi();` — return value discarded), `:165-169` (`loop()` only calls `artnet.read()`). Fix: track connection state in `loop()`; on disconnect, attempt reconnection with backoff, and drive the LEDs to a deliberate fallback state while disconnected. **What the LEDs should show during signal loss is a show-design decision** (hold last frame / fade to a dim ambient / blank) — record as Decision-needed and implement the chosen option; do not invent it. Also surface boot-time connection failure visibly (e.g. a distinct dim color) instead of silently running with no network.
+- Allowed files: `Arduino/ArtnetWifiFastLED/ArtnetWifiFastLED.ino`, `docs/DECISIONS_NEEDED.md`, `docs/HARDWARE_INTEGRATION.md`
+- Acceptance criteria: bench test (human): kill the AP mid-stream → node enters the chosen fallback state and recovers automatically when the AP returns, without power-cycling; boot without Wi-Fi shows the failure state; normal Art-Net behavior byte-identical when connected.
+- Required tests/checks: human bench test per above; agents limit themselves to code review (no compile/flash capability).
+- Hardware/Ableton/LED/RFID safety notes: reconnect/fallback transitions must not strobe — hardware-safety-reviewer sign-off required on the chosen fallback and transition behavior (visitor-facing light).
+- Dependencies: WOW-028 (same file — land the secrets move first to avoid conflicts); the fallback-state decision.
+- Out of scope: brightness/gamma changes; Art-Net protocol changes; the RFID sketch (WOW-030).
+- Suggested agent(s): creative-tech-integrator, hardware-safety-reviewer (sign-off), human (bench test + flash)
+- Risk: medium (firmware, human-in-the-loop testing only)
+- Stop conditions: Fallback-state decision unanswered → implement reconnection but stop before changing any visible LED behavior.
+
+---
+
+- ID: WOW-030
+- Title: RFID reader pillar identity relies on hand-edited static IPs; checked-in default silently maps to no pillar
+- Summary: The backend derives which pillar a tag event came from by matching the reader's source IP against the frozen map `192.168.0.101-104` (`backend/event/IncomingEvents.ts:13-18`), but the sketch ships with `IPAddress ip(192, 168, 0, 52)` and an `// UPDATE ME!!!` comment (`Arduino/Unit_RFID_M5Core/Unit_RFID_M5Core.ino:43-44`) — a reader flashed as-checked-in emits tags the backend silently drops (until WOW-017 adds the warning), and four devices require four undocumented hand edits with nothing recording which device is which pillar.
+- Description: Conservative hardening, no contract change: (1) move the per-device IP into the same gitignored `secrets.h`/config header established by WOW-028, with a committed example listing all four pillar IPs and their pillar numbers; (2) document the pillar↔IP table in `docs/HARDWARE_INTEGRATION.md` right next to a pointer at the backend map, including the flash-time checklist ("set pillar N → IP .10N"); (3) print the configured IP and derived pillar number over serial at boot so a mis-flashed device is diagnosable in seconds; (4) record a Decision-needed on the longer-term fix — carrying the pillar id in the OSC payload instead of deriving identity from source IP (contract change touching backend + firmware; needs explicit approval, out of scope here). Note in passing for the implementer: `WiFi.config(ip)` is called without gateway/subnet arguments (`:125`), and the sketch blocks forever in `setup()` if Wi-Fi is absent — verify on the bench whether either needs addressing, but change nothing beyond the ticket scope without asking.
+- Allowed files: `Arduino/Unit_RFID_M5Core/Unit_RFID_M5Core.ino`, `Arduino/**/secrets.h.example`, `docs/HARDWARE_INTEGRATION.md`, `docs/DECISIONS_NEEDED.md`
+- Acceptance criteria: no hardcoded per-device IP in the sketch body; example config documents all four pillar assignments; boot serial output names the pillar; HARDWARE_INTEGRATION.md table present; pillar-IP map in the backend untouched; human bench-verifies one reader end-to-end against the real backend on a hardware day.
+- Required tests/checks: human compile/flash + bench verification; agents review only.
+- Hardware/Ableton/LED/RFID safety notes: the pillar-IP map is frozen per CODING_GUIDELINES — this ticket documents it, never edits it. hardware-safety-reviewer sign-off.
+- Dependencies: WOW-028 (establishes the secrets/config-header pattern in the same files).
+- Out of scope: pillar-id-in-payload contract change (Decision-needed); backend changes; the LED sketch.
+- Suggested agent(s): creative-tech-integrator, hardware-safety-reviewer (sign-off), documentation-maintainer (HARDWARE_INTEGRATION.md), human (flash + bench)
+- Risk: low (config extraction + docs)
+- Stop conditions: Bench reveals the `WiFi.config` gateway/subnet gap actually breaks broadcast on the venue AP → stop and report before widening scope.
+
+---
+
+- ID: WOW-031
+- Title: Backend clip-name matching uses two different normalizations — trim vs strip-asterisks-and-spaces
+- Summary: Queue/playing/metadata comparisons normalize clip names with `.replace(/[* ]/g, '')` while the Ableton clip-slot lookups (`MemoizedClipIndex`, `FindAllClipsInLoop`) match raw Live clip names with `.trim()` only — a Live set clip whose name carries asterisks or internal-space variants can pass one check and fail the other, e.g. dedup says "already queued" for a clip the loop lookup can't find, or a metadata lookup succeeds for a clip that then fails to fire.
+- Description: Strip-normalization sites: `backend/adapter/AbletonAdapter.ts:137` (queue dedup), `:198`, `:210`, `:223` (stop/unqueue matching), `:293` (`clipNameToInfoMap` lookup — and the map itself is keyed space-stripped in `backend/util/CsvUtil.ts:31`). Trim-only sites: `AbletonAdapter.ts:98` and `:122` (matching `clip.raw.name` from the Live set). The pervasive `[* ]` stripping strongly suggests real Live set names contain asterisks — meaning the trim-only lookups are the outlier. Fix: one `normalizeClipName()` helper (in `backend/util/` or a service) used at every comparison site, with unit tests; **before changing matching behavior, confirm the actual Live set naming convention with the human** — if Live names never contain asterisks, aligning normalizations is a no-op; if they do, the current trim-only lookups are silently broken today and this fix changes live behavior.
+- Allowed files: `backend/adapter/AbletonAdapter.ts`, `backend/util/CsvUtil.ts`, `backend/util/` (new helper + test), `backend/**/test/**`
+- Acceptance criteria: single normalization helper used at all seven-plus comparison sites; unit tests cover asterisked, spaced, and trimmed name variants; behavior on names without asterisks/odd spacing byte-for-byte unchanged; human confirms the Live naming convention before merge.
+- Required tests/checks: `yarn test` (requires WOW-015's backend harness), `yarn lint`.
+- Hardware/Ableton/LED/RFID safety notes: changes how clips are located in the Live set — the core musical mapping. audio-ableton-reviewer sign-off mandatory; treat as behavior-affecting even though intended as a consistency fix.
+- Dependencies: WOW-015 (backend test harness); human confirmation of Live set naming.
+- Out of scope: CSV content changes (WOW-025); frontend name handling (WOW-016 covers its lookup).
+- Suggested agent(s): creative-tech-integrator, test-engineer, reviewer, audio-ableton-reviewer (sign-off)
+- Risk: medium (musical mapping assumptions)
+- Stop conditions: Human cannot confirm the Live naming convention → stop; do not align normalizations on a guess.

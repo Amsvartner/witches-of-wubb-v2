@@ -1,6 +1,6 @@
 # Tickets 002 — Bug fixes (repo review 2026-07-10)
 
-Created 2026-07-10 from a full-repo review (Claude, Fable 5, effort high). Ten findings, ticketed WOW-014…WOW-023. Ticket format follows `docs/TICKETS_001_INITIAL.md`. Agent output notes go to `docs/agent-notes/wow-XXX-<role>-<topic>.md`.
+Created 2026-07-10 from a full-repo review (Claude, Fable 5, effort high). Ten findings, ticketed WOW-014…WOW-023. WOW-024 added later the same day from a live debugging session. Ticket format follows `docs/TICKETS_001_INITIAL.md`. Agent output notes go to `docs/agent-notes/wow-XXX-<role>-<topic>.md`.
 
 **Suggested order of attack:** WOW-014 → WOW-016 → WOW-017 (small crash/diagnosability fixes) → WOW-015 (test harness, locking behavior before further backend work) → WOW-018, WOW-019, WOW-020, WOW-021 (behavioral correctness) → WOW-022, WOW-023 (process + hygiene).
 
@@ -165,3 +165,19 @@ Tickets touching the Ableton/hardware path (WOW-014, WOW-017, WOW-018, WOW-020, 
 - Suggested agent(s): frontend-implementer + creative-tech-integrator (split by area), reviewer
 - Risk: low (mechanical, but wide)
 - Stop conditions: Item 1 `.env` approval not granted → skip item 1, land the rest. Any rename that turns out to be load-bearing beyond spelling → stop and ask.
+
+---
+
+- ID: WOW-024
+- Title: Debug modal needs a connection indicator and must not emit before the socket is connected
+- Summary: Until the socket connects, the socket context hands out an empty placeholder object; clicking any clip in the debug modal then throws `socket.emit is not a function`, and there is no visual cue that the UI isn't connected to a backend. Observed live 2026-07-10: operator clicked samples while the backend was still in its ~1-minute Ableton startup, got silent console TypeErrors, and had no way to tell connected from not.
+- Description: `src/context/hook/useSocketContextProviderState.ts:10` initializes state as `{} as Socket` and only swaps in the real socket on the `connect` event, so every consumer sees a non-functional object during startup, backend restarts, and connection failures. `src/container/DebugModalContainer.tsx:27` calls `socket.emit` unguarded in `toggleSong`. Fix: (1) expose connection state from the socket context (e.g. an `isConnected` boolean alongside the socket, or the `Socket | null` shape WOW-019 already suggests — coordinate, same file); (2) in the debug modal, show an explicit "connecting…" indicator and disable clip buttons until connected, flipping live on `connect`/`disconnect` events; (3) ensure clicks while disconnected are impossible or a logged no-op — never a TypeError. Keep the indicator operator-facing (debug modal only); whether the visitor-facing main screen should reflect connection loss is the separate UX decision already noted at `useAbletonContextProviderState.ts:110` (`TODO: Show in UI`) and stays out of scope.
+- Allowed files: `src/context/hook/useSocketContextProviderState.ts`, `src/context/hook/useAbletonContextProviderState.ts` (only if the context shape change requires it), `src/container/DebugModalContainer.tsx`, `src/context/hook/test/**`, `src/container/test/**`
+- Acceptance criteria: with no backend running, opening the debug modal shows a clear connecting/disconnected indicator and clip buttons are inert (no console errors); starting the sim while the modal is open flips it to connected without a reload; mocked-socket tests cover pre-connect click, connect transition, and disconnect transition; no event contract changes.
+- Required tests/checks: `yarn test` (new hook/component tests), `yarn lint`; manual smoke: open UI with no backend → indicator shown; `yarn sim` starts → indicator clears, clips clickable.
+- Hardware/Ableton/LED/RFID safety notes: UI-only; no new emissions — strictly prevents emissions that today throw. A disabled-until-connected debug modal also removes a class of accidental double-fires during backend restarts at the venue.
+- Dependencies: coordinate with WOW-019 (same hooks/files; WOW-019's reconnect fix and this ticket's connection-state exposure should land as one design, in either order).
+- Out of scope: visitor-facing main-screen disconnected treatment (separate UX decision); reconnect/re-sync logic (WOW-019); visual design beyond a minimal operator-facing indicator (escalate to frontend-ui-designer if more than a status line/badge is wanted).
+- Suggested agent(s): frontend-implementer, test-engineer, reviewer
+- Risk: low
+- Stop conditions: If exposing connection state requires changing the context API surface consumed by other containers → align with WOW-019's stop condition: stop and propose first.

@@ -1,7 +1,7 @@
 import type { ArgumentType, RequestInfo } from 'node-osc';
 import { Socket } from 'socket.io';
 import { MusicDatabaseService } from '../service/MusicDatabaseService';
-import { LoggerUtil } from '../util/LoggerUtil';
+import { Logger } from '../util/Logger';
 import { OutgoingEvents } from './OutgoingEvents';
 import { AbletonAdapter } from '../adapter/AbletonAdapter';
 import { BrowserClipInfo } from '../type/BrowserClipInfo';
@@ -9,8 +9,6 @@ import { BrowserClipInfoList } from '../type/BrowserClipInfoList';
 import { SetTrackVolumeInputType } from '../type/SetTrackVolumeInputType';
 import { TagDetectionData } from '../type/TagDetectionData';
 import { TrackVolumesType } from '../type/TrackVolumesType';
-
-const logger = LoggerUtil.logger;
 
 const IP_ADDRESS_TO_PILLAR_INDEX_MAP: Record<string, number> = {
   '192.168.0.101': 0,
@@ -59,11 +57,11 @@ const incomingEvents: { [key: string]: IncomingEventSpec } = {
 };
 
 function handleNewTag(rfid: string, requestAddress: string) {
-  logger.info(`New tag detected with ${rfid} from machine: ${requestAddress}`);
+  Logger.info(`New tag detected with ${rfid} from machine: ${requestAddress}`);
   try {
     const clipMetadata = MusicDatabaseService.rfidToClipMap[rfid as string];
     if (clipMetadata) {
-      logger.info(`RFID ${rfid} maps to clip ${clipMetadata?.clipName}`);
+      Logger.info(`RFID ${rfid} maps to clip ${clipMetadata?.clipName}`);
       const pillar = IP_ADDRESS_TO_PILLAR_INDEX_MAP[requestAddress];
       OutgoingEvents.emitEvent('ingredient_detected', {
         ...clipMetadata,
@@ -73,28 +71,28 @@ function handleNewTag(rfid: string, requestAddress: string) {
       });
       AbletonAdapter.queueClip({ ...clipMetadata, rfid }, pillar);
     } else {
-      logger.warn("Couldn't find track from RFID tag");
+      Logger.warn("Couldn't find track from RFID tag");
     }
   } catch (err) {
-    logger.error('Errored trying find track from RFID tag');
+    Logger.error('Errored trying find track from RFID tag');
   }
 }
 
 function handleDepartedTag(rfid: string, requestAddress: string) {
-  logger.info(`Departed tag detected with ${rfid} from machine: ${requestAddress}`);
+  Logger.info(`Departed tag detected with ${rfid} from machine: ${requestAddress}`);
   try {
     const clipMetadata = MusicDatabaseService.rfidToClipMap[rfid as string];
     if (clipMetadata) {
-      logger.info(`RFID ${rfid} maps to clip ${clipMetadata.clipName} > type ${clipMetadata.type}`);
+      Logger.info(`RFID ${rfid} maps to clip ${clipMetadata.clipName} > type ${clipMetadata.type}`);
       const pillar = IP_ADDRESS_TO_PILLAR_INDEX_MAP[requestAddress];
 
       OutgoingEvents.emitEvent('ingredient_removed', { ...clipMetadata, pillar, requestAddress });
       AbletonAdapter.stopOrRemoveClipFromQueue(clipMetadata.clipName, pillar);
     } else {
-      logger.warn("Couldn't find track from RFID tag");
+      Logger.warn("Couldn't find track from RFID tag");
     }
   } catch (err) {
-    logger.error('Errored trying find track from RFID tag');
+    Logger.error('Errored trying find track from RFID tag');
   }
 }
 
@@ -156,7 +154,7 @@ function addSocketEventsHandlers(socket: Socket) {
     const formattedVolumes: TrackVolumesType = AbletonAdapter.trackVolumes.map(
       (trackVolume) => trackVolume?.raw.value,
     );
-    logger.info(`Emitting track volumes: ${formattedVolumes}`);
+    Logger.info(`Emitting track volumes: ${formattedVolumes}`);
     callback(formattedVolumes);
   });
   socket.on('set_track_volume', async ({ pillar, volume }: SetTrackVolumeInputType) => {

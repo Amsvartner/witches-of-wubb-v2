@@ -206,8 +206,8 @@ The simulator implements the same event contract as the real backend. Sim-only c
 
 ## Error handling and logging
 
-- Backend: pino (`backend/util/LoggerUtil.ts`). Levels: `trace` chatty OSC traffic, `info` lifecycle, `warn` recoverable, `error` failures. Wrap RFID/Ableton lookups in try/catch and log rather than crash — the installation must keep running.
-- Frontend: js-logger via the logger provider. No `console.log` in committed code.
+- Backend: pino (`backend/util/Logger.ts`, exporting a `Logger` singleton). Levels: `trace` chatty OSC traffic, `info` lifecycle, `warn` recoverable, `error` failures. Wrap RFID/Ableton lookups in try/catch and log rather than crash — the installation must keep running.
+- Frontend: js-logger via the `Logger` singleton (`src/util/Logger.ts`). No `console.log` in committed code.
 - Represent expected failures explicitly with discriminated-union results rather than thrown strings:
 
 ```ts

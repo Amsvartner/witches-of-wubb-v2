@@ -1,12 +1,10 @@
 import { AbletonAdapter } from '../adapter/AbletonAdapter';
 import { LightingAdapter } from '../adapter/LightingAdapter';
-import { LoggerUtil } from '../util/LoggerUtil';
+import { Logger } from '../util/Logger';
 import { OutgoingEventData } from '../type/OutgoingEventData';
 
-const logger = LoggerUtil.logger;
-
 function emit(eventName: string, data?: OutgoingEventData) {
-  logger.debug(`Emitting event ${eventName} with data: ${JSON.stringify(data)}`);
+  Logger.debug(`Emitting event ${eventName} with data: ${JSON.stringify(data)}`);
   AbletonAdapter.sockets?.forEach((socket) => {
     socket?.emit(eventName, data);
   });

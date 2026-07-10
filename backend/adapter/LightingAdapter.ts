@@ -1,8 +1,6 @@
 import * as nodeOSC from 'node-osc';
-import { LoggerUtil } from '../util/LoggerUtil';
+import { Logger } from '../util/Logger';
 import { OutgoingEventData } from '../type/OutgoingEventData';
-
-const logger = LoggerUtil.logger;
 
 const LIGHTING_SERVER_ADDRESS = process.env.LIGHTING_SERVER_ADDRESS as string;
 const LIGHTING_SERVER_PORT = Number(process.env.LIGHTING_SERVER_PORT as string);
@@ -16,7 +14,7 @@ function sendOscMessage(address: string, data?: OutgoingEventData) {
   }
 
   lightingClient.send(message, (err) => {
-    if (err) logger.error(err);
+    if (err) Logger.error(err);
   });
 }
 

@@ -8,7 +8,7 @@ argument-hint: [WOW-XXX — defaults to the first unblocked in-progress ticket] 
 
 Run exactly **one** phase, then stop and summarize. All rules in `AGENTS.md` and `docs/agent-prompts/RUN_NEXT_AGENT.md` apply. Ticket/phase: $ARGUMENTS
 
-Invoking this skill is explicit authorisation for the commits **and branch pushes** the *current phase* requires, on the ticket branch (`feat/wow-<nnn>-…`) or a docs branch only — never `main`. Reviewer phases commit only notes and run records. Merging and pushing to `main` are never done by this skill.
+Invoking this skill is explicit authorisation for the commits **and branch pushes** the _current phase_ requires, on the ticket branch (`feat/wow-<nnn>-…`) or a docs branch only — never `main`. Reviewer phases commit only notes and run records. Merging and pushing to `main` are never done by this skill.
 
 ## Resolve ticket and phase
 
@@ -16,15 +16,15 @@ Invoking this skill is explicit authorisation for the commits **and branch pushe
 2. Run `/preflight` checks mentally first; a hard gap → stop, suggest the fix (e.g. `/prep-ticket`).
 3. Detect the next phase from repo state, top to bottom — first incomplete wins (argument overrides):
 
-| Phase            | Run when                                                                                     |
-| ---------------- | -------------------------------------------------------------------------------------------- |
-| A. implement     | No `feat/wow-<nnn>-*` branch on origin and no open PR for the ticket                         |
-| B. copilot-round | PR open, and Copilot review not yet requested, not yet arrived, or has unresolved threads    |
-| C. test-review   | `docs/agent-notes/wow-<nnn>-test-engineer-review.md` missing                                 |
-| D. test-fixes    | Test review has Required items without fixes, or Recommended items without fix/rationale     |
-| E. review        | `docs/agent-notes/wow-<nnn>-reviewer-review.md` missing or stale (commits after its SHA)     |
-| F. review-fixes  | Review has unaddressed Required/Recommended items                                            |
-| G. gate          | Everything above complete — verify and declare ready for human review                        |
+| Phase            | Run when                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| A. implement     | No `feat/wow-<nnn>-*` branch on origin and no open PR for the ticket                      |
+| B. copilot-round | PR open, and Copilot review not yet requested, not yet arrived, or has unresolved threads |
+| C. test-review   | `docs/agent-notes/wow-<nnn>-test-engineer-review.md` missing                              |
+| D. test-fixes    | Test review has Required items without fixes, or Recommended items without fix/rationale  |
+| E. review        | `docs/agent-notes/wow-<nnn>-reviewer-review.md` missing or stale (commits after its SHA)  |
+| F. review-fixes  | Review has unaddressed Required/Recommended items                                         |
+| G. gate          | Everything above complete — verify and declare ready for human review                     |
 
 Specialist reviews slot in before E when the ticket's safety notes name them: architecture-reviewer (socket-contract or structure changes), frontend-ui-designer (visual/a11y tickets), audio-ableton-reviewer / hardware-safety-reviewer (only if the diff touches the event contract, `backend/`, or `Arduino/` — should not happen this phase).
 

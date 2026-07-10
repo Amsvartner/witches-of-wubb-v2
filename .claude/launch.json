@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sim-full-spell",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["sim", "full-spell"],
+      "port": 3335
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["dev", "--port", "5174"],
+      "port": 5174
+    }
+  ]
+}

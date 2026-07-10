@@ -57,3 +57,5 @@ Output:
 ### Prompt 1 — run record
 
 _Append after execution: date, executor (model/agent), branch + head SHA, verdict, note path._
+
+- 2026-07-10 — executor: Claude Fable 5 (reviewer subagent, /ship-feature pipeline) — branch `feat/wow-003-offline-simulator`, PR https://github.com/Amsvartner/witches-of-wubb-v2/pull/3 — first pass @ `0ed5360`: **approve-with-nits** (1 should-fix: undocumented missing-clip approximation; 4 nits). Fix round `7765add` (docs the approximation, localhost-only CORS, transformHeader colon-strip parity; vite-node nit rationalized). Re-review @ `7765add`: **approve**. Note: `docs/agent-notes/wow-003-reviewer-verdict.md`.

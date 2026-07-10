@@ -31,7 +31,7 @@ Disallowed files:
 
 - `backend/**`, `Arduino/**`, `src/assets/Music Database.csv` (read-only reference)
 - `src/**` app code — the frontend must work against the simulator unchanged
-- Any dependency additions/upgrades (use the already-installed socket.io/socket.io-server packages available at root; if a needed package is not already installed, STOP and ask — do not install)
+- Any dependency additions/upgrades. **Known gap:** the root `package.json` has only `socket.io-client@^4.6.1` — the `socket.io` **server** package is not installed (not even transitively). `sim/server.ts` needs it, and adding a dependency requires human approval (AGENTS.md rule 4). Before writing any code, confirm with the human how to provide it (expected: approve adding `socket.io@^4.6.x` as a devDependency, wire-compatible with the client). Do not install anything without that approval.
 
 Acceptance criteria (verbatim from ticket):
 
@@ -41,7 +41,8 @@ Ticket-specific guidance:
 
 - Location and port are decided (ADR-001): `sim/`, port 3335 — the frontend needs no config change.
 - Implement the full observed contract:
-  - Ack-style requests: `get_playing_clips`, `get_queued_clips`, `get_tempo`, `set_tempo`, `get_track_volumes`, `set_track_volume` (note: the real backend does **not** ack this one), `get_keylock_state`, `set_keylock_state`, `get_master-key`, `set_master-key` (also no ack). Match the real callback payloads: `BrowserClipInfoList` (array of 4, `null` for empty pillars), tempo number, `TrackVolumesType` number array, keylock boolean, master-key string.
+  - Ack-style requests (respond via the ack callback): `get_playing_clips`, `get_queued_clips`, `get_tempo`, `set_tempo`, `get_track_volumes`, `get_keylock_state`, `set_keylock_state`, `get_master-key`. Match the real callback payloads: `BrowserClipInfoList` (array of 4, `null` for empty pillars), tempo number, `TrackVolumesType` number array, keylock boolean, master-key string.
+  - Fire-and-forget requests (the real backend registers **no** ack callback — do not add one): `set_track_volume` (`SetTrackVolumeInputType`), `set_master-key` (string).
   - Incoming tag events over websocket: `/new/tag` and `/departed/tag` with `TagDetectionData` (`{ rfid, pillar }`).
   - Emitted events: `ingredient_detected` (clip metadata + `rfid`, `pillar`, `requestAddress`), `ingredient_removed` (clip metadata + `pillar`, `requestAddress`), `timeout_warning` (no payload).
 - One object per pillar: a `/new/tag` on an occupied pillar replaces per real-backend semantics — check `QueueClip`/`StopOrRemoveClipFromQueue` behavior in `backend/ableton-api.ts` and mirror the observable browser-facing result only.

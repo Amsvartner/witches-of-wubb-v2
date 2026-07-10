@@ -32,7 +32,7 @@ Acceptance criteria to verify (verbatim from ticket):
 
 Review checklist (ticket-specific):
 
-1. **Safety (blocking):** no import path from `sim/**` to `ableton-js`, `node-osc`, or `backend/` runtime modules; no OSC/MIDI/serial/outbound network capability; server binds localhost:3335 only; `backend/`, `Arduino/`, `Music Database.csv` untouched (`git diff --stat` on those paths must be empty; CSV consumed read-only).
+1. **Safety (blocking):** no import path from `sim/**` to `ableton-js`, `node-osc`, or `backend/` runtime modules; no OSC/MIDI/serial or outbound network capability (a listening socket on port 3335 is the only network surface); `backend/`, `Arduino/`, `Music Database.csv` untouched (`git diff --stat` on those paths must be empty; CSV consumed read-only). Binding to localhost only is the preferred default — a non-localhost bind (e.g. `0.0.0.0` for CI/devcontainers) is a **should-fix** to raise with rationale, not an automatic block (ADR-001 fixes the port, not the interface).
 2. **ADR-001 structure:** all logic in `sim/core/` with zero socket.io imports; `sim/server.ts` is only transport glue; vitest exercises `sim/core` directly.
 3. **Contract fidelity, event by event:** names, ack-vs-no-ack (`set_track_volume` and `set_master-key` have no callback in the real backend), payload shapes (`BrowserClipInfoList` of length 4 with `null` slots; `TagDetectionData`; `ingredient_detected`/`ingredient_removed` metadata incl. `pillar`/`requestAddress`; bare `timeout_warning`). Any delta must be documented as a delta — "documented deltas = none" is the target; an undocumented delta is blocking.
 4. **Scope:** no `src/**` app changes, no new dependencies, no new/renamed events, package.json touched only for the sim script, no drive-by refactors.

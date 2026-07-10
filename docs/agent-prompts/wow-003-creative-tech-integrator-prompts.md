@@ -85,3 +85,5 @@ Output:
 ### Prompt 1 — run record
 
 _Append after execution: date, executor (model/agent), branch + head SHA, outcome, note path._
+
+- 2026-07-10 — executor: Claude Fable 5 (creative-tech-integrator role, /ship-feature pipeline) — branch `feat/wow-003-offline-simulator`, head `056ec9e847d5790c1a781347301f31688cb1a47d`, PR https://github.com/Amsvartner/witches-of-wubb-v2/pull/3 — outcome: implemented sim/core + sim/server.ts + 33 vitest tests; lint/test/build green; end-to-end demo verified against `yarn dev` (events observed both directions); Copilot review requested. Note: `docs/agent-notes/wow-003-creative-tech-integrator-simulator.md` (contract-fidelity deltas: none).

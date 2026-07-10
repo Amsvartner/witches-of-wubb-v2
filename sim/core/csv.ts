@@ -52,7 +52,11 @@ export function parseCsvText(text: string): CsvRow[] {
 
   const [header, ...rows] = records;
   if (!header) return [];
+  // Mirrors the backend's Papa.parse transformHeader, which strips the first
+  // ':' from each header (backend/utils/get-clip-from-rfid.ts:17). Current
+  // headers contain no colons; kept for parity if the sheet ever adds one.
+  const headerNames = header.map((name) => name.replace(':', ''));
   return rows.map((cells) =>
-    Object.fromEntries(header.map((name, index) => [name, cells[index] ?? ''])),
+    Object.fromEntries(headerNames.map((name, index) => [name, cells[index] ?? ''])),
   );
 }

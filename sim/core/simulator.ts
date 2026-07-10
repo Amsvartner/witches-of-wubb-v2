@@ -12,6 +12,10 @@
  *   phrase leader's loop end, which is only knowable from the live set.
  * - `clip_started` bpm comes from the CSV BPM column instead of Ableton warp
  *   markers (backend/ableton-api.ts:434).
+ * - The real backend's missing-clip branch (backend/ableton-api.ts:185-191:
+ *   `clip_unqueued` when a CSV clip has no matching clip in the live Ableton
+ *   set) is not modeled — the sim has no live set, so every database clip
+ *   "exists". Shapes and acks are unaffected.
  */
 import { MusicDatabase, getPillarIPAddressFromIndex } from './music-database';
 import {

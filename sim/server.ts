@@ -69,7 +69,9 @@ const simulator = new Simulator({
 // (backend/index.ts:15) — intentional sim-only restriction.
 const httpServer = http.createServer();
 const io = new Server(httpServer, {
-  cors: { origin: true },
+  // The real backend allows any origin (backend/index.ts:16); the sim only
+  // ever serves local dev UIs, so restrict CORS to localhost origins.
+  cors: { origin: /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/ },
 });
 httpServer.listen(WS_PORT, '127.0.0.1');
 

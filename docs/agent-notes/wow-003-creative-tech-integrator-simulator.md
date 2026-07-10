@@ -58,6 +58,7 @@ Timeout-reset semantics mirror `EmitEvent` vs `EmitEventWithoutResetingTimout` (
 - **Phrase boundary**: queued clips trigger after a fixed `phraseLengthMs` (default 8s) instead of the phrase leader's loop end, which only the live set knows. When the last playing clip stops with clips queued, they trigger immediately (mirrors `StopOrRemoveClipFromQueue` → `TriggerQueuedClips`).
 - **BPM source**: `clip_started.bpm` comes from the CSV BPM column instead of Ableton warp markers.
 - **Sim-only defaults**: tempo 120, volumes 0.6×4 (real values come from the live set at startup).
+- **Missing-clip branch not modeled**: the real backend emits `clip_unqueued` when a CSV clip has no matching clip in the live Ableton set (`backend/ableton-api.ts:185-191`). The sim has no live set, so every database clip "exists" and this branch never fires. Shapes and acks are unaffected. (Added per reviewer should-fix.)
 - **Localhost-only bind** (`127.0.0.1`): deliberate — the sim must not be reachable from the installation network. The real backend binds wider; this is a dev-tool restriction, not a contract behavior.
 
 ## Decisions/questions waiting for the human

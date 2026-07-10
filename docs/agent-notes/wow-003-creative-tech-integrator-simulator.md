@@ -67,7 +67,7 @@ None — no contract ambiguity required a Decision entry. The socket.io devDepen
 
 ## Safe validation run
 
-- `yarn lint` ✅, `yarn test` ✅ (38 tests, incl. 33 new sim tests), `yarn build` ✅, `git diff --check` ✅.
+- `yarn lint` ✅, `yarn test` ✅ (48 tests after the Copilot-round guards and test-engineer additions; 33 sim tests at initial implementation), `yarn build` ✅, `git diff --check` ✅.
 - End-to-end demo executed: `yarn sim full-spell` + `yarn dev`, browser at the vite URL — ingredient appeared on pillar 1 with metadata, master key adopted (4A), tempo slider moved to 86 BPM, volume 0.6; UI tempo-slider drag observed arriving in the sim log as `set_tempo` and broadcast back as `tempo_changed`. Zero browser console errors.
 - `backend/`, `Arduino/`, `src/assets/Music Database.csv` untouched (CSV read-only at runtime).
 

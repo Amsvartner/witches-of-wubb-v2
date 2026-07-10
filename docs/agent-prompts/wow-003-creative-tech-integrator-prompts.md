@@ -31,7 +31,7 @@ Disallowed files:
 
 - `backend/**`, `Arduino/**`, `src/assets/Music Database.csv` (read-only reference)
 - `src/**` app code — the frontend must work against the simulator unchanged
-- Any dependency additions/upgrades. **Known gap:** the root `package.json` has only `socket.io-client@^4.6.1` — the `socket.io` **server** package is not installed (not even transitively). `sim/server.ts` needs it, and adding a dependency requires human approval (AGENTS.md rule 4). Before writing any code, confirm with the human how to provide it (expected: approve adding `socket.io@^4.6.x` as a devDependency, wire-compatible with the client). Do not install anything without that approval.
+- Any dependency additions/upgrades **except** the one pre-approved for this ticket: the human approved (2026-07-10, PR #2 review round) adding `socket.io@^4.6.x` as a **devDependency** for `sim/server.ts` — the root `package.json` has only `socket.io-client@^4.6.1` and the server package is not installed. Add exactly that package, nothing else; any further dependency need is a stop-and-ask.
 
 Acceptance criteria (verbatim from ticket):
 

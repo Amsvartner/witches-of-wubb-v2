@@ -24,8 +24,8 @@ Updated 2026-07-09 after scope decisions (ADR-001…004). Agent output notes go 
 - Acceptance criteria: `yarn dev` + simulator drives the current UI end-to-frontend; all events logged; zero imports of ableton-js/node-osc; `sim/core` has no socket.io imports and is exercised directly by vitest; contract documented deltas = none.
 - Required tests/checks: vitest unit tests importing `sim/core` (state + scenario engine); `yarn lint`; manual demo steps for the human.
 - Hardware/Ableton/LED/RFID safety notes: Must be incapable of emitting OSC or contacting the real backend/hardware. CSV read-only.
-- Dependencies: location/port decision (defaults: reuse port 3335; propose location in ticket PR — human confirms in review).
-- Out of scope: modifying `backend/`; new runtime dependencies (use existing socket.io).
+- Dependencies: none — location/port decided (`sim/`, port 3335 → ADR-001); `socket.io@^4.6.x` devDependency approved 2026-07-10 (root only had `socket.io-client`; see DECISIONS_NEEDED "Resolved").
+- Out of scope: modifying `backend/`; new **runtime** dependencies beyond the approved `socket.io` devDependency.
 - Suggested agent(s): creative-tech-integrator (build), test-engineer, reviewer
 - Risk: low-medium (contract fidelity)
 - Stop conditions: Contract ambiguity that can't be resolved from `backend/events/` reading → Decision needed.

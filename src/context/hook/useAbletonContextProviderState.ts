@@ -103,56 +103,59 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
   );
 
   useEffect(() => {
-    if (socket.disconnected) {
+    // socket starts out as an unconnected placeholder (see useSocketContextProviderState),
+    // which has no `.on`/`.off` methods; only subscribe (and therefore only clean up) once
+    // it's the real, connected socket.io client.
+    if (!socket.connected) {
       // TODO: Show in UI
+      return;
     }
-    if (socket.connected) {
-      getTracksAndClips();
 
-      socket.on('ingredient_detected', (data: BrowserClipInfo) => {
-        setQueuedClips((current) => updateIndex(data.pillar, data, current));
-      });
+    getTracksAndClips();
 
-      socket.on('clip_queued', (data: BrowserClipInfo) => {
-        setQueuedClips((current) => updateIndex(data.pillar, data, current));
-      });
-      socket.on('clip_unqueued', (data: BrowserClipInfo) => {
-        setQueuedClips((current) => updateIndex(data.pillar, null, current));
-      });
+    socket.on('ingredient_detected', (data: BrowserClipInfo) => {
+      setQueuedClips((current) => updateIndex(data.pillar, data, current));
+    });
 
-      socket.on('clip_started', onUpdatePlayState);
+    socket.on('clip_queued', (data: BrowserClipInfo) => {
+      setQueuedClips((current) => updateIndex(data.pillar, data, current));
+    });
+    socket.on('clip_unqueued', (data: BrowserClipInfo) => {
+      setQueuedClips((current) => updateIndex(data.pillar, null, current));
+    });
 
-      socket.on('clip_playing', onUpdatePlayState);
+    socket.on('clip_started', onUpdatePlayState);
 
-      socket.on('ingredient_removed', (data: BrowserClipInfo) => {
-        if (playingClipsRef.current.some((item) => item?.clipName === data.clipName)) {
-          setPlayingClips((current) => updateIndex(data.pillar, null, current));
-          setStoppingClips((current) => updateIndex(data.pillar, data, current));
-        } else if (queuedClipsRef.current.some((item) => item?.clipName === data.clipName)) {
-          setQueuedClips((current) => updateIndex(data.pillar, null, current));
-        }
-      });
+    socket.on('clip_playing', onUpdatePlayState);
 
-      socket.on('clip_stopping', (data: BrowserClipInfo) => {
+    socket.on('ingredient_removed', (data: BrowserClipInfo) => {
+      if (playingClipsRef.current.some((item) => item?.clipName === data.clipName)) {
         setPlayingClips((current) => updateIndex(data.pillar, null, current));
         setStoppingClips((current) => updateIndex(data.pillar, data, current));
-      });
+      } else if (queuedClipsRef.current.some((item) => item?.clipName === data.clipName)) {
+        setQueuedClips((current) => updateIndex(data.pillar, null, current));
+      }
+    });
 
-      socket.on('clip_stopped', ({ pillar }: { pillar: number }) => {
-        setClipTempo((current) => updateIndex(pillar, null, current));
-        setPlayingClips((current) => updateIndex(pillar, null, current));
-        setStoppingClips((current) => updateIndex(pillar, null, current));
-      });
-      socket.on('tempo_changed', ({ tempo }: { tempo: number }) => {
-        setTempo(tempo);
-      });
-      socket.on('volume_changed', (data: SetTrackVolumeInputType) => {
-        setTrackVolume((current) => updateIndex(data.pillar, data.volume, current));
-      });
-      socket.on('master-key_changed', ({ key }: { key: string }) => {
-        setMasterKey(key);
-      });
-    }
+    socket.on('clip_stopping', (data: BrowserClipInfo) => {
+      setPlayingClips((current) => updateIndex(data.pillar, null, current));
+      setStoppingClips((current) => updateIndex(data.pillar, data, current));
+    });
+
+    socket.on('clip_stopped', ({ pillar }: { pillar: number }) => {
+      setClipTempo((current) => updateIndex(pillar, null, current));
+      setPlayingClips((current) => updateIndex(pillar, null, current));
+      setStoppingClips((current) => updateIndex(pillar, null, current));
+    });
+    socket.on('tempo_changed', ({ tempo }: { tempo: number }) => {
+      setTempo(tempo);
+    });
+    socket.on('volume_changed', (data: SetTrackVolumeInputType) => {
+      setTrackVolume((current) => updateIndex(data.pillar, data.volume, current));
+    });
+    socket.on('master-key_changed', ({ key }: { key: string }) => {
+      setMasterKey(key);
+    });
 
     return () => {
       socket.off('ingredient_detected');

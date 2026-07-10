@@ -91,6 +91,21 @@ Updated 2026-07-09 after scope decisions (ADR-001…004). Agent output notes go 
 
 ---
 
+- ID: WOW-010
+- Title: Hardware-sim tag client (tier 2) — ADR-001 amendment
+- Summary: Thin socket.io client that replays `sim/core` scenarios against the **real backend** (`/new/tag`/`/departed/tag` over websocket), so a human with a local Ableton set can exercise real musical behavior with simulated pillars/tags.
+- Description: Implement per the ADR-001 amendment ("hardware-sim tier", proposed 2026-07-10): `sim/tag-client.ts` connects to `localhost:3335` as a socket.io client and replays the existing scenario scripts (`full-spell`, `replace-ingredient`, `timeout`, `idle`) by emitting `/new/tag`/`/departed/tag` with real CSV rfids; add `yarn sim:tags <scenario>`; README tier-2 runbook covering the preconditions (local Ableton set only, `LIGHTING_SERVER_ADDRESS` on localhost, agents never run `yarn start-backend`); extend the import-guard test with the file-scoped carve-out (socket.io-client allowed in `sim/tag-client.ts` only).
+- Acceptance criteria: `yarn sim:tags full-spell` against a human-run real backend drives tags end-to-end (verified by the human — agents verify only against the tier-1 mock, where the client's emissions can be asserted); `sim/core` untouched and still transport-free; zero imports of `ableton-js`/`node-osc`/`backend/` anywhere in `sim/**`; import-guard test updated and green; README runbook present; no backend changes.
+- Required tests/checks: vitest for the client's scenario→emission mapping against the tier-1 mock server or an in-process socket.io server on an ephemeral localhost port; `yarn lint`; `yarn test`; `yarn build`.
+- Hardware/Ableton/LED/RFID safety notes: The client emits only `/new/tag`/`/departed/tag` to `localhost:3335` and is inert without a backend. **Agents never run `yarn start-backend`** — tier-2 end-to-end verification is a human demo step, not an agent validation. CSV read-only.
+- Dependencies: WOW-003 merged (reuses `sim/core` scenarios); **human approval of the ADR-001 amendment** (blocked until then).
+- Out of scope: `backend/**` changes; new scenarios; any change to `sim/core` beyond exports the client needs.
+- Suggested agent(s): creative-tech-integrator (build), test-engineer, reviewer, hardware-safety-reviewer (runbook + safety-rule review)
+- Risk: low-medium (safety-rule clarity; carve-out precision in the import guard)
+- Stop conditions: ADR amendment not approved → blocked. Any need to touch `backend/` or add dependencies → stop and ask.
+
+---
+
 - ID: WOW-007 (placeholder)
 - Title: [Placeholder] UI rework foundation tickets
 - Summary: Sliced by project-manager after WOW-006 approval (two-page structure, theming foundation, recipe removal, contract layer).

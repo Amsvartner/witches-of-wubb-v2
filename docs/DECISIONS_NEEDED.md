@@ -26,6 +26,25 @@ yes (blocks operator-surface implementation, not design)
 
 ## Software architecture / dependencies
 
+```text
+Decision needed:
+- Approve the ADR-001 amendment (proposed 2026-07-10): a second simulation tier — real backend + real Ableton, simulated tags via a thin `sim/tag-client.ts` replaying existing scenarios over websocket (`yarn sim:tags`), human-run only.
+
+Why this matters:
+- Real quantization, phrase-leader triggering, transposition, and warp-marker BPM can't be exercised by the tier-1 mock; tier 2 also validates the mock's documented approximations. It requires a deliberate, file-scoped exception to "the simulator must be incapable of contacting the real backend."
+
+Options:
+1. Approve as drafted (tier 2 human-run only; carve-out limited to sim/tag-client.ts; preconditions: local Ableton set, LIGHTING_SERVER_ADDRESS on localhost).
+2. Approve with changes (e.g. stricter preconditions, different script name).
+3. Reject — keep the simulator strictly backend-incapable; validate approximations manually instead.
+
+Recommendation:
+- Option 1. Zero backend changes, reuses the scenario engine, and the safety rules keep agents away from live Ableton (`yarn start-backend` stays human-only regardless).
+
+Blocked until human confirms:
+yes (blocks WOW-010)
+```
+
 - F1 dependency updates: any libs explicitly off-limits besides keeping socket.io wire-compat with backend 4.6? Proposed approach: audit first (`yarn audit`/`npm audit`), then upgrade in grouped PRs (tooling, React ecosystem, Tailwind) — confirm grouping in WOW-009 review.
 
 ## Deployment / show operation

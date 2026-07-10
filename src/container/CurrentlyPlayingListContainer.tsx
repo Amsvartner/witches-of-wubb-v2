@@ -1,13 +1,10 @@
 import { useContext } from 'react';
 import { AbletonContext } from '~/context/AbletonProvider';
 import { VolumeSliderContainer } from '~/container/VolumeSliderContainer';
-
 import { ColorUtil } from '~/util/ColorUtil';
-// import { LoggerContext } from '~/context/LoggerProvider';
 
 export const CurrentlyPlayingListContainer = (): JSX.Element => {
   const { queuedClips, playingClips, stoppingClips, clipTempo } = useContext(AbletonContext);
-  // const { logger } = useContext(LoggerContext);
 
   return (
     <div id='inner_playing' className='w-screen relative'>
@@ -17,7 +14,9 @@ export const CurrentlyPlayingListContainer = (): JSX.Element => {
           const queued = queuedClips[index];
           const stopping = stoppingClips[index];
           const info = queued ?? playing ?? stopping;
+
           let clipName = info?.clipName?.trimStart() ?? '';
+
           if (info?.artist && info?.songTitle) {
             clipName = `${info?.artist} - ${info?.songTitle}`;
           } else {

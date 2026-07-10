@@ -1,7 +1,7 @@
 # 001. Offline simulator as standalone mock backend with shared core module
 
 Date: 2026-07-09
-Status: accepted (amended 2026-07-09: shared-module structure added after revisiting)
+Status: accepted (amended 2026-07-09: shared-module structure added after revisiting; amended 2026-07-10: hardware-sim tier — human approved 2026-07-10)
 
 ## Context
 
@@ -28,3 +28,41 @@ Chosen over option 2 because the backend is out of scope/read-only this phase (A
 - Frontend unit tests can drive `sim/core` directly instead of hand-rolled socket mocks, so dev sim and tests share one contract implementation.
 - Drift risk vs. the real backend remains; reviewer checks contract fidelity (event names/shapes per ARCHITECTURE.md) on every sim or socket-adjacent diff.
 - One extra dev process (`sim/server.ts`) alongside `yarn dev`.
+
+## Amendment (2026-07-10): hardware-sim tier — real Ableton, simulated tags
+
+Status: **accepted — human approved 2026-07-10** (as drafted, plus three design decisions recorded below; implementation ticket WOW-010).
+
+### Context
+
+The behaviors the mock backend can only approximate are precisely the ones a live Ableton set produces: quantized `clip_started` timing, phrase-leader/loop-end queue triggering, transposition/key-lock, warp-marker BPM. The real backend already accepts simulated hardware: `/new/tag` and `/departed/tag` have first-class **websocket** handlers (`backend/events/incoming-events.ts:42-65`, used today by the hidden debug panel), with the pillar index mapped back through the pillar-IP table. Only tooling, documentation, and guardrails are missing.
+
+### Decision
+
+Define two simulation tiers:
+
+- **Tier 1 — mock everything** (existing `yarn sim`): mock socket.io backend, no Ableton, no hardware. The only tier agents and CI may run. Unchanged.
+- **Tier 2 — hardware-sim** (new, human-run only): the human runs `yarn start-backend` with a **local** Ableton set; a new thin scenario client `sim/tag-client.ts` (`yarn sim:tags <scenario>`) connects to the real backend on `localhost:3335` as a socket.io client and replays the existing `sim/core` scenario scripts by emitting `/new/tag`/`/departed/tag`. Zero backend changes (ADR-004 holds); the scenario engine, CSV row selection, and scripts are reused unchanged.
+
+Design decisions (human, 2026-07-10):
+
+- **Lighting guardrail — hard abort**: the tag client reads `.env` and refuses to start when `LIGHTING_SERVER_ADDRESS` is not localhost/127.0.0.1 (the backend emits OSC to it unconditionally); override only by editing `.env`.
+- **Manual mode included**: besides scripted scenarios, `yarn sim:tags manual` offers keyboard-driven tag placement/removal per pillar for jamming against real Ableton without the UI debug panel.
+- **Fidelity-validation checklist included**: the tier-2 runbook gets a checklist that walks each documented tier-1 approximation (quantized `clip_started`, phrase-boundary queue triggering, warp-marker BPM vs. CSV BPM, key/transposition behavior) against real Ableton, recording observed behavior next to the mock's fidelity table.
+
+### Safety rules for tier 2 (non-negotiable)
+
+- `yarn start-backend` remains a live-hardware command: **agents never run it**; `yarn sim:tags` is inert without it and is itself safe to run (it only emits tag events to localhost:3335).
+- Tier 2 sessions use a local Ableton set on a dev machine — never the installation machine; real volume is in play (`SetTrackVolume(pillar, 0.6)` on clip start).
+- Precondition: `.env` `LIGHTING_SERVER_ADDRESS` must point at localhost — every emitted event goes through `Emit`, which calls `SendOSCMessage` toward the lighting address unconditionally (`backend/events/outgoing-events.ts:21-32`; client constructed at `:5-7`).
+- Known exposure to note in the runbook: the backend's OSC server binds `0.0.0.0:9000` (`backend/index.ts`), so the dev machine is reachable on its LAN while tier 2 runs.
+
+### Scope carve-out
+
+`sim/tag-client.ts` is a deliberate, file-scoped exception to "the simulator must be incapable of contacting the real backend": it may import socket.io-client and connect to `localhost:3335` **only**. `sim/core/` stays transport-free and backend-incapable; the import-guard test gets a matching carve-out for the client file alone (socket.io-client permitted there; `ableton-js`/`node-osc`/`backend/` imports remain forbidden everywhere in `sim/**`).
+
+### Consequences
+
+- The mock's fidelity table becomes verifiable: tier 2 is the reference for checking tier 1's documented approximations against real Ableton behavior.
+- Tier 2 does not replace tier 1 — CI, vitest, and agent-driven UI work still require the mock (no Ableton available there).
+- Documentation cost: README gains a tier-2 runbook with the preconditions above.

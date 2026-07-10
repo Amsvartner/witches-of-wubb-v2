@@ -35,3 +35,14 @@ Address every Blocker/High/Medium; Low items get a fix or one-line rationale. St
 ## 3. Validate and close out
 
 `yarn lint`, `yarn test`, simulator demo re-check where UI behavior changed. Update the review note(s) with a "Fixes" section mapping finding → commit. Commit with a message referencing the ticket. Summarize: findings by severity, what changed, what was rationalized instead of fixed, fresh validation results.
+
+## 4. Resolve the PR threads
+
+After the fix commit is pushed, close every addressed inline thread on the PR — a fixed finding left "unresolved" fails the gate and misleads the next reviewer:
+
+1. **Reply first, then resolve** — each thread gets a reply stating what happened before it is resolved, so the resolution is auditable in place:
+   - Fixed → `Fixed in <short-sha> — <one line on the change>.` (`gh api "repos/{owner}/{repo}/pulls/<n>/comments/<comment-id>/replies" -f body=...` — note: `gh pr edit --add-reviewer Copilot` and thread APIs vary; comment ids come from the reviewThreads GraphQL query)
+   - Rationalized, not fixed → reply with the reasoning (reference the repo rule or ADR that justifies it), then resolve.
+2. Resolve via GraphQL: `gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<PRRT_...>"}) { thread { isResolved } } }'` for each thread id from the same reviewThreads query used in step 1.
+3. Verify zero unresolved threads remain (`reviewThreads` filtered on `isResolved: false` must be empty) and confirm in the summary.
+4. Never resolve a thread that was neither fixed nor given a written rationale — leave it open and list it in the summary as outstanding.

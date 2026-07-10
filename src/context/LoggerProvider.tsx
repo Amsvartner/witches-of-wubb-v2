@@ -1,4 +1,4 @@
-import { createContext, ReactNode } from 'react';
+import { createContext, FC, PropsWithChildren } from 'react';
 import Logger from 'js-logger';
 
 // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -17,20 +17,20 @@ export const LoggerContext = createContext({
   },
 });
 
-export default function LoggerProvider({ children }: { children: ReactNode }) {
-  function enableDebug() {
+export const LoggerProvider: FC<PropsWithChildren> = ({ children }) => {
+  const enableDebug = () => {
     logger.info('Enabling debug mode');
     logger.setLevel(Logger.DEBUG);
-  }
+  };
 
-  function disableDebug() {
+  const disableDebug = () => {
     logger.info('Disabling debug mode');
     logger.setLevel(Logger.INFO);
-  }
+  };
 
   return (
     <LoggerContext.Provider value={{ logger, enableDebug, disableDebug }}>
       {children}
     </LoggerContext.Provider>
   );
-}
+};

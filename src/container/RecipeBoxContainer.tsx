@@ -1,7 +1,7 @@
-import useGrimoire from '~/hooks/use-grimoire';
-import { getBackgroundColorFromType } from '~/lib/utils';
+import { useGrimoire } from '~/hook/useGrimoire';
+import { ColorUtil } from '~/util/ColorUtil';
 
-export default function RecipeBox() {
+export const RecipeBoxContainer = (): JSX.Element => {
   // const { queuedClips, playingClips, stoppingClips } = useContext(AbletonContext);
   // const { logger } = useContext(LoggerContext);
   // console.log('spell receipe', spellRecipe);
@@ -40,7 +40,7 @@ export default function RecipeBox() {
                 >
                   <div
                     id='color-blur'
-                    className={`absolute inset-0 rounded-lg blur-xl z-0 ${getBackgroundColorFromType(
+                    className={`absolute inset-0 rounded-lg blur-xl z-0 ${ColorUtil.getBackgroundColorFromType(
                       type,
                     )}`}
                   ></div>
@@ -57,4 +57,4 @@ export default function RecipeBox() {
       </div>
     </div>
   );
-}
+};

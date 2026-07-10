@@ -36,6 +36,8 @@ Output: `docs/agent-notes/wow-011-reviewer-verdict-pr1.md`.
 
 _Append after execution: date, executor, branch + head SHA, verdict, note path._
 
+- 2026-07-10 — executor: Claude Fable 5 (reviewer subagent, /ship-feature pipeline) — branch `feat/wow-011-frontend-sweep`, PR https://github.com/Amsvartner/witches-of-wubb-v2/pull/7 — first pass @ `5b309e1`: **approve-with-nits** (4 should-fixes: 2 ARCHITECTURE paths, designer profile paths, Copilot thread; 3 nits deferred to PR 3). Fix round `a551c9a`; re-review @ `a551c9a`: **approve**, zero unresolved threads. Note: `docs/agent-notes/wow-011-reviewer-verdict-pr1.md`.
+
 ## Prompt 2 — review PR 2 (backend sweep)
 
 Goal: strict diff review of the backend restructure (steps 3, 4, 5). This is the safety-gated diff — your review runs **in addition to**, not instead of, the mandatory audio-ableton-reviewer and hardware-safety-reviewer sign-offs; verify both are requested/recorded before any approve verdict.

@@ -1,7 +1,7 @@
 import { useContext } from 'react';
-import { AbletonContext } from '~/contexts/ableton-provider';
+import { AbletonContext } from '~/context/AbletonProvider';
 
-export function KeyAdjuster() {
+export const KeyAdjusterContainer = (): JSX.Element => {
   const { masterKey, changeMasterKey, keylock, changeKeylock } = useContext(AbletonContext);
   // const { logger } = useContext(LoggerContext);
 
@@ -60,4 +60,4 @@ export function KeyAdjuster() {
       )}
     </div>
   );
-}
+};

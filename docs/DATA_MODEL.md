@@ -18,7 +18,7 @@ Status: observed. There is no formal schema; the model is implied by `backend/ty
 
 **Ableton mapping** — `ClipBoard`: per-track array of ableton-js `Clip` objects, matched to CSV by clip name.
 
-**UI state** — React contexts mirror backend state via socket.io request/response (`get_*` events) and pushed events (`ingredient_detected`, `ingredient_removed`, `timeout_warning`); `use-grimoire` adds client-only spell name/recipe state.
+**UI state** — React contexts mirror backend state via socket.io request/response (`get_*` events) and pushed events (`ingredient_detected`, `ingredient_removed`, `timeout_warning`); `useGrimoire` adds client-only spell name/recipe state.
 
 ## Identity chain
 

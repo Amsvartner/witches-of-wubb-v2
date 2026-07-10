@@ -51,14 +51,14 @@ yes (blocks operator-surface implementation, not design)
 
 **2026-07-09 (third round):**
 
-- Category colors: defined in `src/lib/utils.ts` (`getBackgroundColorFromType`) — Vox = red-700, Bass = green-700, Drums = blue-700, Melody = yellow-700 (Tailwind). Single source of truth for legend/icons; redesign may restyle values only via that function → PRD F4
+- Category colors: defined in `src/util/ColorUtil.ts` (`ColorUtil.getBackgroundColorFromType`) — Vox = red-700, Bass = green-700, Drums = blue-700, Melody = yellow-700 (Tailwind). Single source of truth for legend/icons; redesign may restyle values only via that function → PRD F4
 
 **2026-07-09 (second round):**
 
 - `backend/` folder **is** the backend code; stays in repo, read-only this phase → ADR-004 (amended)
 - Operator access gesture: long-press ~3 s on themed element → ADR-006
 - Routing: hand-rolled, no router dependency → ADR-005 (human-authored; supersedes the earlier react-router chat approval)
-- Spell names: **removed entirely** (with recipes; `use-grimoire` goes) → ADR-003 (amended), PRD F5
+- Spell names: **removed entirely** (with recipes; `useGrimoire` goes) → ADR-003 (amended), PRD F5
 - Operator page-vs-overlay: **reopened**, decided from WOW-006 mockups → ADR-003 (amended)
 - Simulator location/port: `sim/`, port 3335 → ADR-001
 - Feature list F1–F6 confirmed → PRD

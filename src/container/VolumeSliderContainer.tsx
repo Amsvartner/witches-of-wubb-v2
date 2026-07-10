@@ -1,11 +1,14 @@
 import { useContext } from 'react';
-import { AbletonContext } from '../contexts/ableton-provider';
-// import { LoggerContext } from '../contexts/logger-provider';
+import { AbletonContext } from '~/context/AbletonProvider';
+// import { LoggerContext } from '~/context/LoggerProvider';
 
 const MIN_VALUE = 0;
 const MAX_VALUE = 0.7;
 const RESET_VALUE = 0.6;
-export default function VolumeSlider({ pillar }: { pillar: number }) {
+
+type Props = { pillar: number };
+
+export const VolumeSliderContainer = ({ pillar }: Props): JSX.Element => {
   // const { logger } = useContext(LoggerContext);
   const { trackVolume, changeTrackVolume } = useContext(AbletonContext);
   const value = trackVolume[pillar] ? Math.min(trackVolume[pillar], 0.7) : 0;
@@ -53,4 +56,4 @@ export default function VolumeSlider({ pillar }: { pillar: number }) {
       </div>
     </>
   );
-}
+};

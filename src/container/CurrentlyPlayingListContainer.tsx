@@ -1,13 +1,10 @@
 import { useContext } from 'react';
-import { AbletonContext } from '~/contexts/ableton-provider';
-import VolumeSlider from './volume-slider';
+import { AbletonContext } from '~/context/AbletonProvider';
+import { VolumeSliderContainer } from '~/container/VolumeSliderContainer';
+import { ColorUtil } from '~/util/ColorUtil';
 
-import { getBackgroundColorFromType } from '~/lib/utils';
-// import { LoggerContext } from '~/contexts/logger-provider';
-
-export default function CurrentlyPlayingList() {
+export const CurrentlyPlayingListContainer = (): JSX.Element => {
   const { queuedClips, playingClips, stoppingClips, clipTempo } = useContext(AbletonContext);
-  // const { logger } = useContext(LoggerContext);
 
   return (
     <div id='inner_playing' className='w-screen relative'>
@@ -17,7 +14,9 @@ export default function CurrentlyPlayingList() {
           const queued = queuedClips[index];
           const stopping = stoppingClips[index];
           const info = queued ?? playing ?? stopping;
+
           let clipName = info?.clipName?.trimStart() ?? '';
+
           if (info?.artist && info?.songTitle) {
             clipName = `${info?.artist} - ${info?.songTitle}`;
           } else {
@@ -25,7 +24,7 @@ export default function CurrentlyPlayingList() {
           }
 
           // determine the color-blur color based on the track type
-          const colorBlurClass = getBackgroundColorFromType(info?.type);
+          const colorBlurClass = ColorUtil.getBackgroundColorFromType(info?.type);
 
           return (
             <div id={`pillar-${pillar}`} className='w-[55%] text-center' key={pillar}>
@@ -38,7 +37,7 @@ export default function CurrentlyPlayingList() {
                 </div>
                 {index % 2 === 0 ? (
                   <div className='object-scale-down max-h-full max-w-full mr-20'>
-                    <VolumeSlider pillar={index} />
+                    <VolumeSliderContainer pillar={index} />
                   </div>
                 ) : null}
                 <div className='relative col-span-3 flex justify-items-center'>
@@ -73,7 +72,7 @@ export default function CurrentlyPlayingList() {
                 </div>
                 {index % 2 === 1 ? (
                   <div className='object-scale-down max-h-full max-w-full ml-20'>
-                    <VolumeSlider pillar={index} />
+                    <VolumeSliderContainer pillar={index} />
                   </div>
                 ) : null}
                 {/* {playing || queued ? (
@@ -115,4 +114,4 @@ export default function CurrentlyPlayingList() {
       </div>
     </div>
   );
-}
+};

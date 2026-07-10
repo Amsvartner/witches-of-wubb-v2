@@ -1,6 +1,6 @@
 import { ClipTypes } from 'backend/types';
 
-export function getBackgroundColorFromType(type?: ClipTypes | string) {
+const getBackgroundColorFromType = (type?: ClipTypes | string): string => {
   let className = 'bg-white';
   // let className = 'bg-purple-700';
   switch (type) {
@@ -18,4 +18,8 @@ export function getBackgroundColorFromType(type?: ClipTypes | string) {
       break;
   }
   return className;
-}
+};
+
+export const ColorUtil = {
+  getBackgroundColorFromType,
+};

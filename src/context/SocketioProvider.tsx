@@ -1,9 +1,10 @@
-import { createContext, useEffect, useState, ReactNode, useContext } from 'react';
+import { createContext, FC, PropsWithChildren, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { LoggerContext } from './logger-provider';
+import { LoggerContext } from './LoggerProvider';
+
 export const SocketioContext = createContext({} as Socket);
 
-export default function SocketioProvider({ children }: { children: ReactNode }) {
+export const SocketioProvider: FC<PropsWithChildren> = ({ children }) => {
   const { logger } = useContext(LoggerContext);
   const [socket, setSocket] = useState<Socket>({} as Socket);
   useEffect(() => {
@@ -23,4 +24,4 @@ export default function SocketioProvider({ children }: { children: ReactNode }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket.connected]);
   return <SocketioContext.Provider value={socket}>{children}</SocketioContext.Provider>;
-}
+};

@@ -1,19 +1,19 @@
-import React from 'react';
+import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import App from './App';
-import SocketioProvider from './contexts/socketio-provider';
-import AbletonProvider from './contexts/ableton-provider';
-import LoggerProvider from './contexts/logger-provider';
+import { InstallationPage } from '~/page/InstallationPage';
+import { SocketioProvider } from '~/context/SocketioProvider';
+import { AbletonProvider } from '~/context/AbletonProvider';
+import { LoggerProvider } from '~/context/LoggerProvider';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
+  <StrictMode>
     <LoggerProvider>
       <SocketioProvider>
         <AbletonProvider>
-          <App />
+          <InstallationPage />
         </AbletonProvider>
       </SocketioProvider>
     </LoggerProvider>
-  </React.StrictMode>,
+  </StrictMode>,
 );

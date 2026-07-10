@@ -23,6 +23,7 @@ export const ClipButton = ({
     // 'text-sm': !loopLeader,
     'gap-4': true,
   });
+
   return (
     <div key={clipName} className={classes}>
       <button onClick={onClick} className='grid grid-flow-col items-start gap-2'>

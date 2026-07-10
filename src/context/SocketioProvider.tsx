@@ -1,11 +1,10 @@
-import { createContext, useEffect, useState, ReactNode, useContext } from 'react';
+import { createContext, FC, PropsWithChildren, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { LoggerContext } from './LoggerProvider';
+
 export const SocketioContext = createContext({} as Socket);
 
-type Props = { children: ReactNode };
-
-export const SocketioProvider = ({ children }: Props): JSX.Element => {
+export const SocketioProvider: FC<PropsWithChildren> = ({ children }) => {
   const { logger } = useContext(LoggerContext);
   const [socket, setSocket] = useState<Socket>({} as Socket);
   useEffect(() => {

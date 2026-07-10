@@ -79,3 +79,5 @@ Output:
 ### Prompt 1 — run record
 
 _Append after execution: date, executor (model/agent), branch + head SHA, outcome, note path._
+
+- 2026-07-10 — executor: Claude Fable 5 (frontend-implementer role, /ship-feature pipeline) — branch `feat/wow-011-frontend-sweep`, head `fcf78ccd7ebab499d3ec0a766f0b3d563dece772`, PR https://github.com/Amsvartner/witches-of-wubb-v2/pull/7 — outcome: steps 1/2/6 implemented, 16-file rename map, lint/test/build green (48/48), simulator demo verified in browser (identical UI, no console errors). Note: `docs/agent-notes/wow-011-frontend-implementer-sweep.md`.

@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
+import { createContext, FC, PropsWithChildren, useContext, useEffect, useState } from 'react';
 import { SocketioContext } from './SocketioProvider';
 import { LoggerContext } from './LoggerProvider';
 import { BrowserClipInfo, BrowserClipInfoList, SetTrackVolumeInputType } from 'backend/types';
@@ -39,9 +39,7 @@ const updateIndex = (index: number, newValue: any, initialArray: any[]) => {
   return newArray;
 };
 
-type Props = { children: ReactNode };
-
-export const AbletonProvider = ({ children }: Props): JSX.Element => {
+export const AbletonProvider: FC<PropsWithChildren> = ({ children }) => {
   const socket = useContext(SocketioContext);
   const { logger } = useContext(LoggerContext);
   const [tempo, setTempo] = useState(120);

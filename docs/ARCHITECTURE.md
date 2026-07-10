@@ -27,10 +27,10 @@ Status: **observed** — documented from code reading on 2026-07-09.
 
 ### Repo layout
 
-- `src/` — React 18 + TS frontend (Vite, Tailwind). Contexts (`src/context/`: `SocketioProvider`, `AbletonProvider`, `LoggerProvider`), page `InstallationPage`, containers (`src/container/`: CurrentlyPlayingList, RecipeBox, KeyAdjuster, TempoSlider, VolumeSlider, DebugModal), component `ClipButton`, hook `useGrimoire`.
+- `src/` — React 18 + TS frontend (Vite, Tailwind). Contexts (`src/context/`: `SocketProvider`, `AbletonProvider`), screen `MainScreen`, containers (`src/container/`: CurrentlyPlayingList, RecipeBox, KeyAdjuster, TempoSlider, VolumeSlider, DebugModal), component `ClipButton`, hook `useGrimoire`.
 - `backend/` — Node/TS (ts-node + nodemon). Own package.json/lockfile; installed via root `postinstall`.
 - `Arduino/` — firmware for RFID readers (OSC sender) and LED nodes (Art-Net receiver). Deployed to hardware; contains committed WiFi credentials.
-- Tests are colocated in `test/` folders (`src/page/test/`, `sim/test/`); shared vitest setup in `src/test/setup-tests.ts`.
+- Tests are colocated in `test/` folders (`src/screen/test/`, `sim/test/`); shared vitest setup in `src/test/setup-tests.ts`.
 - `src/assets/Music Database.csv` — the RFID→clip mapping (production data; read by the **backend** at startup via relative path, and imported by the frontend via `src/util/ClipDatabaseUtil.ts`).
 
 ### Runtime components

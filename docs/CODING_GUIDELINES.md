@@ -43,7 +43,7 @@ If this document conflicts with those files, stop and resolve the conflict befor
 
 ### Files and folders
 
-- Folder names are singular and use `kebab-case`: `component`, `container`, `page`, `hook`, `context`, `service`, `adapter`, `event`, `util`, `type`, `mock`, `test`.
+- Folder names are singular and use `kebab-case`: `component`, `container`, `screen`, `hook`, `context`, `service`, `adapter`, `event`, `util`, `type`, `mock`, `test`.
 - React component files use `PascalCase.tsx` (`TempoSlider.tsx`).
 - Type files use `PascalCase.ts`, one exported type per file, named after the type (`ClipMetadata.ts` exports `ClipMetadata`).
 - Service files use `PascalCase.ts` ending in `Service` (`AbletonService.ts` exporting `AbletonService`).
@@ -140,10 +140,10 @@ export const AbletonService = {
 Three-level component hierarchy:
 
 ```text
-page > container > component
+screen > container > component
 ```
 
-- **`src/page/`** — top-level components for a view (`InstallationPage.tsx`). Compose containers. Thin.
+- **`src/screen/`** — top-level components for a view (`MainScreen.tsx`). Compose containers. Thin.
 - **`src/container/`** — coordinate logic and compose components. May use hooks, contexts, loading/error states. Names end in `Container`.
 - **`src/component/`** — purely presentational. Props in, markup out. No business logic, no context reads beyond trivial local UI state. Do not compose other feature components.
 - **`src/hook/`** — hooks encapsulating state, socket subscriptions, and side effects.
@@ -206,8 +206,8 @@ The simulator implements the same event contract as the real backend. Sim-only c
 
 ## Error handling and logging
 
-- Backend: pino (`backend/util/LoggerUtil.ts`). Levels: `trace` chatty OSC traffic, `info` lifecycle, `warn` recoverable, `error` failures. Wrap RFID/Ableton lookups in try/catch and log rather than crash — the installation must keep running.
-- Frontend: js-logger via the logger provider. No `console.log` in committed code.
+- Backend: pino (`backend/util/Logger.ts`, exporting a `Logger` singleton). Levels: `trace` chatty OSC traffic, `info` lifecycle, `warn` recoverable, `error` failures. Wrap RFID/Ableton lookups in try/catch and log rather than crash — the installation must keep running.
+- Frontend: js-logger via the `Logger` singleton (`src/util/Logger.ts`). No `console.log` in committed code.
 - Represent expected failures explicitly with discriminated-union results rather than thrown strings:
 
 ```ts
@@ -245,7 +245,7 @@ A dedicated ticket performs the one-time sweep, in one reviewed PR (or a small s
 3. Rename backend PascalCase functions to `camelCase`; group module exports behind namespace objects (`AbletonService`, `CsvUtil`).
 4. Split `backend/types.ts` into `backend/type/` (one type per file); add `Maybe.ts`.
 5. Restructure `backend/` into `event/` / `service/` / `adapter/` / `util/`; isolate all OSC/MIDI/Art-Net/Ableton I/O behind adapters.
-6. Introduce `src/page/` + `src/container/` and move logic-bearing components accordingly.
+6. Introduce `src/screen/` + `src/container/` and move logic-bearing components accordingly.
 7. Move `spec/` tests into colocated `test/` folders; update vitest config.
 8. Add ESLint rules enforcing the mechanical conventions; remove remaining `any` and commented-out code.
 

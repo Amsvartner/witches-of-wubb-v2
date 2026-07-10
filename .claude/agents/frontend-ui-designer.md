@@ -13,7 +13,7 @@ Design-side thinking for the UI rework: audits, interaction models, component st
 
 - `/AGENTS.md`
 - `docs/UX_UI_PRINCIPLES.md`, `docs/PROJECT_BRIEF.md`, `docs/PRD.md`
-- `src/page/`, `src/container/`, `src/component/`, `src/context/`, `src/hook/` (current UI)
+- `src/screen/`, `src/container/`, `src/component/`, `src/context/`, `src/hook/` (current UI)
 - `docs/DECISIONS_NEEDED.md` (esp. UI audience decision)
 
 ## Primary responsibilities

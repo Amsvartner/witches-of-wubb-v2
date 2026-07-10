@@ -1,5 +1,4 @@
-import { useContext } from 'react';
-import { AbletonContext } from '~/context/AbletonProvider';
+import { useAbletonContext } from '~/context/hook/useAbletonContext';
 
 const MIN_VALUE = 0;
 const MAX_VALUE = 0.7;
@@ -8,7 +7,7 @@ const RESET_VALUE = 0.6;
 type Props = { pillar: number };
 
 export const VolumeSliderContainer = ({ pillar }: Props): JSX.Element => {
-  const { trackVolume, changeTrackVolume } = useContext(AbletonContext);
+  const { trackVolume, changeTrackVolume } = useAbletonContext();
   const value = trackVolume[pillar] ? Math.min(trackVolume[pillar], 0.7) : 0;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {

@@ -5,7 +5,7 @@ import * as socketio from 'socket.io';
 import * as nodeOSC from 'node-osc';
 import throttle from 'lodash.throttle';
 import memoize from 'lodash.memoize';
-import { LoggerUtil } from '../util/LoggerUtil';
+import { Logger } from '../util/Logger';
 import { PhraseLeaderService } from '../service/PhraseLeaderService';
 import { ClipBoard } from '../type/ClipBoard';
 import { ClipInfo } from '../type/ClipInfo';
@@ -18,8 +18,6 @@ import { OutgoingEvents } from '../event/OutgoingEvents';
 import { IncomingEvents } from '../event/IncomingEvents';
 import { MusicDatabaseService } from '../service/MusicDatabaseService';
 import { KeyTranspositionService } from '../service/KeyTranspositionService';
-
-const logger = LoggerUtil.logger;
 
 let oscServer: nodeOSC.Server;
 const sockets: socketio.Socket[] = [];
@@ -41,13 +39,13 @@ const stoppingClips: ClipList = [];
 const playingClips: ClipList = [];
 const queuedClips: ClipList = [];
 
-const ableton = new Ableton({ logger: logger });
+const ableton = new Ableton({ logger: Logger });
 
 const TRIGGER_ORDER = [ClipTypes.Drums, ClipTypes.Melody, ClipTypes.Bass, ClipTypes.Vox];
 const KEY_LEADER_ORDER = [ClipTypes.Vox, ClipTypes.Melody, ClipTypes.Bass, ClipTypes.Drums];
 
 async function startAbleton() {
-  logger.info('Starting AbletonJS');
+  Logger.info('Starting AbletonJS');
   await ableton.start();
   await getTracksAndClips();
   await getTrackVolumes();
@@ -61,7 +59,7 @@ async function handleTimeout() {
 }
 
 function startTimeoutTimer() {
-  logger.info('Starting timeout timer');
+  Logger.info('Starting timeout timer');
   function shouldShowTimeout() {
     return (
       playingClips.filter((clip) => clip).length > 0 &&
@@ -70,20 +68,20 @@ function startTimeoutTimer() {
   }
   timeoutWarningId = setTimeout(() => {
     if (shouldShowTimeout()) {
-      logger.warn('Timeout warning');
+      Logger.warn('Timeout warning');
       OutgoingEvents.emitEventWithoutResetingTimout('timeout_warning');
     }
   }, TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS);
   timeoutId = setTimeout(() => {
     if (shouldShowTimeout()) {
-      logger.warn('Timeout exceeded, restarting the UI');
+      Logger.warn('Timeout exceeded, restarting the UI');
       handleTimeout();
     }
   }, TIMEOUT_IN_MILISECONDS);
 }
 
 function restartTimeoutTimer() {
-  logger.warn('Restarting timeout timer');
+  Logger.warn('Restarting timeout timer');
   clearTimeout(timeoutId);
   clearTimeout(timeoutWarningId);
   startTimeoutTimer();
@@ -104,7 +102,7 @@ const MemoizedClipIndex = memoize(
 
 function addWebSocket(s: socketio.Socket) {
   s.on('disconnect', () => {
-    logger.info('Web client disconnected');
+    Logger.info('Web client disconnected');
     const disconnectedSocketIndex = sockets.findIndex((socket) => socket === s);
     sockets.splice(disconnectedSocketIndex, 1);
   });
@@ -114,7 +112,7 @@ function addWebSocket(s: socketio.Socket) {
 
 const FindAllClipsInLoop = memoize(
   (clipName, pillar) => {
-    logger.info(`Trying to find all clips in loop on pillar ${pillar + 1} > ${clipName}`);
+    Logger.info(`Trying to find all clips in loop on pillar ${pillar + 1} > ${clipName}`);
     const firstClipIndex = MemoizedClipIndex(clipName, pillar);
     if (firstClipIndex < 0) return [];
 
@@ -123,7 +121,7 @@ const FindAllClipsInLoop = memoize(
       .findLastIndex((clip) => {
         return clip?.raw.name.trim() === clipName.trim();
       });
-    logger.debug(
+    Logger.debug(
       `Loop for ${clipName} found on ${pillar + 1} > [${firstClipIndex}, ${
         firstClipIndex + lastClipIndex + 1
       }]`,
@@ -135,9 +133,9 @@ const FindAllClipsInLoop = memoize(
 
 function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
   const { clipName, key } = clipMetadata;
-  logger.info(`Begin queing clip ${clipName}`);
+  Logger.info(`Begin queing clip ${clipName}`);
   if (queuedClips[pillar]?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '')) {
-    logger.info(`Clip ${clipName} is already queued`);
+    Logger.info(`Clip ${clipName} is already queued`);
     return;
   }
   const clips = FindAllClipsInLoop(clipName, pillar);
@@ -157,10 +155,10 @@ function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
         (clip) => clip && transposeClipToNewKey({ ...clipMetadata, clip, pillar }, masterKey),
       );
     if (silence) {
-      logger.info(`Triggering clip "${clipName}" on pillar ${pillar + 1}`);
+      Logger.info(`Triggering clip "${clipName}" on pillar ${pillar + 1}`);
       clips[0]?.fire();
     } else if (clips[0]) {
-      logger.info(`Queuing clip "${clipName}" on pillar ${pillar + 1}`);
+      Logger.info(`Queuing clip "${clipName}" on pillar ${pillar + 1}`);
       queuedClips[pillar] = {
         clip: clips[0],
         pillar,
@@ -172,7 +170,7 @@ function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
       });
     }
   } else {
-    logger.warn(`No clip "${clipName}" found on pillar ${pillar + 1}`);
+    Logger.warn(`No clip "${clipName}" found on pillar ${pillar + 1}`);
     OutgoingEvents.emitEvent('clip_unqueued', {
       ...clipMetadata,
       pillar,
@@ -181,25 +179,25 @@ function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
 }
 
 async function triggerQueuedClips() {
-  logger.info(`Begin triggering clip queue`);
+  Logger.info(`Begin triggering clip queue`);
   for (let i = 0; i < queuedClips.length; i++) {
     const item = queuedClips[i];
     if (!item) continue;
-    logger.info(`Triggering clip "${item.clip.raw.name}" on pillar ${item.pillar} `);
+    Logger.info(`Triggering clip "${item.clip.raw.name}" on pillar ${item.pillar} `);
     await item.clip.fire();
     queuedClips[item.pillar] = null;
   }
 }
 
 async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
-  logger.trace(`Try to stop or unqueue clip ${clipName}`);
+  Logger.trace(`Try to stop or unqueue clip ${clipName}`);
   const playingClip = playingClips[pillar];
   const queuedClip = queuedClips[pillar];
 
   const isClipPlaying =
     playingClip?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '');
   if (isClipPlaying) {
-    logger.info(`Stopping clip "${clipName}" on pillar ${pillar + 1}`);
+    Logger.info(`Stopping clip "${clipName}" on pillar ${pillar + 1}`);
     stoppingClips[pillar] = playingClip;
     // clip.stop() won't work because of looping: stop the whole track instead.
     OutgoingEvents.emitEvent('clip_stopping', {
@@ -224,7 +222,7 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
   // check if the clip is queued
   const isClipQueued = queuedClip?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '');
   if (isClipQueued) {
-    logger.info(`Removing clip from queue "${clipName}" on pillar ${pillar + 1}`);
+    Logger.info(`Removing clip from queue "${clipName}" on pillar ${pillar + 1}`);
     if (keyLockEnabled) {
       const queuedClipsInLoop = FindAllClipsInLoop(clipName, pillar);
 
@@ -240,7 +238,7 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
   }
 
   if (!isClipPlaying && !isClipQueued) {
-    logger.warn(
+    Logger.warn(
       `Clip ${clipName} is neither playing or queue. Stopping pillar ${pillar + 1} just in case.`,
     );
     await tracks[pillar].sendCommand('stop_all_clips');
@@ -253,17 +251,17 @@ async function addPhraseLeader(newPhraseLeader: ClipInfo) {
   phraseLeader = newPhraseLeader;
 
   const { clip, clipName, pillar } = newPhraseLeader;
-  logger.info(`New phrase leader "${clipName}" on pillar ${pillar + 1}`);
+  Logger.info(`New phrase leader "${clipName}" on pillar ${pillar + 1}`);
 
   // figure out when this clip is about to end
   const endTime = await clip.get('loop_end');
-  logger.debug(`Loop end on pillar ${pillar + 1} > "${clipName}" | ${endTime}`);
+  Logger.debug(`Loop end on pillar ${pillar + 1} > "${clipName}" | ${endTime}`);
   cleanUpPhraseLeaderEventListener = await clip.addListener(
     'playing_position',
     throttle(
       function (clip: ClipInfo, endTime: number, currentTime: number) {
         if (currentTime >= endTime - 1) {
-          logger.info(
+          Logger.info(
             `Clip ending soon on pillar ${clip.pillar} > "${clip.clipName}" | ${currentTime} / ${endTime}`,
           );
           if (cleanUpPhraseLeaderEventListener) cleanUpPhraseLeaderEventListener();
@@ -276,7 +274,7 @@ async function addPhraseLeader(newPhraseLeader: ClipInfo) {
 }
 
 const getTracksAndClips = async () => {
-  logger.info('Fetching tracks and clips from Ableton');
+  Logger.info('Fetching tracks and clips from Ableton');
   // 2-D array of all the clips, ordered by Track
   allAbletonClips = [];
   tracks = await ableton.song.get('tracks');
@@ -286,7 +284,7 @@ const getTracksAndClips = async () => {
     const clipSlots = await track.get('clip_slots');
 
     track.addListener('playing_slot_index', async (clipSlotIndex: number) => {
-      logger.info('Playing slot index changed: ' + clipSlotIndex);
+      Logger.info('Playing slot index changed: ' + clipSlotIndex);
       if (clipSlotIndex >= 0) {
         const clip = allAbletonClips[pillar][clipSlotIndex];
         const clipName = clip?.raw.name;
@@ -299,7 +297,7 @@ const getTracksAndClips = async () => {
             pillar,
           };
 
-          logger.info(`Pillar ${pillar + 1} started playing ${clipName}`);
+          Logger.info(`Pillar ${pillar + 1} started playing ${clipName}`);
           if (!clipMetadata) {
             throw new Error(`Couldn't find clip metadata for "${clipName}"`);
           }
@@ -338,7 +336,7 @@ const getTracksAndClips = async () => {
         }
       } else {
         const clipInfo = stoppingClips[pillar];
-        logger.info(`Clip stopped playing on pillar ${pillar + 1} > "${clipInfo?.clipName}"`);
+        Logger.info(`Clip stopped playing on pillar ${pillar + 1} > "${clipInfo?.clipName}"`);
         OutgoingEvents.emitEventWithoutResetingTimout('clip_stopped', {
           ...clipInfo,
           pillar,
@@ -365,29 +363,29 @@ const getTracksAndClips = async () => {
       allAbletonClips[pillar].push(clip);
     }
   }
-  logger.info('Tracks and clips from Ableton fetched');
+  Logger.info('Tracks and clips from Ableton fetched');
 
   return { allAbletonClips, tracks };
 };
 
 async function getTempo() {
-  logger.info('Getting tempo');
+  Logger.info('Getting tempo');
   return ableton.song.get('tempo');
 }
 
 function setTempo(tempo: number) {
-  logger.info(`Setting tempo to: ${tempo}`);
+  Logger.info(`Setting tempo to: ${tempo}`);
   ableton.song.set('tempo', tempo);
   OutgoingEvents.emitEvent('tempo_changed', { tempo });
 }
 
 async function getTrackVolumes() {
-  logger.info('Getting track volumes');
+  Logger.info('Getting track volumes');
   trackVolumes = [];
   for (const track of tracks.slice(0, 4)) {
     const mixerDevice = await track.get('mixer_device');
     const deviceParameter = await mixerDevice.sendCommand('get_volume');
-    logger.debug(
+    Logger.debug(
       `Getting volume device parameter for track ${track.raw.name}: ${JSON.stringify(
         deviceParameter,
       )}`,
@@ -397,7 +395,7 @@ async function getTrackVolumes() {
 }
 
 async function setTrackVolume(pillar: number, volume: number) {
-  logger.info(`Setting volume for pillar ${pillar + 1} to ${volume}`);
+  Logger.info(`Setting volume for pillar ${pillar + 1} to ${volume}`);
   if (!trackVolumes?.length) await getTrackVolumes();
   const trackVolume = trackVolumes[pillar];
   await trackVolume?.set('value', volume);
@@ -418,7 +416,7 @@ function getKeyLockState() {
 function setKeyLockState(state: boolean) {
   keyLockEnabled = state;
 
-  logger.info(`Key lock: ${state}`);
+  Logger.info(`Key lock: ${state}`);
   playingClips.forEach((song, pillar) => {
     song &&
       FindAllClipsInLoop(song.clipName, pillar).forEach((clip) => {
@@ -459,7 +457,7 @@ function setMasterKey(newKey: string) {
 function transposeClipToNewKey(item: ClipInfo, newKey: string) {
   const { key, clip, clipName } = item;
   if (!newKey || key === newKey) {
-    logger.info(`Resetting clip "${clipName}" to original key`);
+    Logger.info(`Resetting clip "${clipName}" to original key`);
     clip.set('pitch_coarse', 0);
   } else if (key) {
     const trackKeyPitch = key.match(/[A-Z]/g)?.[0];
@@ -471,14 +469,14 @@ function transposeClipToNewKey(item: ClipInfo, newKey: string) {
         ? KeyTranspositionService.TRANSPOSITIONS[key][newKey]
         : KeyTranspositionService.TRANSPOSITIONS[key][backupKey]) ?? 0;
 
-    logger.info(
+    Logger.info(
       `Transposing clip "${clipName}" from ${key} to ${
         newKeyPitch === trackKeyPitch ? newKey : backupKey
       } > ${transposeAmount ?? 0}`,
     );
     clip.set('pitch_coarse', transposeAmount);
   } else {
-    logger.warn(`Cannot transpose clip "${item.clipName}": it does not have a key`);
+    Logger.warn(`Cannot transpose clip "${item.clipName}": it does not have a key`);
   }
 }
 

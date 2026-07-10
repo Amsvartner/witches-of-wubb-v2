@@ -1,11 +1,10 @@
-import { Fragment, useContext, useEffect } from 'react';
-
-import { AbletonContext } from '~/context/AbletonProvider';
-import { SocketioContext } from '~/context/SocketioProvider';
-import { LoggerContext } from '~/context/LoggerProvider';
+import { Fragment, useEffect } from 'react';
 import { ClipDatabaseUtil } from '~/util/ClipDatabaseUtil';
 import { ClipButton } from '~/component/ClipButton';
 import { Dialog, Transition } from '@headlessui/react';
+import { useAbletonContext } from '~/context/hook/useAbletonContext';
+import { useSocketContext } from '~/context/hook/useSocketContext';
+import { Logger } from '~/util/Logger';
 
 const clips = Object.entries(ClipDatabaseUtil.rfidToClipMap)
   .map(([rfid, data]) => ({ ...data, rfid }))
@@ -20,9 +19,8 @@ type Props = {
 };
 
 export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX.Element => {
-  const socket = useContext(SocketioContext);
-  const { enableDebug, disableDebug } = useContext(LoggerContext);
-  const { playingClips, queuedClips, stoppingClips } = useContext(AbletonContext);
+  const socket = useSocketContext();
+  const { playingClips, queuedClips, stoppingClips } = useAbletonContext();
 
   function toggleSong(rfid: string, pillar: number, start: boolean) {
     if (start) {
@@ -38,8 +36,8 @@ export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX
 
   useEffect(() => {
     if (isModalOpen) {
-      enableDebug();
-      return disableDebug;
+      Logger.enableDebug();
+      return Logger.disableDebug;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen]);

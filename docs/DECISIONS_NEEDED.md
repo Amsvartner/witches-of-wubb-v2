@@ -44,6 +44,10 @@ yes (blocks operator-surface implementation, not design)
 
 ## Resolved → ADRs / owning docs
 
+**2026-07-10:**
+
+- Simulator server dependency: root `package.json` only had `socket.io-client` (ticket WOW-003's "use existing socket.io" premise was false). Human approved adding `socket.io@^4.6.x` as a **devDependency** for `sim/server.ts` — that package only, wire-compatible with the 4.6 client → TICKETS_001_INITIAL (WOW-003), wow-003 build prompt
+
 **2026-07-09 (third round):**
 
 - Category colors: defined in `src/lib/utils.ts` (`getBackgroundColorFromType`) — Vox = red-700, Bass = green-700, Drums = blue-700, Melody = yellow-700 (Tailwind). Single source of truth for legend/icons; redesign may restyle values only via that function → PRD F4

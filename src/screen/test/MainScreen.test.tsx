@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { PropsWithChildren } from 'react';
 import { Socket } from 'socket.io-client';
-import { InstallationPage } from '~/page/InstallationPage';
+import { MainScreen } from '~/screen/MainScreen';
 import { AbletonContext } from '~/context/AbletonContext';
 import { AbletonContextState } from '~/context/type/AbletonContextState';
 import { SocketContext } from '~/context/SocketContext';
@@ -28,9 +28,9 @@ const TestProviders = ({ children }: PropsWithChildren) => (
   </SocketContext.Provider>
 );
 
-describe('InstallationPage', () => {
+describe('MainScreen', () => {
   it('renders the cauldron centerpiece', () => {
-    const { getByTestId } = render(<InstallationPage />, { wrapper: TestProviders });
+    const { getByTestId } = render(<MainScreen />, { wrapper: TestProviders });
 
     expect(getByTestId('cauldron')).toBeInTheDocument();
   });

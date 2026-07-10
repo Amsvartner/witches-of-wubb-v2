@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import { InstallationPage } from '~/page/InstallationPage';
+import { MainScreen } from '~/screen/MainScreen';
 import { SocketProvider } from '~/context/SocketProvider';
 import { AbletonProvider } from '~/context/AbletonProvider';
 
@@ -9,7 +9,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
     <SocketProvider>
       <AbletonProvider>
-        <InstallationPage />
+        <MainScreen />
       </AbletonProvider>
     </SocketProvider>
   </StrictMode>,

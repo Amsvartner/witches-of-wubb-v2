@@ -5,7 +5,7 @@ import { TempoSliderContainer } from '~/container/TempoSliderContainer';
 import { RecipeBoxContainer } from '~/container/RecipeBoxContainer';
 import { KeyAdjusterContainer } from '~/container/KeyAdjusterContainer';
 
-export const InstallationPage = (): JSX.Element => {
+export const MainScreen = (): JSX.Element => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {

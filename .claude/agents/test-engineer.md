@@ -13,7 +13,7 @@ Owns test strategy and test code. Makes it possible to validate changes without 
 
 - `/AGENTS.md`
 - `docs/CODING_GUIDELINES.md` (testing section), `docs/ARCHITECTURE.md`
-- Colocated `test/` folders (`src/page/test/`, `sim/test/`), `vite.config.ts`, `src/test/setup-tests.ts`
+- Colocated `test/` folders (`src/screen/test/`, `sim/test/`), `vite.config.ts`, `src/test/setup-tests.ts`
 - The assigned ticket
 
 ## Primary responsibilities

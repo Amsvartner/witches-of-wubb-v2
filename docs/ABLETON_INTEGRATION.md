@@ -1,6 +1,6 @@
 # Ableton integration
 
-Status: observed from `backend/ableton-api.ts`, `backend/types.ts`, `backend/key-transpositions.ts`. Verify with the human before relying on musical assumptions.
+Status: observed from `backend/adapter/AbletonAdapter.ts`, `backend/type/`, `backend/service/KeyTranspositionService.ts` (pre-migration paths: `backend/ableton-api.ts`, `backend/types.ts`, `backend/key-transpositions.ts`). Verify with the human before relying on musical assumptions.
 
 **Do not modify the Ableton project, routing, clip naming, transposition tables, quantization, trigger/key-leader order, or RFID→clip mappings without explicit human approval.**
 
@@ -16,7 +16,7 @@ Status: observed from `backend/ableton-api.ts`, `backend/types.ts`, `backend/key
 
 - **Trigger order:** `Drums → Melody → Bass → Vox` (`TRIGGER_ORDER`).
 - **Key-leader order:** `Vox → Melody → Bass → Drums` (`KEY_LEADER_ORDER`); a "phrase leader" concept determines timing/key reference (`utils/is-new-phrase-leader.ts`).
-- **Key lock:** enabled by default (`keyLockEnabled = true`); a master key is set from playing clips and others are transposed to match via `key-transpositions.ts` (Camelot-style notation, e.g. `4A` minor). Departing clips clean up their transposition.
+- **Key lock:** enabled by default (`keyLockEnabled = true`); a master key is set from playing clips and others are transposed to match via `KeyTranspositionService.ts` (Camelot-style notation, e.g. `4A` minor). Departing clips clean up their transposition.
 - **Tempo:** get/set via websocket events; clips are BPM-annotated in the CSV (multiple BPMs exist, e.g. 86). Warp/quantization assumptions: clips have warp markers; details TBD.
 - **Timeout:** 3 min inactivity → `stop_all_clips` on all 4 tracks, master key reset.
 

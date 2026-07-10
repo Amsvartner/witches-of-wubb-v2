@@ -21,7 +21,7 @@ Work is **frontend-only**: `src/`, `spec/`, docs, and the offline simulator (ADR
 
 Witches of Wubb is an interactive music art installation. Four physical pillars each have a speaker, programmable LEDs, and a UHF RFID reader. Hundreds of physical objects carry RFID stickers. Placing an object on a pillar triggers a music clip in Ableton Live that is unique to that RFID. Clips are key-matched, BPM-matched, and quantized so visitors compose music by combining objects across pillars.
 
-Observed clip categories in code: `Vox`, `Melody`, `Bass`, `Drums` (`backend/types.ts`). See `docs/DECISIONS_NEEDED.md` for the naming discrepancy with the brief.
+Observed clip categories in code: `Vox`, `Melody`, `Bass`, `Drums` (`backend/type/ClipTypes.ts`). See `docs/DECISIONS_NEEDED.md` for the naming discrepancy with the brief.
 
 Current mandate: rework the UI design and add new features. This repo currently runs live installations — treat everything as production.
 
@@ -50,8 +50,8 @@ Key docs (read before working):
 - **Volume:** never change default volumes, gain staging, or volume-ramp behavior without explicit approval. Uncontrolled volume can damage speakers and hearing.
 - **Lights:** never introduce or modify strobe/flicker behavior without approval (photosensitivity risk). Do not change LED brightness ceilings.
 - **Live hardware:** never run commands that send MIDI, OSC, serial, Art-Net/DMX, or network messages to hardware or Ableton unless explicitly approved or a documented simulation mode is used. Starting `yarn start-backend` connects to Ableton and the lighting server — treat it as a live-hardware command.
-- **Mappings:** agents may not edit `src/assets/Music Database.csv` at all unless a human explicitly allows it in the ticket. Same for the pillar IP map in `backend/events/incoming-events.ts`.
-- **Ableton:** never change Ableton routing, clip naming assumptions, transposition logic (`backend/key-transpositions.ts`), quantization, or the phrase-leader/trigger-order logic without approval.
+- **Mappings:** agents may not edit `src/assets/Music Database.csv` at all unless a human explicitly allows it in the ticket. Same for the pillar IP map in `backend/event/IncomingEvents.ts`.
+- **Ableton:** never change Ableton routing, clip naming assumptions, transposition logic (`backend/service/KeyTranspositionService.ts`), quantization, or the phrase-leader/trigger-order logic without approval.
 - **Arduino:** never modify `Arduino/` sketches (they run on installed hardware) without approval. They contain committed WiFi credentials — do not copy these anywhere else.
 - **Show operation:** never assume how the gallery/show is operated (startup order, network, staffing). Ask.
 

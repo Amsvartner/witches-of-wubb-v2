@@ -1,7 +1,9 @@
 import { createContext, FC, PropsWithChildren, useContext, useEffect, useState } from 'react';
 import { SocketioContext } from './SocketioProvider';
 import { LoggerContext } from './LoggerProvider';
-import { BrowserClipInfo, BrowserClipInfoList, SetTrackVolumeInputType } from 'backend/types';
+import { BrowserClipInfo } from 'backend/type/BrowserClipInfo';
+import { BrowserClipInfoList } from 'backend/type/BrowserClipInfoList';
+import { SetTrackVolumeInputType } from 'backend/type/SetTrackVolumeInputType';
 
 export const AbletonContext = createContext({
   getTracksAndClips: () => null,

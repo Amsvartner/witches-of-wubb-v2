@@ -12,10 +12,12 @@ Status: **observed** — documented from code reading on 2026-07-09.
    v  (WiFi "wubb-net", UDP :9000)                   |
  +---------------- backend (Node/ts-node) ----------------+     +------------------+
  | index.ts: OSC server :9000, socket.io server :3335     | OSC | Lighting server  |
- | ableton-api.ts: clip queueing, key lock, transposition,|---->| (EXTERNAL, :9001)|
+ | AbletonAdapter.ts: clip queueing, key lock, transposition|---->| (EXTERNAL, :9001)|
  |   phrase leader, timeout/attractor state               |     +------------------+
- | events/: incoming (OSC+WS), outgoing (WS+OSC)          |
- | utils/: CSV parse, RFID->clip map, logger (pino)       |
+ | event/: incoming (OSC+WS), outgoing (WS+OSC dispatch)  |
+ | adapter/: Ableton (ableton-js), lighting OSC client    |
+ | service/: music DB, phrase leader, key transposition   |
+ | util/: CSV parse, logger (pino)                        |
  +---------+--------------------------+------------------+
            | ableton-js (local socket) | socket.io :3335
            v                          v
@@ -33,8 +35,8 @@ Status: **observed** — documented from code reading on 2026-07-09.
 
 ### Runtime components
 
-1. **RFID flow:** reader detects tag → OSC `/new/tag [rfid]` → backend maps sender IP → pillar index (hardcoded map 192.168.0.101–104 in `events/incoming-events.ts`) → CSV lookup → `QueueClip` → Ableton clip fires quantized. `/departed/tag` stops/dequeues. The debug UI can simulate both events over websocket.
-2. **Ableton integration:** `ableton-js` controls a live Ableton set. 4 tracks ≈ 4 pillars. Clip lookup by name match against CSV `Clip Name`. Trigger order `Drums→Melody→Bass→Vox`; key-leader order reversed. Key lock transposes clips to a master key via `key-transpositions.ts` (Camelot-style keys, e.g. `4A`). Warp markers/loop handling in `ableton-api.ts`.
+1. **RFID flow:** reader detects tag → OSC `/new/tag [rfid]` → backend maps sender IP → pillar index (hardcoded map 192.168.0.101–104 in `backend/event/IncomingEvents.ts`) → CSV lookup → `QueueClip` → Ableton clip fires quantized. `/departed/tag` stops/dequeues. The debug UI can simulate both events over websocket.
+2. **Ableton integration:** `ableton-js` controls a live Ableton set. 4 tracks ≈ 4 pillars. Clip lookup by name match against CSV `Clip Name`. Trigger order `Drums→Melody→Bass→Vox`; key-leader order reversed. Key lock transposes clips to a master key via `backend/service/KeyTranspositionService.ts` (Camelot-style keys, e.g. `4A`). Warp markers/loop handling in `backend/adapter/AbletonAdapter.ts`.
 3. **LED flow:** backend emits every event as OSC to an external lighting server (`/:pillar/:eventName`), which presumably renders and sends Art-Net to the LED nodes. The lighting server is **not in this repo** — TBD.
 4. **UI:** socket.io client; requests state (`get_playing_clips`, `get_tempo`, volumes, key lock, master key) and receives pushed events (`ingredient_detected`, `ingredient_removed`, `timeout_warning`, …).
 5. **Attractor/timeout:** 3-minute inactivity → stop all clips, reset master key; warning event 30s prior. Attractor clip name constant: `Wicked Casting`.
@@ -55,7 +57,7 @@ See `DATA_MODEL.md`. Config via root `.env` (ports, lighting server address).
 - Lighting server internals, Art-Net universe mapping, LED design intent
 - How/where the UI is displayed in the installation; touch or not
 - Show machine OS and process supervision (nodemon in production?)
-- Whether frontend's direct import of `backend/types` and of the CSV is intentional coupling
+- Whether frontend's direct import of `backend/type/` and of the CSV is intentional coupling
 - Error/reconnect behavior when Ableton or readers drop
 - Multiple simultaneous objects per pillar: supported or one-at-a-time? (code suggests one clip slot per pillar via index — unverified)
 

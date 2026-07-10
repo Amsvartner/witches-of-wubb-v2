@@ -1,10 +1,9 @@
-import { useContext } from 'react';
-import { AbletonContext } from '~/context/AbletonProvider';
 import { VolumeSliderContainer } from '~/container/VolumeSliderContainer';
 import { ColorUtil } from '~/util/ColorUtil';
+import { useAbletonContext } from '~/context/hook/useAbletonContext';
 
 export const CurrentlyPlayingListContainer = (): JSX.Element => {
-  const { queuedClips, playingClips, stoppingClips, clipTempo } = useContext(AbletonContext);
+  const { queuedClips, playingClips, stoppingClips, clipTempo } = useAbletonContext();
 
   return (
     <div id='inner_playing' className='w-screen relative'>

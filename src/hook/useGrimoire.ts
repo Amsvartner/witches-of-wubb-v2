@@ -1,8 +1,8 @@
-import { useContext, useEffect, useState } from 'react';
-import { AbletonContext } from '~/context/AbletonProvider';
+import { useEffect, useState } from 'react';
 import { ClipTypes } from 'backend/type/ClipTypes';
 import { ClipDatabaseUtil } from '~/util/ClipDatabaseUtil';
 import { SpellRecipeType } from '~/type/SpellRecipeType';
+import { useAbletonContext } from '~/context/hook/useAbletonContext';
 
 const SPELL_NAMES = [
   'Dancing Unicorn Vibez',
@@ -51,7 +51,7 @@ const chooseRandomElementFrom = <T>(array: T[]): T => {
 };
 
 export const useGrimoire = () => {
-  const { playingClips } = useContext(AbletonContext);
+  const { playingClips } = useAbletonContext();
   const [spellRecipe, setSpellRecipe] = useState<SpellRecipeType>({});
   const [spellName, setSpellName] = useState<string>('');
   const actuallyPlayingClips = playingClips

@@ -1,8 +1,7 @@
-import { useContext } from 'react';
-import { AbletonContext } from '~/context/AbletonProvider';
+import { useAbletonContext } from '~/context/hook/useAbletonContext';
 
 export const KeyAdjusterContainer = (): JSX.Element => {
-  const { masterKey, changeMasterKey, keylock, changeKeylock } = useContext(AbletonContext);
+  const { masterKey, changeMasterKey, keylock, changeKeylock } = useAbletonContext();
 
   function rotateKeyBackwards() {
     if (!masterKey) return;

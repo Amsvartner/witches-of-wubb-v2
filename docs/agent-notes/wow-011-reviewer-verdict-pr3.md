@@ -55,3 +55,38 @@ audio-ableton-reviewer — spot-check of the four backend files listed in should
 - zero behavioral change / frozen event names: **verified for this diff** (type-erasure + closure-equivalence reading; sim smoke)
 - stale path refs updated in same PR: **verified** modulo nit 3
 - `yarn sim` + `yarn dev` demo: sim smoke run here; full browser re-verification recorded in the implementer handoff
+
+---
+
+## Re-review after fix round — head `0516f5d`
+
+Reviewer: Claude Fable 5 (reviewer subagent, read-only)
+Date: 2026-07-10
+Review target: `git diff origin/main...feat/wow-011-tests-enforcement` @ `0516f5d` (base retargeted to `main` after PRs #7/#8 squash-merged; merge commits `940755e` + `56a16cb` brought `main` in).
+
+### Verdict
+
+**Block** — one new blocking finding introduced by the merge-conflict resolution. Everything else from the fix round checks out; this is a one-line-class fix away from approve.
+
+### Blocking
+
+1. **Committed merge-conflict markers in `docs/ARCHITECTURE.md:33-36`.** The `56a16cb` conflict resolution did NOT keep the branch side cleanly — the file at `0516f5d` contains both the new colocated-tests line and the resurrected legacy `spec/` line, wrapped in prettier-mangled conflict markers:
+   `<<<<<<< HEAD` (line 33, indented), the branch line converted to a `- #` heading-in-list (line 34), the stale `origin/main` line (line 35), and `> > > > > > > origin/main` (line 36 — `>>>>>>>` reflowed into a blockquote, `=======` swallowed). Likely the lint-staged/prettier hook reformatted the unresolved markers on commit, which is why `git diff --check` and `yarn lint` (ts/tsx only) don't catch it. **Fix:** restore the single branch-side line ("Tests are colocated in `test/` folders …") and delete lines 33, 35, 36; then sweep for markers (`git grep -nE '<{7}|>{7}|={7}|> > > > > > >'` — only this file is affected, verified tree-wide).
+
+### Fix-round items — verified
+
+- **Should-fix 1 (Copilot thread):** resolved on PR #9 (GraphQL: `isResolved: true`, sole thread). Follow-up ticket **WOW-012** added to `docs/TICKETS_001_INITIAL.md` — accurate: correctly describes the `findIndex` truthiness bug (`-1` truthy / `0` falsy), correctly scopes it out of WOW-011, sensible fix + test plan, allowed files limited to `src/context/`. ✓
+- **Should-fix 2 (specialist sign-off):** `docs/agent-notes/wow-011-audio-ableton-reviewer-signoff-pr3.md` — **approve, no findings**, line-by-line over all eight backend files in the delta (including `IncomingEvents.ts` beyond the requested four), with sound reasoning on the `pillar as number` and `Key Numerical` coercion casts. Recorded. ✓
+- **Nit 3 (ADR-004):** `docs/adr/004-frontend-only-scope.md` updated — `spec/` removed from the scope line, WOW-011 exception noted, `backend/types` → `backend/type/`. Accurate. ✓
+- **Nit 4 (.eslintrc newline):** trailing newline added, only change to the file. ✓
+- **Nit 6 (durable tracking):** **WOW-013** added — accurately describes the side-effect-import regex gap (`import 'node-osc'` lacks a `from` clause), test-only scope, bite-proof required. ✓
+
+### Diff-equivalence and green checks
+
+- Code surface unchanged: `git diff origin/main...0516f5d` over `src/`, `backend/`, `sim/`, `spec/`, `vite.config.ts`, `AGENTS.md`, `README.md`, `.claude/` is **byte-identical** to the reviewed `feat/wow-011-backend-sweep...d76a06b` diff (mechanical `diff` of the two diffs: empty). The merge commits introduced nothing beyond the fix-round doc/config edits — except the ARCHITECTURE.md conflict damage above.
+- `yarn lint` pass and `yarn test` 52/52 at `0516f5d` (run by me). Lint is blind to `.md`, hence the markers survive it.
+- Note: `940755e` and `56a16cb` are duplicate main-merges back-to-back — harmless (second was effectively empty of new mainline content), no action.
+
+### Required to lift the block
+
+Fix `docs/ARCHITECTURE.md:33-36` (restore branch-side line, remove markers + stale `spec/` line), re-run the marker sweep, then this verdict converts to **approve** — no other findings remain; nit 5 (PR body pipeline ticks/base text) stands as planned post-verdict housekeeping.

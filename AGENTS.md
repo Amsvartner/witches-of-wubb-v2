@@ -34,6 +34,7 @@ Key docs (read before working):
 - `docs/PRD.md` — UI rework requirements (largely TBD)
 - `docs/DECISIONS_NEEDED.md` — open human decisions
 - `docs/TICKETS_001_INITIAL.md` — current tickets
+- `docs/TICKETS_002_BUGS.md` — bug tickets, WOW-014 onwards (2026-07-10 repo review + follow-ups)
 
 ## Universal guardrails
 

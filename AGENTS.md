@@ -1,15 +1,21 @@
 # AGENTS.md — Instructions for AI agents in this repository
 
-Version: 0.3
+Version: 0.4
 Status: Active
 Owner: Vidar
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 This file is the root operating contract for any AI agent (Claude Code or otherwise) working in this repo. Read it fully before making changes.
 
 ## Scope of current phase (ADR-004)
 
 Work is **frontend-only**: `src/`, `spec/`, docs, and the offline simulator (ADR-001). `backend/` and `Arduino/` are read-only reference. The socket.io event contract is the boundary; do not add/rename events without approval. End-to-end testing happens outside this repo; definition of done is "UI works frontend-side and sends the correct API calls."
+
+**Exception — conventions migration (2026-07-10):** the dedicated migration ticket defined in `docs/CODING_GUIDELINES.md` ("Migration" section) may edit `backend/` to apply the new conventions: camelCase function renames, splitting `backend/types.ts` into `backend/type/`, grouping exports behind namespace objects, and the `event/` / `service/` / `adapter/` / `util/` restructure. Constraints:
+
+- Structure and naming only — **zero behavioral change**. Musical logic, timing, quantization, transposition tables, volume handling, the pillar IP map, and all emitted OSC/MIDI/Art-Net/socket payloads stay byte-for-byte equivalent; socket.io event names are frozen.
+- The physical-installation safety rules below apply in full; the diff requires audio-ableton-reviewer and hardware-safety-reviewer sign-off before merge.
+- This exception covers only that ticket. Outside it, `backend/` remains read-only.
 
 ## Project context
 

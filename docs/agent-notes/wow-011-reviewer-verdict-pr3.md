@@ -90,3 +90,20 @@ Review target: `git diff origin/main...feat/wow-011-tests-enforcement` @ `0516f5
 ### Required to lift the block
 
 Fix `docs/ARCHITECTURE.md:33-36` (restore branch-side line, remove markers + stale `spec/` line), re-run the marker sweep, then this verdict converts to **approve** — no other findings remain; nit 5 (PR body pipeline ticks/base text) stands as planned post-verdict housekeeping.
+
+---
+
+## Final verdict — head `1058bcd`
+
+Reviewer: Claude Fable 5 (reviewer subagent, read-only)
+Date: 2026-07-10
+
+**Approve.** The block is lifted. Verified at `1058bcd`:
+
+- The fix commit touches only `docs/ARCHITECTURE.md` (+ this note's committed re-review entry): the four damaged lines are replaced by the single branch-side colocated-tests line, restoring the **exact blob I reviewed and approved at `d76a06b`** (git index hash `539455c` on both sides — byte-identical, not merely similar). Stale `spec/` line and all marker remnants gone.
+- Tree-wide marker sweep (`<{7}|>{7}|={7}|> > > > > > >` over md/ts/tsx/json) at `1058bcd`: clean — the only match is this note's own quotation of the bug.
+- Code-surface equivalence re-confirmed: `git diff origin/main...1058bcd` over `src/`, `backend/`, `sim/`, `spec/`, `vite.config.ts`, `AGENTS.md`, `README.md`, `.claude/` remains byte-identical to the originally reviewed `d76a06b` diff.
+- `yarn lint` pass, `yarn test` 52/52 at `1058bcd` (run by me).
+- All fix-round verifications from the `0516f5d` re-review stand: Copilot thread resolved (WOW-012 tracked), audio-ableton sign-off recorded (approve, no findings), WOW-013 tracked, ADR-004 updated, `.eslintrc` newline fixed.
+
+Remaining housekeeping only (non-gating): tick the PR body pipeline section and refresh its stale base/stack wording (nit 5).

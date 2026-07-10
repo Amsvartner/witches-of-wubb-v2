@@ -1,5 +1,5 @@
-import { BrowserClipInfoList } from '../../../backend/type/BrowserClipInfoList';
-import { SetTrackVolumeInputType } from '../../../backend/type/SetTrackVolumeInputType';
+import { BrowserClipInfoList } from 'backend/type/BrowserClipInfoList';
+import { SetTrackVolumeInputType } from 'backend/type/SetTrackVolumeInputType';
 
 export type AbletonContextState = {
   getTracksAndClips: () => void;

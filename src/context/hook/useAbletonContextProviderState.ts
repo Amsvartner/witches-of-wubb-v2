@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SetTrackVolumeInputType } from '../../../backend/type/SetTrackVolumeInputType';
+import { SetTrackVolumeInputType } from 'backend/type/SetTrackVolumeInputType';
 import { Logger } from '~/util/Logger';
-import { BrowserClipInfo } from '../../../backend/type/BrowserClipInfo';
-import { BrowserClipInfoList } from '../../../backend/type/BrowserClipInfoList';
+import { BrowserClipInfo } from 'backend/type/BrowserClipInfo';
+import { BrowserClipInfoList } from 'backend/type/BrowserClipInfoList';
 import { AbletonContextState } from '../type/AbletonContextState';
 import { useSocketContext } from '~/context/hook/useSocketContext';
 import { ContextUtils } from '~/context/util/ContextUtils';

@@ -35,7 +35,7 @@ Status: **observed** — documented from code reading on 2026-07-09.
 
 ### Runtime components
 
-1. **RFID flow:** reader detects tag → OSC `/new/tag [rfid]` → backend maps sender IP → pillar index (hardcoded map 192.168.0.101–104 in `backend/event/IncomingEvents.ts`) → CSV lookup → `QueueClip` → Ableton clip fires quantized. `/departed/tag` stops/dequeues. The debug UI can simulate both events over websocket.
+1. **RFID flow:** reader detects tag → OSC `/new/tag [rfid]` → backend maps sender IP → pillar index (hardcoded map 192.168.0.101–104 in `backend/event/IncomingEvents.ts`) → CSV lookup → `AbletonAdapter.queueClip` → Ableton clip fires quantized. `/departed/tag` stops/dequeues. The debug UI can simulate both events over websocket.
 2. **Ableton integration:** `ableton-js` controls a live Ableton set. 4 tracks ≈ 4 pillars. Clip lookup by name match against CSV `Clip Name`. Trigger order `Drums→Melody→Bass→Vox`; key-leader order reversed. Key lock transposes clips to a master key via `backend/service/KeyTranspositionService.ts` (Camelot-style keys, e.g. `4A`). Warp markers/loop handling in `backend/adapter/AbletonAdapter.ts`.
 3. **LED flow:** backend emits every event as OSC to an external lighting server (`/:pillar/:eventName`), which presumably renders and sends Art-Net to the LED nodes. The lighting server is **not in this repo** — TBD.
 4. **UI:** socket.io client; requests state (`get_playing_clips`, `get_tempo`, volumes, key lock, master key) and receives pushed events (`ingredient_detected`, `ingredient_removed`, `timeout_warning`, …).

@@ -14,7 +14,7 @@ The only implementing agent allowed near real-time/hardware-adjacent code — an
 - `/AGENTS.md`
 - `docs/ARCHITECTURE.md`, `docs/ABLETON_INTEGRATION.md`, `docs/HARDWARE_INTEGRATION.md`, `docs/DATA_MODEL.md`
 - The assigned ticket
-- `backend/ableton-api.ts`, `backend/events/`, `backend/types.ts` as relevant
+- `backend/adapter/AbletonAdapter.ts`, `backend/event/`, `backend/type/` as relevant
 
 ## Primary responsibilities
 

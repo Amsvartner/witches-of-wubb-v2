@@ -10,7 +10,7 @@
 
 **Firmware (`Arduino/`):** Arduino C++; M5Stack UHF RFID unit, OSCMessage, WiFi/WiFiUDP; ArtnetWifi + FastLED (WS2812, 144 LEDs).
 
-Notes: root `package.json` puts dev tooling under `dependencies` (no `devDependencies` split). Frontend imports `backend/types` directly. TS versions differ slightly between root and backend.
+Notes: root `package.json` puts dev tooling under `dependencies` (no `devDependencies` split). Frontend imports `backend/type/` directly. TS versions differ slightly between root and backend.
 
 ## Approved stack
 

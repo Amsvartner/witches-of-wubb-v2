@@ -15,7 +15,7 @@ Status: observed from `backend/adapter/AbletonAdapter.ts`, `backend/type/`, `bac
 ## Musical constraints
 
 - **Trigger order:** `Drums → Melody → Bass → Vox` (`TRIGGER_ORDER`).
-- **Key-leader order:** `Vox → Melody → Bass → Drums` (`KEY_LEADER_ORDER`); a "phrase leader" concept determines timing/key reference (`utils/is-new-phrase-leader.ts`).
+- **Key-leader order:** `Vox → Melody → Bass → Drums` (`KEY_LEADER_ORDER`); a "phrase leader" concept determines timing/key reference (`backend/service/PhraseLeaderService.ts`).
 - **Key lock:** enabled by default (`keyLockEnabled = true`); a master key is set from playing clips and others are transposed to match via `KeyTranspositionService.ts` (Camelot-style notation, e.g. `4A` minor). Departing clips clean up their transposition.
 - **Tempo:** get/set via websocket events; clips are BPM-annotated in the CSV (multiple BPMs exist, e.g. 86). Warp/quantization assumptions: clips have warp markers; details TBD.
 - **Timeout:** 3 min inactivity → `stop_all_clips` on all 4 tracks, master key reset.
@@ -26,7 +26,7 @@ Canonical (`ClipTypes`, confirmed by ADR-002): `Vox`, `Melody`, `Bass`, `Drums`.
 
 ## Mapping: RFID → object → clip
 
-`src/assets/Music Database.csv` columns: RFID (EPC), Asset ID, Ingredient Name/Description, tested flag, comments, Artist, Song Title, **Clip Name** (must match Ableton clip name exactly), Clip Type, Instrument, Key, Major/Minor, Key Numerical, BPM, Icon/Asset Name. Parsed at backend startup (`utils/parse-csv.ts` → `RFIDToClipMap`, `ClipNameToInfoMap`); also imported by the frontend. **Production data — never edit without approval.**
+`src/assets/Music Database.csv` columns: RFID (EPC), Asset ID, Ingredient Name/Description, tested flag, comments, Artist, Song Title, **Clip Name** (must match Ableton clip name exactly), Clip Type, Instrument, Key, Major/Minor, Key Numerical, BPM, Icon/Asset Name. Parsed at backend startup (`backend/util/CsvUtil.ts` → `MusicDatabaseService.rfidToClipMap`, `.clipNameToInfoMap`); also imported by the frontend. **Production data — never edit without approval.**
 
 ## Test / simulation approach
 

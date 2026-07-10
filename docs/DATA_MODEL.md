@@ -1,6 +1,6 @@
 # Data model
 
-Status: observed. There is no formal schema; the model is implied by `backend/types.ts` and the CSV. Proposed formalizations are marked **(draft)**.
+Status: observed. There is no formal schema; the model is implied by `backend/type/` and the CSV. Proposed formalizations are marked **(draft)**.
 
 ## Core entities (observed)
 
@@ -31,6 +31,6 @@ RFID EPC → CSV row → clipName → Ableton Clip(s) on track[pillar]
 
 - No versioning or validation of the CSV; a typo silently breaks a tag. **(draft)** propose a startup validation report (CSV vs. Ableton clip names) — read-only, safe.
 - Placement state is in-memory; no persistence or reconciliation after backend restart mid-show. TBD if acceptable.
-- `recommendedClips` enrichment appears disabled (commented out in `get-clip-from-rfid.ts`) — grimoire may run on partial data. Verify.
+- `recommendedClips` enrichment appears disabled (commented out in `backend/service/MusicDatabaseService.ts`) — grimoire may run on partial data. Verify.
 - ~~Category naming discrepancy~~ — resolved: `Vox, Melody, Bass, Drums` (ADR-002).
 - Should the data model formally include LED state and reader health? TBD.

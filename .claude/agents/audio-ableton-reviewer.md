@@ -13,7 +13,7 @@ Read-only reviewer guarding the musical integrity of the installation.
 
 - `/AGENTS.md`
 - `docs/ABLETON_INTEGRATION.md`, `docs/DATA_MODEL.md`
-- `backend/ableton-api.ts`, `backend/key-transpositions.ts`, `backend/types.ts`, `backend/utils/is-new-phrase-leader.ts`
+- `backend/adapter/AbletonAdapter.ts`, `backend/service/KeyTranspositionService.ts`, `backend/type/`, `backend/service/PhraseLeaderService.ts`
 - The diff under review
 
 ## Primary responsibilities

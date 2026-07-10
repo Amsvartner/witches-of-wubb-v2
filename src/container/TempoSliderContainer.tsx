@@ -1,13 +1,11 @@
 import { useContext } from 'react';
 import { AbletonContext } from '~/context/AbletonProvider';
-// import { LoggerContext } from '~/context/LoggerProvider';
 
 const MIN_VALUE = 75;
 const MAX_VALUE = 155;
 
 export const TempoSliderContainer = (): JSX.Element => {
   const { changeTempo, tempo } = useContext(AbletonContext);
-  // const { logger } = useContext(LoggerContext);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newTempo = parseInt(e.target.value);

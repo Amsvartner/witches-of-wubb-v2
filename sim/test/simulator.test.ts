@@ -10,7 +10,7 @@ import {
   TIMEOUT_WARNING_IN_MILISECONDS,
   buildMusicDatabase,
   pickScenarioIngredients,
-} from '../../sim/core';
+} from '../core';
 
 const csvText = fs.readFileSync(
   path.join(process.cwd(), 'src', 'assets', 'Music Database.csv'),

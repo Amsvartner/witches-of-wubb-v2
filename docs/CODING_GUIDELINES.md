@@ -18,7 +18,7 @@ This document complements:
 
 If this document conflicts with those files, stop and resolve the conflict before implementing.
 
-> **Note:** The codebase predates these guidelines and does not yet conform (kebab-case component files, default exports, PascalCase backend functions, top-level `spec/`). A dedicated migration ticket brings the code in line; until it lands, new code follows this document and old code is migrated by that ticket — not piecemeal.
+> **Note:** The one-time conventions migration (WOW-011) brought the pre-existing codebase in line with this document. All code — new and old — now follows these guidelines.
 
 ## Core engineering principles
 
@@ -51,7 +51,7 @@ If this document conflicts with those files, stop and resolve the conflict befor
 - Utility modules exposing a grouped object use `PascalCase.ts` ending in `Util` (`CsvUtil.ts` exporting `CsvUtil`); a single pure function may live in a `camelCase.ts` file named after the function.
 - Hook files match the hook name: `useGrimoire.ts`.
 - Mock files live in a `mock` folder, use `PascalCase`, end in `Mock`, and export a same-named object (`SocketMock.ts` exporting `SocketMock`).
-- Test files live in a `test` folder next to the code they test, named `.test.ts` / `.test.tsx`. (The legacy top-level `spec/` folder is retired by the migration ticket.)
+- Test files live in a `test` folder next to the code they test, named `.test.ts` / `.test.tsx`. (The legacy top-level `spec/` folder was retired by WOW-011.)
 
 ## TypeScript conventions
 

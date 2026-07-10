@@ -2,7 +2,6 @@ import { ClipTypes } from 'backend/type/ClipTypes';
 
 const getBackgroundColorFromType = (type?: ClipTypes | string): string => {
   let className = 'bg-white';
-  // let className = 'bg-purple-700';
   switch (type) {
     case ClipTypes.Vox:
       className = 'bg-red-700';

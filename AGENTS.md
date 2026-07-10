@@ -9,7 +9,7 @@ This file is the root operating contract for any AI agent (Claude Code or otherw
 
 ## Scope of current phase (ADR-004)
 
-Work is **frontend-only**: `src/`, `spec/`, docs, and the offline simulator (ADR-001). `backend/` and `Arduino/` are read-only reference. The socket.io event contract is the boundary; do not add/rename events without approval. End-to-end testing happens outside this repo; definition of done is "UI works frontend-side and sends the correct API calls."
+Work is **frontend-only**: `src/` (incl. colocated `test/` folders), docs, and the offline simulator (ADR-001). `backend/` and `Arduino/` are read-only reference. The socket.io event contract is the boundary; do not add/rename events without approval. End-to-end testing happens outside this repo; definition of done is "UI works frontend-side and sends the correct API calls."
 
 **Exception — conventions migration (2026-07-10):** the dedicated migration ticket **WOW-011** (defined in `docs/TICKETS_001_INITIAL.md`, from the `docs/CODING_GUIDELINES.md` "Migration" section) may edit `backend/` to apply the new conventions: camelCase function renames, splitting `backend/types.ts` into `backend/type/`, grouping exports behind namespace objects, and the `event/` / `service/` / `adapter/` / `util/` restructure. Constraints:
 

@@ -35,7 +35,7 @@ export const AbletonContext = createContext({
   changeKeylock: (keylock: boolean) => void;
 });
 
-const updateIndex = (index: number, newValue: any, initialArray: any[]) => {
+const updateIndex = <T,>(index: number, newValue: T, initialArray: T[]): T[] => {
   const newArray = [...initialArray];
   newArray[index] = newValue;
   return newArray;
@@ -58,14 +58,14 @@ export const AbletonProvider: FC<PropsWithChildren> = ({ children }) => {
       getTracksAndClips();
 
       socket.on('ingredient_detected', (data: BrowserClipInfo) => {
-        setQueuedClips(updateIndex.bind(null, data.pillar, data));
+        setQueuedClips((current) => updateIndex(data.pillar, data, current));
       });
 
       socket.on('clip_queued', (data: BrowserClipInfo) => {
-        setQueuedClips(updateIndex.bind(null, data.pillar, data));
+        setQueuedClips((current) => updateIndex(data.pillar, data, current));
       });
       socket.on('clip_unqueued', (data: BrowserClipInfo) => {
-        setQueuedClips(updateIndex.bind(null, data.pillar, null));
+        setQueuedClips((current) => updateIndex(data.pillar, null, current));
       });
 
       socket.on('clip_started', handlePlayingState);
@@ -74,26 +74,26 @@ export const AbletonProvider: FC<PropsWithChildren> = ({ children }) => {
 
       socket.on('ingredient_removed', (data: BrowserClipInfo) => {
         if (playingClips.findIndex((item) => item?.clipName === data.clipName) > -1) {
-          setPlayingClips(updateIndex.bind(null, data.pillar, null));
-          setStoppingClips(updateIndex.bind(null, data.pillar, data));
+          setPlayingClips((current) => updateIndex(data.pillar, null, current));
+          setStoppingClips((current) => updateIndex(data.pillar, data, current));
         } else if (queuedClips.findIndex((item) => item?.clipName === data.clipName)) {
-          setQueuedClips(updateIndex.bind(null, data.pillar, null));
+          setQueuedClips((current) => updateIndex(data.pillar, null, current));
         }
       });
       socket.on('clip_stopping', (data: BrowserClipInfo) => {
-        setPlayingClips(updateIndex.bind(null, data.pillar, null));
-        setStoppingClips(updateIndex.bind(null, data.pillar, data));
+        setPlayingClips((current) => updateIndex(data.pillar, null, current));
+        setStoppingClips((current) => updateIndex(data.pillar, data, current));
       });
       socket.on('clip_stopped', ({ pillar }: { pillar: number }) => {
-        setClipTempo(updateIndex.bind(null, pillar, null));
-        setPlayingClips(updateIndex.bind(null, pillar, null));
-        setStoppingClips(updateIndex.bind(null, pillar, null));
+        setClipTempo((current) => updateIndex(pillar, null, current));
+        setPlayingClips((current) => updateIndex(pillar, null, current));
+        setStoppingClips((current) => updateIndex(pillar, null, current));
       });
       socket.on('tempo_changed', ({ tempo }: { tempo: number }) => {
         setTempo(tempo);
       });
       socket.on('volume_changed', (data: SetTrackVolumeInputType) => {
-        setTrackVolume(updateIndex.bind(null, data.pillar, data.volume));
+        setTrackVolume((current) => updateIndex(data.pillar, data.volume, current));
       });
       socket.on('master-key_changed', ({ key }: { key: string }) => {
         setMasterKey(key);
@@ -138,10 +138,11 @@ export const AbletonProvider: FC<PropsWithChildren> = ({ children }) => {
   }
 
   function handlePlayingState(data: BrowserClipInfo) {
-    setClipTempo(updateIndex.bind(null, data.pillar, data.bpm));
-    setPlayingClips(updateIndex.bind(null, data.pillar, data));
-    setQueuedClips(updateIndex.bind(null, data.pillar, null));
-    setStoppingClips(updateIndex.bind(null, data.pillar, null));
+    // bpm may be undefined at runtime exactly as before; the cast is type-only
+    setClipTempo((current) => updateIndex(data.pillar, data.bpm as number | null, current));
+    setPlayingClips((current) => updateIndex(data.pillar, data, current));
+    setQueuedClips((current) => updateIndex(data.pillar, null, current));
+    setStoppingClips((current) => updateIndex(data.pillar, null, current));
   }
 
   function changeMasterKey(key: string) {

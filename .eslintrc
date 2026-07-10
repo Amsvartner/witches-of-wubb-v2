@@ -17,7 +17,14 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["react", "@typescript-eslint", "import", "jsx-a11y", "react-hooks", "prettier"],
+  "plugins": [
+    "react",
+    "@typescript-eslint",
+    "import",
+    "jsx-a11y",
+    "react-hooks",
+    "prettier"
+  ],
   "rules": {
     "prettier/prettier": [
       "error",
@@ -26,7 +33,7 @@
         "singleQuote": true
       }
     ],
-    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-explicit-any": "error",
     "@typescript-eslint/no-non-null-assertion": "off",
     "@typescript-eslint/no-unused-vars": [
       "error",
@@ -37,6 +44,22 @@
       }
     ],
     "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn"
-  }
+    "react-hooks/exhaustive-deps": "warn",
+    "@typescript-eslint/consistent-type-definitions": [
+      "error",
+      "type"
+    ],
+    "import/no-default-export": "error"
+  },
+  "overrides": [
+    {
+      "files": [
+        "vite.config.ts",
+        "**/*.d.ts"
+      ],
+      "rules": {
+        "import/no-default-export": "off"
+      }
+    }
+  ]
 }

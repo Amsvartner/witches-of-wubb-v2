@@ -3,7 +3,6 @@ import { AbletonContext } from '~/context/AbletonProvider';
 
 export const KeyAdjusterContainer = (): JSX.Element => {
   const { masterKey, changeMasterKey, keylock, changeKeylock } = useContext(AbletonContext);
-  // const { logger } = useContext(LoggerContext);
 
   function rotateKeyBackwards() {
     if (!masterKey) return;

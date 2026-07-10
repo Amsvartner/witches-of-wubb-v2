@@ -70,7 +70,7 @@ Available scenarios:
 - `timeout` — one ingredient left alone until the idle timeout fires (`timeout_warning` after 2m30s of inactivity, clips stopped at 3m, like the real backend). Shorten the wait with `SIM_TIMEOUT_MS=20000 SIM_TIMEOUT_WARNING_MS=10000 yarn sim timeout`.
 - `idle` (default) — no scripted activity; drive it manually from the UI debug panel or a socket client.
 
-Every received and emitted event is logged to stdout. To demo: run `yarn sim full-spell` in one terminal and `yarn dev` in another, then watch ingredients appear on the pillars. The simulator core (`sim/core/`) is transport-free and exercised directly by the vitest suites in `spec/sim/`.
+Every received and emitted event is logged to stdout. To demo: run `yarn sim full-spell` in one terminal and `yarn dev` in another, then watch ingredients appear on the pillars. The simulator core (`sim/core/`) is transport-free and exercised directly by the vitest suites in `sim/test/`.
 
 #### Starting the Web UI
 

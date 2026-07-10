@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCsvText } from '../../sim/core';
+import { parseCsvText } from '../core';
 
 describe('parseCsvText', () => {
   it('parses simple rows into header-keyed objects', () => {

@@ -33,7 +33,7 @@ let allAbletonClips: ClipBoard;
 let tracks: Track[];
 let trackVolumes: Array<DeviceParameter>;
 let phraseLeader: ClipInfo;
-let cleanUpPhraseLeaderEventListener: any;
+let cleanUpPhraseLeaderEventListener: (() => unknown) | undefined;
 
 let keyLockEnabled = true;
 let masterKey = '';
@@ -108,9 +108,6 @@ function addWebSocket(s: socketio.Socket) {
     const disconnectedSocketIndex = sockets.findIndex((socket) => socket === s);
     sockets.splice(disconnectedSocketIndex, 1);
   });
-  // s.onAny((eventName, ...args) => {
-  //   logger.info(`Received event ${eventName} with data: ${args}`);
-  // });
   sockets.push(s);
   IncomingEvents.addSocketEventsHandlers(s);
 }
@@ -135,21 +132,6 @@ const FindAllClipsInLoop = memoize(
   },
   (clipName, pillar) => `${clipName}-${pillar}`,
 );
-
-// function FindAllClipsInLoop(clipName: string, pillar: number) {
-//   logger.info(`Trying to find all clips in loop on pillar ${pillar + 1} > ${clipName}`);
-//   const firstClipIndex = MemoizedClipIndex(clipName, pillar);
-//   console.log('clips', firstClipIndex);
-//   if (firstClipIndex < 0) return [];
-
-//   const lastClipIndex = allAbletonClips[pillar]
-//     .slice(firstClipIndex, firstClipIndex + 20)
-//     .findLastIndex((clip) => {
-//       return clip?.raw.name.trim() === clipName.trim();
-//     });
-//   logger.debug(`Loop: ${pillar + 1} > [${firstClipIndex}, ${firstClipIndex + lastClipIndex + 1}]`);
-//   return allAbletonClips[pillar].slice(firstClipIndex, firstClipIndex + lastClipIndex + 1);
-// }
 
 function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
   const { clipName, key } = clipMetadata;
@@ -364,10 +346,6 @@ const getTracksAndClips = async () => {
         });
 
         if (clipInfo?.clipName && keyLockEnabled) {
-          // const stoppingClipsInLoop = FindAllClipsInLoop(clipInfo?.clipName, pillar);
-          // stoppingClipsInLoop.forEach(
-          //   (clip) => clip && transposeClipToNewKey({ ...clipInfo, clip }, ''),
-          // );
           const playingClipsInLoop = FindAllClipsInLoop(clipInfo?.clipName, pillar);
           playingClipsInLoop.forEach(
             (clip) => clip && transposeClipToNewKey({ ...clipInfo, clip }, ''),
@@ -385,19 +363,6 @@ const getTracksAndClips = async () => {
       const cs = clipSlots[clipSlotIndex];
       const clip = await cs.get('clip');
       allAbletonClips[pillar].push(clip);
-      // const previousClipName = clipSlotIndex
-      //   ? (await clipSlots[clipSlotIndex - 1].get('clip'))?.raw.name
-      //   : null;
-      // const clipName = clip?.raw.name;
-      // const checkDatabase =
-      //   previousClipName && clipName ? previousClipName !== clipName : clipName ? true : false;
-      // if (checkDatabase) {
-      //   const info = ClipNameToInfoMap[clipName?.replace(/[ ]/g, '') as string];
-      //   if (!info)
-      //     logger.error(
-      //       `Could not find clip: ${pillar + 1} | ${clipSlotIndex} / "${clipName}" in database`,
-      //     );
-      // }
     }
   }
   logger.info('Tracks and clips from Ableton fetched');

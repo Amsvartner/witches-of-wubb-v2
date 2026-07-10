@@ -5,16 +5,6 @@ import { TempoSliderContainer } from '~/container/TempoSliderContainer';
 import { RecipeBoxContainer } from '~/container/RecipeBoxContainer';
 import { KeyAdjusterContainer } from '~/container/KeyAdjusterContainer';
 
-// const Circle: React.FC = () => (
-//   <div className='w-full h-full rounded-full mix-blend-screen bg-gradient-to-c from-blue-400 to-blue-400 animate-fadein duration-200'></div>
-// );
-
-// const CircleContainer: React.FC = () => (
-//   <div className='absolute transform -translate-y-10 animate-scale duration-2000 ease-linear'>
-//     <Circle />
-//   </div>
-// );
-
 export const InstallationPage = (): JSX.Element => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 

@@ -22,7 +22,7 @@ Context files:
 
 Allowed files:
 
-- `docs/UI_AUDIT.md` (new — the only deliverable)
+- `docs/UI_AUDIT.md` (new — primary deliverable)
 - `docs/agent-notes/wow-004-frontend-ui-designer-audit.md` — handoff note
 
 Disallowed files:

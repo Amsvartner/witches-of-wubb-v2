@@ -27,7 +27,7 @@ Allowed files:
 
 Disallowed files:
 
-- **All of `src/**`\*\* — read everything, change nothing (acceptance: "no fixes made")
+- **All of `src/**`** — read everything, change nothing (acceptance: "no fixes made")
 - `backend/**`, `Arduino/**`, `src/assets/Music Database.csv`, `.env`
 - No design proposals — that is WOW-006; findings state problems, not solutions
 

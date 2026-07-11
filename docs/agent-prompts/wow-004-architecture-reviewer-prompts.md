@@ -60,3 +60,10 @@ Output:
 ### Prompt 1 — run record
 
 _Append after execution: date, executor (model/agent), branch + head SHA, verdict, note path._
+
+- Date: 2026-07-11
+- Executor: architecture-reviewer subagent / claude-opus-4-8
+- Branch: `docs/wow-004-ui-audit` @ `c3c5a3e`
+- Verdict: **approve-with-nits** (1 should-fix AR-01: missing `timeout_warning` unused-contract-surface row + incorrect "no deltas found" claim in the consumption table; 3 nits AR-02–AR-04)
+- Note: `docs/agent-notes/wow-004-architecture-reviewer-audit-review.md`
+- Safe checks: `yarn lint` PASS, `yarn test` 68/68 PASS, `git diff --check` clean. No `yarn start-backend`.

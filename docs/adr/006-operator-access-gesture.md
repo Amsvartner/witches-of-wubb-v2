@@ -1,20 +1,18 @@
-# 006. Operator surface opens via long-press on themed element
+# 006. Each elevated mode (dj/debug) is entered via its own separate hidden gesture
 
 Date: 2026-07-09
 Status: accepted (amended 2026-07-11 — one gesture per mode)
 
 ## Context
 
-Visitors have full touch access to the screen; the operator surface carries volume/tempo/key/simulated-tag controls and must resist accidental or playful triggering. Options considered: long-press on a themed element, 5-tap corner pattern, two-finger long-press.
+Visitors have full touch access to the screen; elevated modes (dj and debug) carry privileged controls (volume/tempo/key/simulated-tag and diagnostics) and must resist accidental or playful triggering. Options considered: long-press on a themed element, 5-tap corner pattern, two-finger long-press.
 
 ## Decision
 
-**Press-and-hold (~3 seconds) on a themed visual element** (e.g. a wax seal or sigil integrated into the grimoire design; exact element chosen in the design proposal). No visible affordance for visitors; the guide is taught the gesture.
-
-**Amendment 2026-07-11:** ADR-003 (amended) replaces the single operator surface with two elevated modes (**dj** and **debug**). Each mode gets its **own separate hidden gesture** (human decision 2026-07-11) — e.g. distinct themed elements and/or hold durations. The long-press-on-themed-element principle stands for both; WOW-006 proposes the concrete gesture pair, human picks from mockups. Returning to normal mode: explicit close control, visible only while a mode is active.
+Each elevated mode gets its **own separate hidden gesture** — e.g. distinct themed elements and/or hold durations — so entering dj mode and entering debug mode are independent gestures. The **press-and-hold (~3 seconds) on a themed visual element** principle applies to both (e.g. a wax seal or sigil integrated into the grimoire design; exact elements chosen in the design proposal). No visible affordance for visitors; the guide is taught the gestures. WOW-006 proposes the concrete gesture pair; human picks from mockups. Returning to normal mode: explicit close control, visible only while a mode is active.
 
 ## Consequences
 
 - Harder to trigger accidentally than tap-count patterns; trivially teachable.
-- The design proposal (WOW-006) must place the element and specify hold duration + optional subtle feedback during the hold.
-- Exiting the operator surface: explicit close control (visible there — operators are the only audience).
+- The design proposal (WOW-006) must place both elements and specify hold durations + optional subtle feedback during each hold.
+- Exiting an elevated mode: explicit close control visible only while that mode is active.

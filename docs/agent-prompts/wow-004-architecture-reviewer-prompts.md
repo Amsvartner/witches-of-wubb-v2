@@ -67,3 +67,11 @@ _Append after execution: date, executor (model/agent), branch + head SHA, verdic
 - Verdict: **approve-with-nits** (1 should-fix AR-01: missing `timeout_warning` unused-contract-surface row + incorrect "no deltas found" claim in the consumption table; 3 nits AR-02–AR-04)
 - Note: `docs/agent-notes/wow-004-architecture-reviewer-audit-review.md`
 - Safe checks: `yarn lint` PASS, `yarn test` 68/68 PASS, `git diff --check` clean. No `yarn start-backend`.
+
+Re-review of fix round:
+
+- Date: 2026-07-11
+- Executor: architecture-reviewer subagent / claude-opus-4-8 (same session)
+- Branch: `docs/wow-004-ui-audit` @ `cf2d7e6`
+- Verdict: **approve-with-nits** — AR-01…AR-04 all resolved and verified against ground truth; two new cosmetic nits (AR-05: findings-count line still says 16; AR-06: auto-formatter mangled emphasis in the UI-01 paragraph), non-blocking, foldable into any later doc touch.
+- Note: `docs/agent-notes/wow-004-architecture-reviewer-audit-review.md` (re-review section appended)

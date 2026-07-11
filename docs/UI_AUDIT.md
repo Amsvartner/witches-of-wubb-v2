@@ -42,7 +42,7 @@ No `yarn start-backend`, no hardware, no live Ableton at any point.
 | 13  | Tempo slider min/max labels, general dark-on-dark text                                                                                                                                                   | Several `text-gray-400`/`text-gray-500` labels on near-black backgrounds look contrast-marginal at a glance; not measured precisely (UI-16, static, unverified ratio)                                                                                                                                                                                                                   | medium (unverified — TBD)                        |
 | 14  | `src/context/AbletonContext.ts`, `AbletonProvider.tsx`, `SocketContext.ts`, `SocketProvider.tsx`, `useAbletonContext.ts`, `useSocketContext.ts`, `AbletonContextState.ts`, `ContextUtils.ts`, `main.tsx` | No issues found beyond what's noted against the state hooks above                                                                                                                                                                                                                                                                                                                       | —                                                |
 
-Total distinct findings: 16 (UI-01…UI-16). Two (UI-01) are one shared blocker spanning two files.
+Total distinct findings: 17 (UI-01…UI-17). Two (UI-01) are one shared blocker spanning two files.
 
 ---
 

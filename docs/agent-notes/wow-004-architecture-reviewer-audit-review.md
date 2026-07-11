@@ -57,8 +57,29 @@ Report section: `useGrimoire.ts` / UI-11 (`docs/UI_AUDIT.md:176`).
 
 ---
 
-## Verdict
+## Verdict (initial, at `c3c5a3e`)
 
 **approve-with-nits.**
 
 The audit is thorough, correctly scoped to the frontend/socket boundary (ADR-004), accurate on every disconnect, visitor/operator, and blast-radius claim I re-derived, and makes no code or contract changes. One material correction is required in the fix round — **AR-01** (add the missing `timeout_warning` unused-contract-surface row and fix the incorrect "no deltas found" assertion) — plus three optional polish items (AR-02–AR-04). None of these blocks sign-off of the audit as the pre-rework baseline once AR-01 is applied.
+
+---
+
+## Re-review of the fix round (`cf2d7e6`, 2026-07-11)
+
+Scope: verified only the AR-01…AR-04 fixes in `git diff c3c5a3e cf2d7e6 -- docs/UI_AUDIT.md` (changes to `docs/UI_AUDIT.md` only, confirmed via `git show --stat`). Not a repeat of the full review.
+
+- **AR-01 — resolved.** Consumption-table preamble now names exactly one delta (`timeout_warning` emitted, never subscribed) and drops the false "no deltas found" claim; a `timeout_warning` — **not subscribed anywhere** row was added referencing UI-17; UI-17 (medium, static) is written in the `useAbletonContextProviderState.ts` section with the WOW-003 fidelity-table citation (`…wow-003-…-simulator.md:44`) and the correct "unused contract surface / no idle-timeout affordance" framing. Content matches my ground-truth findings; no contract change proposed.
+- **AR-02 — resolved.** UI-17 covers `handleTimeout` clearing the master key without emitting `master-key_changed` (stale displayed key), correctly attributed to the same WOW-003 note and framed as descriptive-only.
+- **AR-03 — resolved.** The preamble now states the no-dead-listeners negative result explicitly, citing `backend/adapter/AbletonAdapter.ts` and `backend/event/IncomingEvents.ts` — matches my verification.
+- **AR-04 — resolved.** UI-11's "always-populated" claim is softened to a data-dependent outcome of `enrichRecommendations` over the current CSV, with an explicit "not a structural guarantee / rework should not treat as contract" caveat.
+- Summary-table row 2 correctly gains UI-17 (medium); UI-06's `tailwind.config.cjs` verification upgrade and the Ctrl-C/pkill repro clarification are accurate bonus tightening.
+
+Residual nits (new, cosmetic — do not block):
+
+- **AR-05 (nit)**: `docs/UI_AUDIT.md:45` still reads "Total distinct findings: 16 (UI-01…UI-16)" — not updated for UI-17; should be 17 (UI-01…UI-17).
+- **AR-06 (nit)**: `docs/UI_AUDIT.md:150` — the UI-01 paragraph's markdown emphasis was mangled in this commit (apparently by an auto-formatter pass): `UX*UI_PRINCIPLES.md` and `(recovery isn't even \_displayed*, …)` should read `UX_UI_PRINCIPLES.md` and `_displayed_`. Rendering/readability only.
+
+### Final verdict (at `cf2d7e6`)
+
+**approve-with-nits.** All four review findings (AR-01…AR-04) are correctly and accurately resolved; the two remaining items (AR-05, AR-06) are cosmetic and do not affect the audit's correctness as the pre-rework baseline. No further fix round required from this reviewer's perspective; AR-05/AR-06 can be folded into any later doc touch.

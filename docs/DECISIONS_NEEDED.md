@@ -4,25 +4,8 @@ Open questions for the human. Answered decisions live in ADRs (`docs/adr/`) and 
 
 ## Product / UX
 
-```text
-Decision needed:
-- Operator surface: separate view or redesigned full-screen overlay? (Routing is hand-rolled either way, ADR-005.)
-
-Why this matters:
-- Determines back/close behavior and WOW-007 ticket slicing.
-
-Options:
-1. Separate view (hand-rolled route state / location.hash).
-2. Full-screen overlay/modal.
-
-Recommendation:
-- Decide from WOW-006 mockups — both will be presented.
-
-Blocked until human confirms:
-yes (blocks operator-surface implementation, not design)
-```
-
-- Which themed element hosts the operator long-press (wax seal, sigil, bookmark…) — designer proposes, human picks (part of WOW-006 review).
+- Which themed elements host the dj-mode and debug-mode gestures (wax seal, sigil, bookmark…) and what distinguishes the two gestures — designer proposes the pair, human picks (part of WOW-006 review; ADR-006 amended).
+- Debug panel content beyond the confirmed baseline (API/socket-event log, versions, connection state) — e.g. log filtering, copy/export — designer proposes (part of WOW-006 review).
 
 ## Software architecture / dependencies
 
@@ -39,10 +22,14 @@ yes (blocks operator-surface implementation, not design)
 
 ## Proposed ADRs (future)
 
-- ADR-007: Operator surface — view vs. overlay (after WOW-006)
+- ADR-007: reserved (the operator view-vs-overlay ADR is no longer needed — resolved as three-mode main screen in ADR-003 amendment 2026-07-11)
 - ADR-008: Dependency modernization baseline (after WOW-009 audit)
 
 ## Resolved → ADRs / owning docs
+
+**2026-07-11:**
+
+- Operator surface page-vs-overlay: resolved as **neither** — the main screen gets **three modes** (normal / dj / debug). DJ mode adds per-pillar extended controls incl. clip selection (moved out of the old debug panel); debug mode adds a bottom diagnostic panel only (API/socket-event log, versions, connection state); tempo/volume/key stay visitor-visible in normal mode; each elevated mode has its own hidden gesture → ADR-003 (amended), ADR-006 (amended), PRD F6/FR1, UX_UI_PRINCIPLES, TICKETS_001 (WOW-006/007)
 
 **2026-07-10:**
 

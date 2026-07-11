@@ -64,8 +64,8 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 - ID: WOW-006
 - Title: Grimoire design proposal (visitor display + operator surface)
 - Summary: Design direction doc for the overhaul — no implementation.
-- Description: For 1024×1280 portrait touch: visitor display with **category icon + category name per pillar** (no song/picture names — PRD F3), **category legend** (F4, colors from `src/util/ColorUtil.ts`: Vox red-700, Bass green-700, Drums blue-700, Melody yellow-700), grimoire-extension background, no recipes/spell names (F5). Operator surface: present **both** a separate-view and a full-screen-overlay concept (ADR-003 amendment; hand-rolled navigation per ADR-005) with the long-press themed element (ADR-006) — propose the element (wax seal/sigil/bookmark) and hold feedback. 2–3 palette/typography options for the artists.
-- Acceptance criteria: `docs/DESIGN_PROPOSAL_001.md` with clearly marked options for human choice (page vs. overlay, palette, gesture element); consistent with UX_UI_PRINCIPLES; no code.
+- Description: For 1024×1280 portrait touch: visitor display with **category icon + category name per pillar** (no song/picture names — PRD F3), **category legend** (F4, colors from `src/util/ColorUtil.ts`: Vox red-700, Bass green-700, Drums blue-700, Melody yellow-700), grimoire-extension background, no recipes/spell names (F5). **Main-screen modes** (ADR-003/006 amended 2026-07-11, supersedes the earlier page-vs-overlay exploration): design all three modes — **normal** (visitor experience; tempo/volume/key controls stay visible), **dj** (extended controls beside each pillar incl. per-pillar clip selection, moved out of the old debug panel), **debug** (small bottom panel: API/socket-event log, versions, connection state — no performance controls). Propose the **gesture pair** (one hidden gesture per elevated mode — themed elements, hold durations, hold feedback) and the mode-active/close affordance. 2–3 palette/typography options for the artists.
+- Acceptance criteria: `docs/DESIGN_PROPOSAL_001.md` with all three modes designed and clearly marked options for human choice (gesture pair, palette, debug-panel presentation); consistent with UX_UI_PRINCIPLES; no code.
 - Required tests/checks: none.
 - Hardware/Ableton/LED/RFID safety notes: none (docs).
 - Dependencies: WOW-004.
@@ -125,8 +125,8 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 
 - ID: WOW-007 (placeholder)
 - Title: [Placeholder] UI rework foundation tickets
-- Summary: Sliced by project-manager after WOW-006 approval (two-page structure, theming foundation, recipe removal, contract layer).
-- Dependencies: WOW-006 approved; routing + operator-access decisions.
+- Summary: Sliced by project-manager after WOW-006 approval (three-mode main screen: normal/dj/debug per ADR-003 amended, theming foundation, recipe removal, contract layer).
+- Dependencies: WOW-006 approved; gesture-pair decision (ADR-006 amended).
 - Stop conditions: No approved design direction.
 
 ---

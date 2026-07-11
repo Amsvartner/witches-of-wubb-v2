@@ -1,7 +1,7 @@
 # 006. Operator surface opens via long-press on themed element
 
 Date: 2026-07-09
-Status: accepted
+Status: accepted (amended 2026-07-11 — one gesture per mode)
 
 ## Context
 
@@ -10,6 +10,8 @@ Visitors have full touch access to the screen; the operator surface carries volu
 ## Decision
 
 **Press-and-hold (~3 seconds) on a themed visual element** (e.g. a wax seal or sigil integrated into the grimoire design; exact element chosen in the design proposal). No visible affordance for visitors; the guide is taught the gesture.
+
+**Amendment 2026-07-11:** ADR-003 (amended) replaces the single operator surface with two elevated modes (**dj** and **debug**). Each mode gets its **own separate hidden gesture** (human decision 2026-07-11) — e.g. distinct themed elements and/or hold durations. The long-press-on-themed-element principle stands for both; WOW-006 proposes the concrete gesture pair, human picks from mockups. Returning to normal mode: explicit close control, visible only while a mode is active.
 
 ## Consequences
 

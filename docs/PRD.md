@@ -24,7 +24,7 @@ Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list).
 
 **F5 — Recipe & spell-name removal.** Recipe suggestions AND the random spell-name display are removed entirely (`RecipeBoxContainer`, `useGrimoire`).
 
-**F6 — Operator panel redesign.** Redesigned and uncramped; **separate view vs. redesigned full-screen overlay is TBD** — WOW-006 explores both, human picks from mockups. Access: **long-press ~3 s on a themed element** (ADR-006). Navigation is hand-rolled either way — no router dependency (ADR-005).
+**F6 — Operator surface as main-screen modes.** The separate operator page/overlay is dropped (decided 2026-07-11, ADR-003 amended). The main screen has three modes: **normal** (visitor experience; tempo/volume/key controls stay visible), **dj** (adds extended controls beside each pillar, incl. per-pillar clip selection moved out of the old debug panel), and **debug** (adds a small bottom panel with diagnostics only: API/socket-event log, versions, connection state). Each elevated mode is entered via its own hidden gesture (ADR-006 amended); mode state is hand-rolled — no router dependency (ADR-005).
 
 ## Non-goals
 
@@ -36,14 +36,14 @@ Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list).
 ## Users and user stories
 
 - As a **visitor**, I see a grimoire-styled display showing which categories are active on which pillars (icon + category name), matching the LED colors around me.
-- As the **guide**, I long-press the hidden sigil to reach an uncramped operator surface: per-pillar volume, tempo, key lock/master key, simulated tag placement.
+- As the **guide**, I use a hidden gesture to enter **dj mode**, revealing extended controls beside each pillar (clip selection / simulated tag placement) alongside the always-visible volume, tempo, and key controls; a second, different gesture opens **debug mode**'s diagnostic panel when something needs investigating.
 - As a **developer/agent**, I run `yarn dev` against the `sim/` mock backend with scripted scenarios; no hardware.
 
 ## Functional requirements
 
-- FR1: Operator surface (view or overlay per WOW-006 outcome) opened by long-press ~3 s on themed element; explicit close control inside; view switching hand-rolled (ADR-005).
+- FR1: Main-screen modes (normal / dj / debug per ADR-003 amended): each elevated mode entered by its own hidden gesture (ADR-006 amended), explicit close control while active; mode state hand-rolled (ADR-005).
 - FR2: Visitor display shows per-pillar state as **category icon + category name** (not song/picture names); artist/song metadata may move to operator surface (designer's call).
-- FR3: Operator surface exposes all current debug-modal functionality: per-pillar volume sliders, tempo, key lock/master key, simulate tag place/remove.
+- FR3: All current debug-modal functionality survives the split: per-pillar volume sliders, tempo, and key lock/master key remain in normal mode; simulate tag place/remove (per-pillar clip selection) moves to dj mode's per-pillar extended controls; the debug bottom panel carries diagnostics only (API/socket-event log, versions, connection state).
 - FR4: Category legend visible on visitor display.
 - FR5: `RecipeBoxContainer` and `useGrimoire` removed; no spell names anywhere.
 - FR6: UI emits exactly the existing socket.io events (`set_track_volume`, `set_tempo`, `set_keylock_state`, `set_master-key`, `/new/tag`, `/departed/tag`, `get_*`); no new event names without approval.
@@ -73,4 +73,4 @@ Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list).
 
 ## Open questions
 
-Tracked in `DECISIONS_NEEDED.md` (operator page-vs-overlay, category colors to match LEDs, kiosk/browser setup).
+Tracked in `DECISIONS_NEEDED.md` (dj/debug gesture pair, debug-panel extras, category colors to match LEDs, kiosk/browser setup).

@@ -51,7 +51,7 @@ Ran both from repo root after finishing the audit; no `src/**` files were touche
 
 - `yarn sim full-spell` + `yarn dev` (port 5174 per `.claude/launch.json`) — happy path screenshot evidence.
 - `yarn sim idle` + `yarn dev` — idle-state screenshot evidence, then killed the sim process (`pkill -f "vite-node sim/server.ts"`) to observe disconnect behavior with the browser tab still open.
-- `pkill -f vite` afterward to stop the dev server; confirmed no stray `sim/server` or `vite` processes remained (`ps aux | grep -E "sim/server|vite"` → clean).
+- `pkill -f vite` afterward to stop the dev server; confirmed no stray `sim/server` or `vite` processes remained (`ps aux | grep -E "sim/server|vite"` → clean). **Caution when reproducing on a dev machine**: `pkill -f vite` kills _all_ Vite processes, including unrelated projects — prefer Ctrl-C in the running `yarn dev` terminal.
 
 `yarn start-backend` was never run. No hardware, Ableton, or network beyond `localhost:3335`/`localhost:5174` was touched at any point.
 

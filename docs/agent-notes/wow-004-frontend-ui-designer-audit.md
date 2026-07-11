@@ -22,7 +22,7 @@ Role: frontend-ui-designer subagent (claude-sonnet-5), max reasoning effort
 - `docs/agent-notes/wow-004-frontend-ui-designer-audit.md` (this file).
 - `docs/agent-prompts/wow-004-frontend-ui-designer-prompts.md` — appended the Prompt 1 run record only (date/executor/branch/outcome/note path), per the orchestrator's instruction. No other content in that file changed.
 
-No files under `src/**`, `backend/**`, `Arduino/**`, or `src/assets/Music Database.csv` were changed. `git diff --stat` shows exactly the three files above.
+No files under `src/**`, `backend/**`, `Arduino/**`, or `src/assets/Music Database.csv` were changed. `git diff --stat` at the end of the audit session (implementation commit `c3c5a3e`) showed exactly the three files above; later pipeline phases (reviews, fix rounds) add further `docs/`-only files to the branch — the durable claim is that no non-`docs/` path changes.
 
 ## Assumptions made
 

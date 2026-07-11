@@ -22,7 +22,7 @@ Scope: test-engineer lens on a read-only docs ticket — diff purity, validation
 
 None. Diff is pure docs and the validation claims hold.
 
-- **Diff purity — PASS.** `git diff main...HEAD --name-status` shows exactly three paths, all under `docs/`:
+- **Diff purity — PASS.** `git diff main...HEAD --name-status` at the reviewed SHA (`c3c5a3e`, the implementation commit) shows exactly three paths, all under `docs/` (later pipeline phases legitimately add further `docs/agent-notes|agent-prompts` files — the durable invariant is that no non-`docs/` path changes on this branch):
 
   - `A docs/UI_AUDIT.md` (the deliverable)
   - `A docs/agent-notes/wow-004-frontend-ui-designer-audit.md` (handoff note)

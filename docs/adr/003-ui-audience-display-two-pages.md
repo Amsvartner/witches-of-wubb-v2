@@ -20,7 +20,7 @@ The UI's audience and display hardware were unknown. Confirmed: a single touch s
 
 ## Consequences
 
-- Navigation between views is **hand-rolled** (ADR-005) — mode state is plain React state, no router dependency.
+- Mode state is **hand-rolled** (ADR-005) — plain React state, no router dependency.
 - There is no separate operator page/overlay to design or route to; dj/debug are additive layers on the main screen. The old full-screen debug modal (`DebugModalContainer`) is dissolved: clip selection moves to dj mode's per-pillar controls, diagnostics move to debug mode's bottom panel.
 - Design proposals target one fixed viewport; no responsive-breakpoint work needed.
 - `use-grimoire` (recipes + spell names) is removed wholesale in the rework.

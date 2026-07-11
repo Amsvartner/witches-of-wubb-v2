@@ -32,5 +32,5 @@ Status: proposed | accepted | superseded by NNN
 - [002 — Clip category naming follows the implementation](002-clip-category-naming.md) (accepted)
 - [003 — UI audience, display, and operator surface](003-ui-audience-display-two-pages.md) (accepted, amended 2026-07-11: three main-screen modes — normal/dj/debug)
 - [004 — Frontend-only scope for this project phase](004-frontend-only-scope.md) (accepted)
-- [005 — Hand-rolled routing for the visitor/operator views](005-hand-rolled-routing.md) (accepted, human-authored; amended 2026-07-11: applies to mode state)
-- [006 — Operator access via long-press on themed element](006-operator-access-gesture.md) (accepted, amended 2026-07-11: one gesture per elevated mode)
+- [005 — Hand-rolled mode state (no router dependency)](005-hand-rolled-routing.md) (accepted, human-authored; amended 2026-07-11: applies to mode state)
+- [006 — Operator access via long-press on themed elements](006-operator-access-gesture.md) (accepted, amended 2026-07-11: one gesture per elevated mode)

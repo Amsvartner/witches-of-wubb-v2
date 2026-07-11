@@ -90,3 +90,9 @@ Output:
 ### Prompt 1 — run record
 
 _Append after execution: date, executor (model/agent), branch + head SHA, outcome, note path._
+
+- Date: 2026-07-11
+- Executor: frontend-ui-designer subagent / claude-sonnet-5 (max reasoning effort)
+- Branch: `docs/wow-004-ui-audit`, head SHA at run start: `a4c3a32`
+- Outcome: complete. `docs/UI_AUDIT.md` covers all 19 inventoried files (verified no drift against the tree), recipe-removal blast radius, socket-event consumption table, display-target assessment at 1024×1280 (runtime, via `yarn sim full-spell`/`yarn sim idle` + `yarn dev`), visitor/operator mapping, and a 4-item open-questions appendix. `yarn lint` and `yarn test` both green. No `src/**`/`backend/**` files touched.
+- Note path: `docs/agent-notes/wow-004-frontend-ui-designer-audit.md`

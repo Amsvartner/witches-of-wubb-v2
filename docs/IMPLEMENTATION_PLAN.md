@@ -24,13 +24,13 @@ Revised 2026-07-09 after scope decisions (ADR-001…004). **Frontend-only**; bac
 
 ## Stage 3 — UI rework foundation
 
-- Two-page structure (per approved routing decision), viewport/kiosk setup, theming foundation (grimoire background system), socket-contract layer hardening, connection/simulator status surfacing, remove recipe section.
+- Three-mode main-screen structure (normal / dj / debug, ADR-003 amended 2026-07-11), viewport/kiosk setup, theming foundation (grimoire background system), socket-contract layer hardening, connection/simulator status surfacing, remove recipe section.
 - Tests for existing behavior before moving it.
 - **Gate:** reviewer + architecture-reviewer; human demo.
 
 ## Stage 4 — Visitor display + operator surface implementation
 
-- Visitor display (category icons + names, legend — F3/F4) and operator surface (page or overlay per WOW-006 decision, long-press access — F6) as separate PR-sized tickets sliced by project-manager.
+- Visitor display (category icons + names, legend — F3/F4), dj-mode per-pillar extended controls, and debug-mode diagnostic panel (modes + gesture pair per WOW-006 decision — F6) as separate PR-sized tickets sliced by project-manager.
 - **Gate:** per ticket — reviewer; human demo against simulator.
 
 ## Stage 5 — Additional features

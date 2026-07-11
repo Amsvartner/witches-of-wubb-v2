@@ -12,7 +12,7 @@ Principles for the UI rework. These are working principles, not visual identity 
 6. **No hidden destructive controls.** The current hidden debug-modal trigger is acceptable for a debug tool but must not become the pattern for real operator controls.
 7. **Accessible contrast and typography.** The decorative font (Fondamento) is thematic; pair it with a highly legible face for status/data. Meet WCAG AA contrast for operator-critical text. Respect reduced-motion preferences.
 8. **Touch/display (confirmed, ADR-003).** Single fixed viewport: **1024×1280 portrait touch**. Design for touch only — no hover states, generous hit areas, no responsive breakpoints needed. The screen sits inside a large physical grimoire; the background must visually extend the book (page texture, binding, margins).
-9. **Operator surface (ADR-003 amended, ADR-005/006).** Redesigned, uncramped operator surface — separate view vs. full-screen overlay decided from WOW-006 mockups; navigation hand-rolled. Opened via long-press (~3 s) on a themed element; explicit close control inside.
+9. **Main-screen modes (ADR-003/006 amended 2026-07-11, ADR-005).** No separate operator page/overlay — the main screen has three modes: normal (visitor; tempo/volume/key stay visible), dj (extended per-pillar controls incl. clip selection), debug (bottom diagnostic panel only). Each elevated mode has its own hidden gesture; explicit close control while active; mode state hand-rolled.
 10. **Simulator/development mode (confirmed, ADR-001).** When running against the simulator, the UI should clearly label simulated state so nobody mistakes it for the live rig.
 
 ## Confirmed design direction (2026-07-09)
@@ -21,10 +21,11 @@ Principles for the UI rework. These are working principles, not visual identity 
 - Recipe suggestions AND random spell names removed entirely (`useGrimoire` goes).
 - Visitor display is **category-centric**: per-pillar category icon + category name (no song/picture names), plus a category legend. Category colors come from `src/util/ColorUtil.ts`: Vox red, Bass green, Drums blue, Melody yellow (Tailwind -700 shades).
 - Volume stays a plain slider (hardware enforces max volume).
-- Operator access: long-press ~3 s on themed element (ADR-006); hand-rolled view switching (ADR-005).
+- Operator access: three main-screen modes (normal / dj / debug), one hidden gesture per elevated mode (ADR-003/006 amended 2026-07-11); hand-rolled mode state (ADR-005).
+- Tempo/volume/key controls remain visitor-visible in normal mode (confirmed 2026-07-11).
 
 ## Needs human design direction
 
 - Concrete visual language within "witchy/occult": palette, typography pairing (Fondamento stays?), texture/illustration sources, motion style — options presented in WOW-006.
-- Operator surface: separate page vs. full-screen overlay (from WOW-006 mockups).
-- What (if any) tempo/key state is visible on the visitor display vs. operator-only.
+- Which themed elements/gestures enter dj vs. debug mode (pair proposed in WOW-006 mockups).
+- Debug-panel presentation (log density, filtering, copy/export) within the confirmed content baseline.

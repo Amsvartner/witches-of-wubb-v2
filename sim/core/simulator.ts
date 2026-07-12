@@ -161,10 +161,12 @@ export class Simulator {
     }, this.timeoutMs);
   }
 
-  // Mirrors handleTimeout (backend/ableton-api.ts:49): every track is stopped
+  // Mirrors handleTimeout (backend/adapter/AbletonAdapter.ts): every track is stopped
   // (the browser sees a bare clip_stopped per pillar, since stoppingClips is
-  // empty on this path) and the master key resets silently — the real backend
-  // assigns masterKey directly without emitting master-key_changed.
+  // empty on this path), the master key resets and emits master-key_changed,
+  // and any still-queued clips are dropped with clip_unqueued per occupied
+  // pillar — all via the without-reset emit variant so the timeout's own
+  // cleanup doesn't re-arm the timer it just fired (WOW-018).
   private handleTimeout() {
     this.playingClips.forEach((clip, pillar) => {
       if (clip) {
@@ -173,6 +175,13 @@ export class Simulator {
       }
     });
     this.masterKey = '';
+    this.emit('master-key_changed', { key: this.masterKey }, false);
+
+    this.queuedClips.forEach((queued, pillar) => {
+      if (!queued) return;
+      this.queuedClips[pillar] = null;
+      this.emit('clip_unqueued', { ...queued, clip: undefined }, false);
+    });
   }
 
   // --- Tag events (mirrors backend/events/incoming-events.ts:42-101) -------

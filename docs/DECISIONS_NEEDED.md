@@ -15,6 +15,27 @@ Open questions for the human. Answered decisions live in ADRs (`docs/adr/`) and 
 
 - Browser/kiosk setup on the show machine (which browser, kiosk mode, autostart)? Not blocking.
 
+Decision needed:
+
+- Crash-restart supervision for the backend process (WOW-014). `nodemon`'s default behavior does not restart the process after a crash — it waits for a file change. WOW-014 adds process-level `unhandledRejection`/`uncaughtException` handlers that log via pino then `process.exit(1)`, so a crash now stops the process cleanly with a diagnostic log instead of hanging in a broken state — but nothing currently restarts it automatically afterward.
+
+Why this matters:
+
+- At the venue, a backend crash currently means silence until a human notices and manually restarts it. The installation runs unattended for stretches; automatic restart would shrink recovery time from "whenever someone notices" to seconds.
+
+Options:
+
+1. `nodemon --exitcrash` (or equivalent flag) — minimal change, stays within the dev-grade tool already in use, but nodemon is a development watcher, not a production process supervisor (no crash-loop backoff protection).
+2. pm2 — purpose-built Node process manager with restart policies, crash-loop backoff, and log management; adds a new dependency/tool to the show machine.
+3. launchd (macOS) or systemd (Linux) unit — OS-level supervision, no new Node dependency, but needs per-platform setup and a known target OS (per `docs/HARDWARE_INTEGRATION.md` → "Computers", currently TBD).
+
+Recommendation:
+
+- Option 2 (pm2) if the show machine's OS is uncertain or mixed; option 3 if it's fixed and known — either gives real crash-loop protection, which `nodemon --exitcrash` alone does not. Needs the show machine's OS confirmed first.
+
+Blocked until human confirms:
+yes
+
 ## Out of scope (parked)
 
 - WiFi credentials committed in `Arduino/` sketches (standing security note).

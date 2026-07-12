@@ -63,6 +63,12 @@ function handleNewTag(rfid: string, requestAddress: string) {
     if (clipMetadata) {
       Logger.info(`RFID ${rfid} maps to clip ${clipMetadata?.clipName}`);
       const pillar = IP_ADDRESS_TO_PILLAR_INDEX_MAP[requestAddress];
+      if (pillar === undefined) {
+        Logger.warn(
+          `Tag event from unrecognized IP address "${requestAddress}" (rfid ${rfid}) - ignoring, no pillar mapping`,
+        );
+        return;
+      }
       OutgoingEvents.emitEvent('ingredient_detected', {
         ...clipMetadata,
         rfid,
@@ -74,7 +80,7 @@ function handleNewTag(rfid: string, requestAddress: string) {
       Logger.warn("Couldn't find track from RFID tag");
     }
   } catch (err) {
-    Logger.error('Errored trying find track from RFID tag');
+    Logger.error(err, `Errored trying to find track from RFID tag ${rfid} (${requestAddress})`);
   }
 }
 
@@ -85,14 +91,22 @@ function handleDepartedTag(rfid: string, requestAddress: string) {
     if (clipMetadata) {
       Logger.info(`RFID ${rfid} maps to clip ${clipMetadata.clipName} > type ${clipMetadata.type}`);
       const pillar = IP_ADDRESS_TO_PILLAR_INDEX_MAP[requestAddress];
+      if (pillar === undefined) {
+        Logger.warn(
+          `Tag event from unrecognized IP address "${requestAddress}" (rfid ${rfid}) - ignoring, no pillar mapping`,
+        );
+        return;
+      }
 
       OutgoingEvents.emitEvent('ingredient_removed', { ...clipMetadata, pillar, requestAddress });
-      AbletonAdapter.stopOrRemoveClipFromQueue(clipMetadata.clipName, pillar);
+      AbletonAdapter.stopOrRemoveClipFromQueue(clipMetadata.clipName, pillar).catch((err) =>
+        Logger.error(err, `Error stopping or removing clip from queue on pillar ${pillar + 1}`),
+      );
     } else {
       Logger.warn("Couldn't find track from RFID tag");
     }
   } catch (err) {
-    Logger.error('Errored trying find track from RFID tag');
+    Logger.error(err, `Errored trying to find track from RFID tag ${rfid} (${requestAddress})`);
   }
 }
 
@@ -142,23 +156,35 @@ function addSocketEventsHandlers(socket: Socket) {
     callback(clips);
   });
   socket.on('get_tempo', async (_, callback) => {
-    const tempo = await AbletonAdapter.getTempo();
-    callback(tempo);
+    try {
+      const tempo = await AbletonAdapter.getTempo();
+      callback(tempo);
+    } catch (err) {
+      Logger.error(err, 'Error getting tempo');
+    }
   });
   socket.on('set_tempo', (tempo: number, callback) => {
     AbletonAdapter.setTempo(tempo);
     callback(tempo);
   });
   socket.on('get_track_volumes', async (_, callback) => {
-    if (!AbletonAdapter.trackVolumes?.length) await AbletonAdapter.getTrackVolumes();
-    const formattedVolumes: TrackVolumesType = AbletonAdapter.trackVolumes.map(
-      (trackVolume) => trackVolume?.raw.value,
-    );
-    Logger.info(`Emitting track volumes: ${formattedVolumes}`);
-    callback(formattedVolumes);
+    try {
+      if (!AbletonAdapter.trackVolumes?.length) await AbletonAdapter.getTrackVolumes();
+      const formattedVolumes: TrackVolumesType = AbletonAdapter.trackVolumes.map(
+        (trackVolume) => trackVolume?.raw.value,
+      );
+      Logger.info(`Emitting track volumes: ${formattedVolumes}`);
+      callback(formattedVolumes);
+    } catch (err) {
+      Logger.error(err, 'Error getting track volumes');
+    }
   });
   socket.on('set_track_volume', async ({ pillar, volume }: SetTrackVolumeInputType) => {
-    await AbletonAdapter.setTrackVolume(pillar, volume);
+    try {
+      await AbletonAdapter.setTrackVolume(pillar, volume);
+    } catch (err) {
+      Logger.error(err, `Error setting track volume for pillar ${pillar + 1}`);
+    }
   });
   socket.on('get_keylock_state', (_, callback) => {
     callback(AbletonAdapter.getKeyLockState());

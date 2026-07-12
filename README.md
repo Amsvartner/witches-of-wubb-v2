@@ -55,6 +55,19 @@ At which point you will have:
 - a Websocket server listening on port `3335`, or whatever you've assigned to `WS_SEVER_PORT`
 - a process listening to the socket exposed by `ableton-js`
 
+##### Troubleshooting: backend hangs or exits at startup
+
+`yarn start-backend` connects to Ableton Live via the `ableton-js` remote script. If it doesn't connect within `ABLETON_START_TIMEOUT_MS` (default 45s), it logs an actionable error and exits instead of hanging forever. Common causes, in order of likelihood:
+
+1. **Live isn't running.** Start Live with your set open.
+2. **The AbletonJS control surface isn't enabled.** In Live: Preferences → Link/Tempo/MIDI → Control Surface, select AbletonJS.
+3. **The installed remote-script version doesn't match this npm package.** The backend logs a warning naming both versions at startup if they differ (or if it can't find the installed one — see `ABLETON_REMOTE_SCRIPT_VERSION_PATH` below). To fix: copy `backend/node_modules/ableton-js/midi-script/` into Live's Remote Scripts folder as `AbletonJS`, then restart Live.
+
+Two optional `.env` overrides (both have working defaults — see `.env`):
+
+- `ABLETON_START_TIMEOUT_MS` — how long to wait for Live before giving up.
+- `ABLETON_REMOTE_SCRIPT_VERSION_PATH` — where to look for the installed remote script's `version.py`, if it's not at the default macOS path.
+
 #### Offline simulator (no Ableton/hardware needed)
 
 For UI development you don't need the real backend at all: the offline simulator ([ADR-001](docs/adr/001-offline-simulator-mock-backend.md)) implements the same socket.io contract on the same port (`3335`) with fake state and scripted scenarios built from real `Music Database.csv` rows. It cannot reach Ableton, OSC, or hardware — its only network surface is a listening socket on `localhost:3335`.

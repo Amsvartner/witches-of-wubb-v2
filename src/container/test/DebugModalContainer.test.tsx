@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { act, fireEvent, render, screen } from '@testing-library/react';
+=======
+import { fireEvent, render, screen } from '@testing-library/react';
+>>>>>>> origin/main
 import { PropsWithChildren } from 'react';
 import { Socket } from 'socket.io-client';
 import { vi } from 'vitest';
@@ -8,6 +12,7 @@ import { AbletonContext } from '~/context/AbletonContext';
 import { AbletonContextState } from '~/context/type/AbletonContextState';
 import { SocketContext } from '~/context/SocketContext';
 
+<<<<<<< HEAD
 // jsdom doesn't implement ResizeObserver, which @headlessui/react's Dialog
 // uses internally; it wasn't reached by this file's original single-render
 // test, but the extra act()-flushed render cycle the connection-indicator
@@ -22,6 +27,8 @@ class ResizeObserverStub {
 }
 global.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
 
+=======
+>>>>>>> origin/main
 // Real clip names can contain spaces (e.g. `"Doink U" Vox 122`, per WOW-016) - a
 // synthetic name is used here (rather than a real CSV entry) so this test can't collide
 // with the "available clips" list, which is built from the real Music Database.csv and
@@ -70,6 +77,7 @@ function renderModal(socket: Socket) {
   return render(<DebugModalContainer isModalOpen setIsModalOpen={() => {}} />, { wrapper });
 }
 
+<<<<<<< HEAD
 type Handler = (...args: unknown[]) => void;
 
 // Supports live connect/disconnect simulation via `trigger`, for the
@@ -102,6 +110,12 @@ describe('DebugModalContainer', () => {
     // this test is about the spaced-name unqueue behavior, not connection
     // state (see the "connection indicator" describe block below for that).
     const socket = { emit, connected: true, on: vi.fn(), off: vi.fn() } as unknown as Socket;
+=======
+describe('DebugModalContainer', () => {
+  it('unqueues a clip whose name contains spaces without throwing, using rfid directly', () => {
+    const emit = vi.fn();
+    const socket = { emit } as unknown as Socket;
+>>>>>>> origin/main
 
     // The .not.toThrow() wrappers below are belt-and-suspenders only: in this
     // React/jsdom stack, fireEvent.click() never rethrows an onClick handler's
@@ -123,6 +137,7 @@ describe('DebugModalContainer', () => {
       pillar: QUEUED_PILLAR_INDEX,
     });
   });
+<<<<<<< HEAD
 
   // WOW-024: connection indicator + inert clip buttons until connected.
   //
@@ -220,4 +235,6 @@ describe('DebugModalContainer', () => {
       });
     });
   });
+=======
+>>>>>>> origin/main
 });

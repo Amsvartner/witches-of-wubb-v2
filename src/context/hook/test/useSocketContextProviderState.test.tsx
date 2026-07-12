@@ -9,6 +9,8 @@ type FakeSocket = {
   anyHandlers: ((event: string, ...args: unknown[]) => void)[];
   on: (event: string, cb: (...args: unknown[]) => void) => void;
   onAny: (cb: (event: string, ...args: unknown[]) => void) => void;
+  offAny: Mock;
+  disconnect: Mock;
 };
 
 // vi.mock auto-hoisting is not active in this vitest setup, so we register the
@@ -30,6 +32,8 @@ beforeAll(async () => {
         onAny: (cb) => {
           socket.anyHandlers.push(cb);
         },
+        offAny: vi.fn(),
+        disconnect: vi.fn(),
       };
       return socket;
     }),
@@ -94,5 +98,28 @@ describe('useSocketContextProviderState', () => {
     });
 
     expect(debug).toHaveBeenCalledWith('clip_started received with:', [{ pillar: 0 }]);
+  });
+
+  it('disconnects and removes onAny listeners on unmount (WOW-019)', () => {
+    const { unmount } = renderHook(() => useSocketContextProviderState());
+    const socket = lastSocket();
+
+    unmount();
+
+    expect(socket.offAny).toHaveBeenCalledTimes(1);
+    expect(socket.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not disconnect just because the socket becomes connected (only on unmount)', () => {
+    renderHook(() => useSocketContextProviderState());
+    const socket = lastSocket();
+
+    act(() => {
+      socket.connected = true;
+      socket.handlers['connect']();
+    });
+
+    expect(socket.disconnect).not.toHaveBeenCalled();
+    expect(ioMock).toHaveBeenCalledTimes(1);
   });
 });

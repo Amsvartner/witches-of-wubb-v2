@@ -69,7 +69,6 @@ describe('AbletonAdapter.parseRemoteScriptVersion', () => {
     expect(AbletonAdapter.parseRemoteScriptVersion(realPath)).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
-
 // WOW-020: a clip with degenerate warp markers must not push Infinity/NaN
 // into setTempo - calculateBpmFromWarpMarkers returns undefined instead so
 // callers can skip tempo adoption.

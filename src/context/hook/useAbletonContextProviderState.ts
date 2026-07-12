@@ -113,6 +113,17 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
 
     getTracksAndClips();
 
+    // Re-fetch on every future reconnect too, not just this first connection.
+    // socket.io fires 'connect' again on the same persistent Socket instance
+    // after a disconnect/reconnect cycle (see useSocketContextProviderState,
+    // which no longer tears the connection down when that happens) - this
+    // listener catches it without needing this effect to re-run or the
+    // socket's object identity to change. getTracksAndClips is stable across
+    // reconnects (memoized on `socket`, which doesn't change reference), so
+    // the same function reference is used for both `on` and the matching
+    // `off` below - registered once, never duplicated (WOW-019).
+    socket.on('connect', getTracksAndClips);
+
     socket.on('ingredient_detected', (data: BrowserClipInfo) => {
       setQueuedClips((current) => updateIndex(data.pillar, data, current));
     });
@@ -158,6 +169,7 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     });
 
     return () => {
+      socket.off('connect', getTracksAndClips);
       socket.off('ingredient_detected');
       socket.off('clip_queued');
       socket.off('clip_unqueued');

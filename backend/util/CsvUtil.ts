@@ -4,6 +4,7 @@ import { ClipNameToInfoMapType } from '../type/ClipNameToInfoMapType';
 import { CsvRow } from '../type/CsvRow';
 import { RFIDToClipMapType } from '../type/RFIDToClipMapType';
 import { ClipNameUtil } from './ClipNameUtil';
+import { Logger } from './Logger';
 
 function parseCsv(
   RFIDToClipMap: RFIDToClipMapType,
@@ -88,10 +89,14 @@ function enrichRecommendations(
   };
 
   const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
-  ClipNameToInfoMap[normalizedClipName] = {
-    ...ClipNameToInfoMap[normalizedClipName],
-    recommendedClips,
-  };
+  if (normalizedClipName) {
+    ClipNameToInfoMap[normalizedClipName] = {
+      ...ClipNameToInfoMap[normalizedClipName],
+      recommendedClips,
+    };
+  } else {
+    Logger.warn(`Could not find clip "${clipName}" in ClipNameToInfoMap while enriching recommendations`);
+  }
 }
 
 export const CsvUtil = {

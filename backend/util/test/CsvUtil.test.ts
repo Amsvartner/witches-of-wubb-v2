@@ -3,6 +3,8 @@ import { ClipTypes } from '../../type/ClipTypes';
 import { CsvRow } from '../../type/CsvRow';
 import { ClipNameToInfoMapType } from '../../type/ClipNameToInfoMapType';
 import { RFIDToClipMapType } from '../../type/RFIDToClipMapType';
+import { Logger } from '../Logger';
+import { afterEach, vi } from 'vitest';
 
 function makeRow(overrides: Partial<CsvRow> = {}): CsvRow {
   return {
@@ -32,6 +34,10 @@ function buildRow(overrides: Partial<CsvRow> = {}): CsvRow {
     ...overrides,
   };
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('CsvUtil.parseCsv', () => {
   let rfidToClipMap: RFIDToClipMapType;
@@ -180,6 +186,38 @@ describe('CsvUtil.enrichRecommendations', () => {
     CsvUtil.enrichRecommendations(rfidToClipMap, clipNameToInfoMap, rows, rows[0]);
 
     expect(rfidToClipMap['r1'].recommendedClips).toEqual({});
+  });
+
+  it('skips ClipNameToInfoMap enrichment and logs a warning when the normalized clip name is empty', () => {
+    const rfidToClipMap: RFIDToClipMapType = {};
+    const clipNameToInfoMap: ClipNameToInfoMapType = {};
+    const warnSpy = vi.spyOn(Logger, 'warn');
+
+    const rows = [
+      makeRow({ RFID: 'r1', 'Clip Name': '***', 'Key Numerical': '5' }),
+      makeRow({
+        RFID: 'r2',
+        'Clip Name': 'Neighbor Drums',
+        'Clip Type (e.g. Vocals)': ClipTypes.Drums,
+        'Key Numerical': '6',
+      }),
+    ];
+    rows.forEach((row) => CsvUtil.parseCsv(rfidToClipMap, clipNameToInfoMap, row));
+
+    CsvUtil.enrichRecommendations(rfidToClipMap, clipNameToInfoMap, rows, rows[0]);
+
+    expect(clipNameToInfoMap['']).toBeUndefined();
+    expect(rfidToClipMap['r1'].recommendedClips).toEqual({
+      [ClipTypes.Drums]: [
+        expect.objectContaining({
+          rfid: 'r2',
+          type: ClipTypes.Drums,
+        }),
+      ],
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Could not find clip "***" in ClipNameToInfoMap while enriching recommendations',
+    );
   });
 });
 

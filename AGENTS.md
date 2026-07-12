@@ -1,9 +1,9 @@
 # AGENTS.md — Instructions for AI agents in this repository
 
-Version: 0.4
+Version: 0.5
 Status: Active
 Owner: Vidar
-Last updated: 2026-07-10
+Last updated: 2026-07-12
 
 This file is the root operating contract for any AI agent (Claude Code or otherwise) working in this repo. Read it fully before making changes.
 
@@ -16,6 +16,14 @@ Work is **frontend-only**: `src/` (incl. colocated `test/` folders), docs, and t
 - Structure and naming only — **zero behavioral change**. Musical logic, timing, quantization, transposition tables, volume handling, the pillar IP map, and all emitted OSC/MIDI/Art-Net/socket payloads stay byte-for-byte equivalent; socket.io event names are frozen.
 - The physical-installation safety rules below apply in full; the diff requires audio-ableton-reviewer and hardware-safety-reviewer sign-off before merge.
 - This exception covers only that ticket. Outside it, `backend/` remains read-only.
+
+**Exception — `docs/TICKETS_002_BUGS.md` batch (2026-07-12, ADR-004 amended):** the 19-ticket batch in `docs/TICKETS_002_BUGS.md` (WOW-014 through WOW-032, from the 2026-07-10 full-repo review) may edit `backend/` and `Arduino/`, scoped to each ticket's own "Allowed files" and safety-notes lines — not a blanket reopen. Constraints:
+
+- Each ticket's own allowed-files list is the actual boundary; do not touch files a ticket doesn't name.
+- Tickets whose safety notes name audio-ableton-reviewer and/or hardware-safety-reviewer sign-off still require it before gate, same as WOW-011's exception.
+- `Music Database.csv` stays agent-read-only unless a specific ticket explicitly says otherwise.
+- Firmware tickets (`Arduino/`) still require a human to compile, flash, and bench-test — agents review only, never touch real hardware.
+- This exception covers only the `docs/TICKETS_002_BUGS.md` batch. Outside it, `backend/`/`Arduino/` remain read-only per the base rule above.
 
 ## Project context
 

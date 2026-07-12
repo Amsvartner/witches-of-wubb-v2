@@ -37,16 +37,31 @@ order; branching from WOW-016's tip avoids that risk entirely.
 `DebugModalContainer.tsx`:
 
 - New `isConnected` state, initialized from `Boolean(socket.connected)`.
-- A `useEffect` depending on `[socket]` (mirroring
-  `useAbletonContextProviderState.ts`'s identical existing guard) that:
-  syncs `isConnected` to the socket's current state whenever the reference
-  changes, and - only once the socket is actually connected-capable -
-  attaches persistent `'connect'`/`'disconnect'` listeners that flip
-  `isConnected` live. These stay attached for the socket's lifetime (torn
-  down only on unmount or a reference change), so they correctly track
-  future reconnects too, not just the first connection - same underlying
-  socket.io-client behavior WOW-019 already verified (against the actual
-  library source) for its own reconnect fix.
+- A `useEffect` depending on `[socket]` that: syncs `isConnected` to the
+  socket's current state whenever the reference changes, and - only once
+  the socket is a real, listener-capable object - attaches persistent
+  `'connect'`/`'disconnect'` listeners that flip `isConnected` live. These
+  stay attached for the socket's lifetime (torn down only on unmount or a
+  reference change), so they correctly track future reconnects too, not
+  just the first connection - same underlying socket.io-client behavior
+  WOW-019 already verified (against the actual library source) for its own
+  reconnect fix.
+  - **Fix-round correction (Copilot review)**: the attach guard originally
+    read `if (!socket.connected) return;`, mirroring
+    `useAbletonContextProviderState.ts`'s own guard. Copilot correctly
+    caught that this conflates two different questions - "is this a real,
+    socket-shaped object" vs. "is it _currently_ connected" - and that a
+    real-but-momentarily-disconnected socket (e.g. this effect happening to
+    run mid-reconnect) would get treated identically to the bare
+    placeholder: no listeners attached, and since the object reference
+    never changes again on a reconnect, `isConnected` would stay stuck
+    `false` forever even after the socket actually reconnects. Changed the
+    guard to `typeof socket.on !== 'function' || typeof socket.off !== 'function'`
+    instead - it now attaches listeners immediately for any real socket,
+    connected or not, so a live future `'connect'` is never missed. (The
+    identical class of guard exists in `useAbletonContextProviderState.ts`,
+    WOW-019's already-gated file - not fixed here, flagged as a follow-up
+    instead; see below.)
 - `toggleSong` now returns early (logging a warning, never calling
   `socket.emit`) if `!isConnected` - a defense-in-depth backstop.
 - UI: a "Connecting to backend…" banner shown only while `!isConnected`,
@@ -70,16 +85,30 @@ order; branching from WOW-016's tip avoids that risk entirely.
   fail for a reason unrelated to what it actually verifies (the spaced-name
   unqueue behavior, not connection state). This is a necessary update, not
   scope creep - the alternative would be a spuriously broken regression test.
-- 4 new tests: pre-connect (indicator shown, click produces no `emit` call),
-  already-connected (no indicator, click emits correctly), live disconnect
-  (indicator reappears, clicks become inert again), live reconnect (indicator
-  clears again, clicks work again). "connect transition" in the ticket's
-  required-tests line is interpreted here as the reconnect-after-disconnect
-  case specifically, not "mounts mid-connection, then the placeholder swaps
-  for the real socket" - that transition is a React context _reference_
-  change that (like the `renderHook` limitation WOW-019 already documented)
-  isn't cleanly simulatable through `render()`'s wrapper API, and isn't the
-  scenario that actually matters for a socket already live in the tree.
+- 5 new tests: pre-connect (indicator shown, click produces no `emit` call),
+  **connect transition** (a real-but-not-yet-connected socket - has `on`/`off`,
+  `connected: false` - fires `'connect'` live; indicator clears, click
+  starts working), already-connected (no indicator, click emits correctly),
+  live disconnect (indicator reappears, clicks become inert again), and a
+  full disconnect+reconnect round trip.
+  - **Fix-round correction**: an earlier draft of this note claimed the true
+    "starts disconnected, becomes connected" transition "isn't cleanly
+    simulatable through `render()`'s wrapper API," citing the `renderHook`
+    limitation WOW-019 documented, and covered only the narrower
+    reconnect-after-disconnect case instead. A test-engineer review
+    independently verified that claim was wrong for `render()` specifically
+    (a mutable closure variable feeding the wrapper's `value` prop, then
+    `rerender()`, does work - the `renderHook` limitation is about prop
+    _threading_ into the wrapper component specifically, which is narrower
+    than "changing what the wrapper renders" in general). That review's
+    counter-example test passed against the code _before_ this fix-round
+    change, meaning the shipped behavior was already correct even though
+    the note's stated reasoning for not testing it directly was inaccurate.
+    Superseded by the Copilot fix above anyway, which makes the literal
+    "real-but-disconnected socket connects live" case both the correct
+    behavior _and_ the direct, un-contrived way to test it - no reference
+    change or closure trick needed. The "connect transition" test now in
+    this file uses that direct form.
 - Added a scoped `ResizeObserver` polyfill to this test file. jsdom doesn't
   implement it, and `@headlessui/react`'s `Dialog` uses it internally; the
   gap was pre-existing but never triggered by this file's original

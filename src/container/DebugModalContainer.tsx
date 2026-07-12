@@ -22,17 +22,20 @@ export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX
   const socket = useSocketContext();
   const { playingClips, queuedClips, stoppingClips } = useAbletonContext();
 
-  // socket starts out as an unconnected placeholder (see useSocketContextProviderState)
-  // and only ever becomes the real, connected client once - see
-  // useAbletonContextProviderState's identical `if (!socket.connected) return;` guard.
-  // `connect`/`disconnect` then track live state on that same persistent object across
-  // future reconnects (WOW-024; coordinates with WOW-019's reconnect fix without
-  // requiring it - this file doesn't depend on WOW-019's branch).
+  // socket starts out as an unconnected placeholder ({} as Socket, see
+  // useSocketContextProviderState) with no .on/.off at all - gate on their
+  // presence, not on `.connected`, so a real-but-currently-disconnected
+  // socket (e.g. this component happens to (re)run its effect mid-reconnect)
+  // still gets its listeners attached immediately, rather than getting
+  // treated the same as the placeholder and permanently missing the future
+  // 'connect' that would otherwise flip isConnected back (Copilot review,
+  // PR #24 - `.connected` alone can't distinguish "not a real socket yet"
+  // from "a real socket that's momentarily down").
   const [isConnected, setIsConnected] = useState(Boolean(socket.connected));
 
   useEffect(() => {
     setIsConnected(Boolean(socket.connected));
-    if (!socket.connected) return;
+    if (typeof socket.on !== 'function' || typeof socket.off !== 'function') return;
 
     const handleConnect = () => setIsConnected(true);
     const handleDisconnect = () => setIsConnected(false);

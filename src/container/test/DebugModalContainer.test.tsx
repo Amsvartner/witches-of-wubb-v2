@@ -126,16 +126,16 @@ describe('DebugModalContainer', () => {
 
   // WOW-024: connection indicator + inert clip buttons until connected.
   //
-  // "connect transition" here specifically means "disconnect, then reconnect
-  // on the same live socket" (tests 3+4 below), not "mounts while the
-  // placeholder socket is still connecting, then swaps to the real one" -
-  // that transition is a React-context *reference* change
-  // (useSocketContextProviderState only ever calls setSocket once it's
-  // already connected, per WOW-019), and @testing-library/react's render()
-  // wrapper - like renderHook's - doesn't let a test swap the value a
-  // wrapper closure captured after the fact. The reconnect-on-the-same-object
-  // path covered here is the one that matters for a socket that's already
-  // live in the tree, which is the actual risk this ticket cares about.
+  // The connection-tracking effect gates on whether `socket` has real
+  // `on`/`off` functions, not on `socket.connected` - a Copilot review
+  // caught that gating on `.connected` alone would permanently miss a
+  // future 'connect' if this component's effect ever ran while an
+  // already-real (not the bare placeholder) socket happened to be mid-
+  // reconnect, since the listeners would never get attached at all. That
+  // fix is what makes the "starts real-but-disconnected, then connects"
+  // test below directly simulatable - no need for a context reference
+  // change, since a real (if currently-disconnected) socket gets its
+  // listeners attached immediately on mount.
   describe('connection indicator', () => {
     it('shows a connecting indicator and makes clip buttons inert before the socket connects', () => {
       const socket = createFakeSocket(false);
@@ -147,6 +147,26 @@ describe('DebugModalContainer', () => {
       fireEvent.click(clipButton as HTMLButtonElement);
 
       expect(socket.emit).not.toHaveBeenCalled();
+    });
+
+    it('flips to connected live: hides the indicator and allows clicks once a real-but-not-yet-connected socket connects (connect transition)', () => {
+      const socket = createFakeSocket(false);
+      renderModal(socket as unknown as Socket);
+      expect(screen.getByText(/connecting to backend/i)).toBeInTheDocument();
+
+      act(() => {
+        socket.trigger('connect');
+      });
+
+      expect(screen.queryByText(/connecting to backend/i)).not.toBeInTheDocument();
+
+      const clipButton = screen.getByText(SPACED_CLIP_NAME).closest('button');
+      fireEvent.click(clipButton as HTMLButtonElement);
+
+      expect(socket.emit).toHaveBeenCalledWith('/departed/tag', {
+        rfid: SPACED_CLIP_RFID,
+        pillar: QUEUED_PILLAR_INDEX,
+      });
     });
 
     it('hides the indicator and allows clicks once already connected', () => {
@@ -180,7 +200,7 @@ describe('DebugModalContainer', () => {
       expect(socket.emit).not.toHaveBeenCalled();
     });
 
-    it('flips back to connected on reconnect: hides the indicator and allows clicks again (connect transition)', () => {
+    it('flips back to connected after a full disconnect+reconnect round trip', () => {
       const socket = createFakeSocket(true);
       renderModal(socket as unknown as Socket);
 

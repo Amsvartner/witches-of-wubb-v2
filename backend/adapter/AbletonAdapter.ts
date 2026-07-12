@@ -12,6 +12,7 @@ import { ClipInfo } from '../type/ClipInfo';
 import { ClipList } from '../type/ClipList';
 import { ClipMetadataType } from '../type/ClipMetadataType';
 import { ClipTypes } from '../type/ClipTypes';
+import { Maybe } from '../type/Maybe';
 import { WarpMarker } from '../type/WarpMarker';
 
 import { OutgoingEvents } from '../event/OutgoingEvents';
@@ -30,7 +31,7 @@ const ATTRACTOR_STATE_CLIP_NAME = 'Wicked Casting';
 let allAbletonClips: ClipBoard;
 let tracks: Track[];
 let trackVolumes: Array<DeviceParameter>;
-let phraseLeader: ClipInfo;
+let phraseLeader: Maybe<ClipInfo>;
 let cleanUpPhraseLeaderEventListener: (() => Promise<unknown>) | undefined;
 
 let keyLockEnabled = true;
@@ -212,7 +213,7 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
 
     playingClips[pillar] = null;
     if (!phraseLeader) {
-      Logger.debug(`No phrase leader set yet; skipping promotion check for pillar ${pillar + 1}`);
+      Logger.info(`No phrase leader set yet; skipping promotion check for pillar ${pillar + 1}`);
     } else if (
       playingClip.clipName.replace(/[* ]/g, '') === phraseLeader.clipName.replace(/[* ]/g, '')
     ) {

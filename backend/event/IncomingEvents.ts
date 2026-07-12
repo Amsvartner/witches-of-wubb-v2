@@ -88,7 +88,7 @@ function handleDepartedTag(rfid: string, requestAddress: string) {
 
       OutgoingEvents.emitEvent('ingredient_removed', { ...clipMetadata, pillar, requestAddress });
       AbletonAdapter.stopOrRemoveClipFromQueue(clipMetadata.clipName, pillar).catch((err) =>
-        Logger.error(err, `Error stopping or removing clip from queue on pillar ${pillar}`),
+        Logger.error(err, `Error stopping or removing clip from queue on pillar ${pillar + 1}`),
       );
     } else {
       Logger.warn("Couldn't find track from RFID tag");
@@ -171,7 +171,7 @@ function addSocketEventsHandlers(socket: Socket) {
     try {
       await AbletonAdapter.setTrackVolume(pillar, volume);
     } catch (err) {
-      Logger.error(err, `Error setting track volume for pillar ${pillar}`);
+      Logger.error(err, `Error setting track volume for pillar ${pillar + 1}`);
     }
   });
   socket.on('get_keylock_state', (_, callback) => {

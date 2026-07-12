@@ -3,6 +3,18 @@
 Date: 2026-07-12
 Executor: Claude Sonnet 5 (creative-tech-integrator role, unattended `/ship-feature` pipeline)
 Branch: `feat/wow-014-crash-hardening`
+
+## Fix round (post-review, addressing Copilot + reviewer/test-engineer findings)
+
+All four review passes (test-engineer, reviewer, audio-ableton-reviewer, hardware-safety-reviewer) came back approve/APPROVE with no Blocking findings, and both required specialists independently confirmed the ticket's stop condition (no ordering/timing change) was not triggered anywhere. Copilot's 5 threads converged with the reviewers' own should-fix/nit findings almost exactly — fixed the three that were genuine defects, all log-message/type-only, none touching an Ableton call site or its arguments/position:
+
+1. `phraseLeader` guard logged at `Logger.debug` — but `backend/util/Logger.ts` configures pino at `level: 'info'`, so the message was silently suppressed in normal operation, defeating the PR's own "guarded and logged, not crashed" claim and its documented human-verification step. Changed to `Logger.info`.
+2. `phraseLeader`'s declared type (`ClipInfo`) didn't reflect that it's genuinely undefined until the first phrase-leader promotion — the exact fact this ticket's guard exists to handle. Widened to `Maybe<ClipInfo>` (the same treatment already given to `cleanUpPhraseLeaderEventListener` earlier in this PR, for the same reason).
+3. Two of this PR's own new log lines (`IncomingEvents.ts`) logged `pillar` 0-based instead of the codebase's established 1-based-for-humans convention (`pillar + 1`, used everywhere else in both files) — fixed both.
+
+Not fixed here, left as follow-ups with reasoning recorded in the PR body: the pino-flush-before-exit concern (Copilot + general reviewer both raised it independently; speculative rather than confirmed, and a proper fix means understanding this repo's pino transport setup in more depth than a one-line change) — the crash-exit-audio-safety gap the hardware-safety-reviewer found is the more load-bearing version of a similar concern and already has its own flagged follow-up task.
+
+Re-ran `tsc --noEmit`, `yarn lint`, `yarn test`, `yarn build` after the fix round — all clean. Did not re-spawn the four review subagents for this round: every change is a log level, a log message string, or a type annotation — verified via direct diff that zero lines touch an `ableton-js` call, its arguments, or its position in any function, so the specialists' already-confirmed "no timing/ordering change" conclusion still holds at the new SHA.
 Scope: crash-hardening only — every fire-and-forget promise in the hot path now has an explicit rejection handler; one crash trigger is guarded; process-level safety-net handlers added. **Zero change to musical behavior, event names, payloads, or the ordering/timing of Ableton commands.**
 
 ## Why the scope is broader than the ticket's 5 named line numbers

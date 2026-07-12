@@ -63,6 +63,12 @@ function handleNewTag(rfid: string, requestAddress: string) {
     if (clipMetadata) {
       Logger.info(`RFID ${rfid} maps to clip ${clipMetadata?.clipName}`);
       const pillar = IP_ADDRESS_TO_PILLAR_INDEX_MAP[requestAddress];
+      if (pillar === undefined) {
+        Logger.warn(
+          `Tag event from unrecognized IP address "${requestAddress}" (rfid ${rfid}) - ignoring, no pillar mapping`,
+        );
+        return;
+      }
       OutgoingEvents.emitEvent('ingredient_detected', {
         ...clipMetadata,
         rfid,
@@ -74,7 +80,7 @@ function handleNewTag(rfid: string, requestAddress: string) {
       Logger.warn("Couldn't find track from RFID tag");
     }
   } catch (err) {
-    Logger.error('Errored trying find track from RFID tag');
+    Logger.error(err, `Errored trying to find track from RFID tag ${rfid} (${requestAddress})`);
   }
 }
 
@@ -85,6 +91,12 @@ function handleDepartedTag(rfid: string, requestAddress: string) {
     if (clipMetadata) {
       Logger.info(`RFID ${rfid} maps to clip ${clipMetadata.clipName} > type ${clipMetadata.type}`);
       const pillar = IP_ADDRESS_TO_PILLAR_INDEX_MAP[requestAddress];
+      if (pillar === undefined) {
+        Logger.warn(
+          `Tag event from unrecognized IP address "${requestAddress}" (rfid ${rfid}) - ignoring, no pillar mapping`,
+        );
+        return;
+      }
 
       OutgoingEvents.emitEvent('ingredient_removed', { ...clipMetadata, pillar, requestAddress });
       AbletonAdapter.stopOrRemoveClipFromQueue(clipMetadata.clipName, pillar).catch((err) =>
@@ -94,7 +106,7 @@ function handleDepartedTag(rfid: string, requestAddress: string) {
       Logger.warn("Couldn't find track from RFID tag");
     }
   } catch (err) {
-    Logger.error('Errored trying find track from RFID tag');
+    Logger.error(err, `Errored trying to find track from RFID tag ${rfid} (${requestAddress})`);
   }
 }
 

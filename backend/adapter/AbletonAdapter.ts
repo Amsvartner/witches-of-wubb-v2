@@ -577,10 +577,10 @@ async function setTrackVolume(pillar: number, volume: number) {
 // non-finite result all mean the clip's warp data can't produce a usable
 // BPM - returns undefined rather than Infinity/NaN so callers can skip tempo
 // adoption instead of pushing a broken tempo into Ableton (WOW-020).
-function calculateBpmFromWarpMarkers(warp_markers: WarpMarker[]): number | undefined {
-  if (warp_markers.length < 2) return undefined;
-  const { beat_time: startBT, sample_time: startST } = warp_markers[0];
-  const { beat_time: endBT, sample_time: endST } = warp_markers.slice(-1)[0];
+function calculateBpmFromWarpMarkers(warpMarkers: WarpMarker[]): Maybe<number> {
+  if (warpMarkers.length < 2) return undefined;
+  const { beat_time: startBT, sample_time: startST } = warpMarkers[0];
+  const { beat_time: endBT, sample_time: endST } = warpMarkers[warpMarkers.length - 1];
   const sampleTimeSpan = endST - startST;
   if (sampleTimeSpan <= 0) return undefined;
   const bpm = (endBT - startBT) / (sampleTimeSpan / 60);

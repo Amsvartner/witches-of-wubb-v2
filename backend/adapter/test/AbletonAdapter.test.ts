@@ -84,7 +84,7 @@ describe('AbletonAdapter.calculateBpmFromWarpMarkers', () => {
     expect(AbletonAdapter.calculateBpmFromWarpMarkers([])).toBeUndefined();
   });
 
-  it('returns undefined for a single warp marker (zero sample-time span)', () => {
+  it('returns undefined for a single warp marker (fewer than 2 markers - the span is never even computed)', () => {
     const markers = [{ beat_time: 0, sample_time: 1 }];
     expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeUndefined();
   });
@@ -105,13 +105,27 @@ describe('AbletonAdapter.calculateBpmFromWarpMarkers', () => {
     expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeUndefined();
   });
 
+  it('returns undefined for a non-finite result that slips past the earlier guards (e.g. a NaN sample_time)', () => {
+    // NaN <= 0 is false in JS, so the sampleTimeSpan guard alone would not
+    // catch this - only the final Number.isFinite catch-all does. Regression
+    // guard for that third guard specifically (test-engineer review, PR #25):
+    // without it, this fixture would fall through to bpm = NaN instead of
+    // undefined, and the call site's `bpm === undefined` check would then
+    // fail to fire the clip-attributed warning too.
+    const markers = [
+      { beat_time: 0, sample_time: 0 },
+      { beat_time: 4, sample_time: NaN },
+    ];
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeUndefined();
+  });
+
   it('calculates BPM for a healthy two-marker array, byte-for-byte the same arithmetic as before this ticket', () => {
     // 4 beats over 2 seconds = 120 BPM.
     const markers = [
       { beat_time: 0, sample_time: 0 },
       { beat_time: 4, sample_time: 2 },
     ];
-    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBe(120);
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeCloseTo(120);
   });
 
   it('uses only the first and last markers for a healthy array with more than two', () => {
@@ -120,6 +134,6 @@ describe('AbletonAdapter.calculateBpmFromWarpMarkers', () => {
       { beat_time: 1, sample_time: 0.3 }, // ignored - not first or last
       { beat_time: 4, sample_time: 2 },
     ];
-    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBe(120);
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeCloseTo(120);
   });
 });

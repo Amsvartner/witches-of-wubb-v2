@@ -29,7 +29,7 @@ Open questions for the human. Answered decisions live in ADRs (`docs/adr/`) and 
 
 **2026-07-12:**
 
-- Backend/Arduino read-only restriction (ADR-004): the `docs/TICKETS_002_BUGS.md` batch (WOW-014...WOW-032, 19 tickets) gets a second, ticket-scoped exception alongside WOW-011's — surfaced when a WOW-022 reviewer correctly flagged that `backend/package.json`'s change conflicted with ADR-004's literal "one-time exception, WOW-011 only" text, even though this ticket batch's own text already extensively scopes backend/Arduino work and every prior backend-touching ticket this batch relied on the same (previously undocumented-in-ADR-004) authorization → ADR-004 (amended), AGENTS.md v0.5
+- Backend/Arduino read-only restriction (ADR-004): resolved as **a second, ticket-scoped exception** for the `docs/TICKETS_002_BUGS.md` batch (WOW-014...WOW-032, 19 tickets), alongside WOW-011's existing one — surfaced when a WOW-022 reviewer correctly flagged that `backend/package.json`'s change conflicted with ADR-004's literal "one-time exception, WOW-011 only" text, even though this ticket batch's own text already extensively scopes backend/Arduino work and every prior backend-touching ticket in this batch relied on the same (previously undocumented-in-ADR-004) authorization → ADR-004 (amended), AGENTS.md v0.5
 
 **2026-07-11:**
 

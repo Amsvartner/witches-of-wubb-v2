@@ -103,10 +103,18 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
   );
 
   useEffect(() => {
-    // socket starts out as an unconnected placeholder (see useSocketContextProviderState),
-    // which has no `.on`/`.off` methods; only subscribe (and therefore only clean up) once
-    // it's the real, connected socket.io client.
-    if (!socket.connected) {
+    // socket starts out as an unconnected placeholder ({} as Socket, see
+    // useSocketContextProviderState) with no .on/.off at all - gate on their
+    // presence, not on `.connected`, so a real-but-currently-disconnected
+    // socket (e.g. this effect happens to (re)run mid-reconnect) still gets
+    // every listener - including the 'connect' re-fetch listener below -
+    // attached immediately, rather than getting treated the same as the
+    // placeholder and permanently missing the future 'connect' that would
+    // otherwise trigger the resync (Copilot review, PR #24 - `.connected`
+    // alone can't distinguish "not a real socket yet" from "a real socket
+    // that's momentarily down"; WOW-033, mirroring WOW-024's identical fix
+    // in DebugModalContainer.tsx).
+    if (typeof socket.on !== 'function' || typeof socket.off !== 'function') {
       // TODO: Show in UI
       return;
     }

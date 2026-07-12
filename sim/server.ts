@@ -40,7 +40,7 @@ if (!scenario) {
   process.exit(1);
 }
 
-// Demo aid: the real 3m/30s idle timeout (backend/adapter/AbletonAdapter.ts:29-30) can
+// Demo aid: the real 3m/30s idle timeout (backend/adapter/AbletonAdapter.ts) can
 // be shortened to see timeout_warning quickly. Invalid values are ignored
 // with a warning so a typo can't produce 0ms/NaN timers.
 function envMs(name: string): number | undefined {

@@ -20,10 +20,10 @@ export const CurrentlyPlayingListContainer = (): JSX.Element => {
             clipName = `${info?.artist} - ${info?.songTitle}`;
           } else {
             // Intentionally blank, not a fallback to info?.clipName - that's an
-            // internal CSV/Ableton clip identifier (e.g. "Flashback Drums 10A
-            // 135"), not a visitor-friendly display name. No clip active, or a
-            // clip missing artist/songTitle metadata, both show nothing rather
-            // than that raw string.
+            // internal CSV/Ableton clip identifier (e.g. "Wicked Casting"), not
+            // a visitor-friendly display name. No clip active, or a clip
+            // missing artist/songTitle metadata, both show nothing rather than
+            // that raw string.
           }
 
           // determine the color-blur color based on the track type

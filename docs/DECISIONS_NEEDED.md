@@ -27,6 +27,10 @@ Open questions for the human. Answered decisions live in ADRs (`docs/adr/`) and 
 
 ## Resolved → ADRs / owning docs
 
+**2026-07-12:**
+
+- Backend/Arduino read-only restriction (ADR-004): the `docs/TICKETS_002_BUGS.md` batch (WOW-014...WOW-032, 19 tickets) gets a second, ticket-scoped exception alongside WOW-011's — surfaced when a WOW-022 reviewer correctly flagged that `backend/package.json`'s change conflicted with ADR-004's literal "one-time exception, WOW-011 only" text, even though this ticket batch's own text already extensively scopes backend/Arduino work and every prior backend-touching ticket this batch relied on the same (previously undocumented-in-ADR-004) authorization → ADR-004 (amended), AGENTS.md v0.5
+
 **2026-07-11:**
 
 - Operator surface page-vs-overlay: resolved as **neither** — the main screen gets **three modes** (normal / dj / debug). DJ mode adds per-pillar extended controls incl. clip selection (moved out of the old debug panel); debug mode adds a bottom diagnostic panel only (API/socket-event log, versions, connection state); tempo/volume/key stay visitor-visible in normal mode; each elevated mode has its own hidden gesture → ADR-003 (amended), ADR-006 (amended), PRD F6/FR1, UX_UI_PRINCIPLES, TICKETS_001 (WOW-006/007)

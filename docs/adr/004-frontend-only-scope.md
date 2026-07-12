@@ -1,7 +1,7 @@
 # 004. Frontend-only scope for this project phase
 
 Date: 2026-07-09
-Status: accepted
+Status: accepted (amended 2026-07-12 — second backend-touching exception for the docs/TICKETS_002_BUGS.md batch)
 
 ## Context
 
@@ -13,6 +13,7 @@ The rework mandate covers UI design and new frontend functionality. The `backend
 - `backend/` and `Arduino/` stay in the repo but are **read-only** this phase (one-time exception: the WOW-011 conventions migration, AGENTS.md v0.4); the frontend keeps importing from `backend/type/`.
 - Definition of done: the UI works frontend-side and **sends the correct API calls** (existing socket.io contract). Verification via simulator and mocked-socket tests only.
 - Volume ceiling is enforced on hardware, not in software; the UI keeps a plain volume slider.
+- **Amendment 2026-07-12 (backend/Arduino authorization for docs/TICKETS_002_BUGS.md):** a second, broader exception — not just WOW-011's narrow conventions-migration one — covers the entire ticket batch in `docs/TICKETS_002_BUGS.md` (WOW-014 through WOW-032, 19 tickets from the 2026-07-10 repo-review pass). That batch's own text already scopes backend, `Arduino/`, and hardware-adjacent work explicitly and extensively — most of its tickets name `backend/` files in their own "Allowed files" line, several require audio-ableton-reviewer/hardware-safety-reviewer sign-off, and its intro paragraph frames itself as bug fixes found by "a full-repo review," not frontend-only work. This amendment makes ADR-004 consistent with what that already-committed ticket document itself authorizes, rather than leaving WOW-011 as the only documented exception while a much larger batch of already-approved backend work exists with no ADR basis. Constraints, mirroring WOW-011's own: each ticket's own "Allowed files" and safety-notes lines are the actual scope boundary (not a blanket backend reopen); tickets touching the Ableton/hardware path still require the specialist sign-offs their own text names; `Music Database.csv` stays agent-read-only unless a specific ticket says otherwise; this exception covers only the docs/TICKETS_002_BUGS.md batch — outside it, `backend/`/`Arduino/` remain read-only per the original decision above.
 
 ## Consequences
 

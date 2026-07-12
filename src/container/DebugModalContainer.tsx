@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { ClipDatabaseUtil } from '~/util/ClipDatabaseUtil';
 import { ClipButton } from '~/component/ClipButton';
 import { Dialog, Transition } from '@headlessui/react';
@@ -22,7 +22,34 @@ export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX
   const socket = useSocketContext();
   const { playingClips, queuedClips, stoppingClips } = useAbletonContext();
 
+  // socket starts out as an unconnected placeholder (see useSocketContextProviderState)
+  // and only ever becomes the real, connected client once - see
+  // useAbletonContextProviderState's identical `if (!socket.connected) return;` guard.
+  // `connect`/`disconnect` then track live state on that same persistent object across
+  // future reconnects (WOW-024; coordinates with WOW-019's reconnect fix without
+  // requiring it - this file doesn't depend on WOW-019's branch).
+  const [isConnected, setIsConnected] = useState(Boolean(socket.connected));
+
+  useEffect(() => {
+    setIsConnected(Boolean(socket.connected));
+    if (!socket.connected) return;
+
+    const handleConnect = () => setIsConnected(true);
+    const handleDisconnect = () => setIsConnected(false);
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [socket]);
+
   function toggleSong(rfid: string, pillar: number, start: boolean) {
+    if (!isConnected) {
+      Logger.warn('Ignored clip toggle: socket not connected');
+      return;
+    }
     if (start) {
       socket.emit('/new/tag', { rfid, pillar });
     } else {
@@ -69,7 +96,16 @@ export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX
               leaveTo='opacity-0 scale-95'
             >
               <Dialog.Panel className='w-screen max-w-xxl transform rounded-md bg-white text-black text-left align-middle shadow-xl transition-all'>
-                <div className='overflow-scroll max-h-[calc(100vh-4rem)]'>
+                {!isConnected && (
+                  <div className='bg-yellow-100 text-yellow-900 text-sm text-center py-2'>
+                    Connecting to backend…
+                  </div>
+                )}
+                <div
+                  className={`overflow-scroll max-h-[calc(100vh-4rem)] ${
+                    isConnected ? '' : 'opacity-50 pointer-events-none'
+                  }`}
+                >
                   <div className='grid gap-8 grid-flow-col'>
                     {[1, 2, 3, 4].map((pillar, index) => {
                       const stopping = Boolean(stoppingClips[index]?.clipName);

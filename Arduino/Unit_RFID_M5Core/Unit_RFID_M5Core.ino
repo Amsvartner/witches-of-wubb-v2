@@ -16,6 +16,7 @@
 #include <OSCMessage.h>
 #include <WiFiUdp.h>
 #include "UNIT_UHF_RFID.h"
+#include "secrets.h"
 
 // Set up the Wi-Fi client
 WiFiClient client;
@@ -40,8 +41,9 @@ const char *password = "audioshitstorm";
 // const char *ssid = "WirelessB";
 // const char *password = "greasy@pizza";
 
-// UPDATE ME!!!
-IPAddress ip(192, 168, 0, 52);
+// This device's pillar identity — set PILLAR_IP in secrets.h (WOW-030), not
+// here. See docs/HARDWARE_INTEGRATION.md for the full pillar<->IP table.
+IPAddress ip = PILLAR_IP;
 
 const char *broadcastAddress = "255.255.255.255";  // Use broadcast address to send OSC message to all devices on the local network
 const int remotePort = 9000;                       // Set the port number of the OSC receiver
@@ -114,10 +116,43 @@ String determineSuccesor(uint8_t result, CARD cards[200], String currentCard) {
   }
 }
 
+// Mirrors (read-only, does not reference) the frozen pillar<->IP map in
+// backend/event/IncomingEvents.ts, purely so the boot log below can name
+// this device's pillar. The backend's map is the only one that actually
+// governs tag routing — this is a diagnostic convenience, nothing more.
+int pillarNumberForIp(IPAddress candidateIp) {
+  if (candidateIp[0] == 192 && candidateIp[1] == 168 && candidateIp[2] == 0) {
+    int lastOctet = candidateIp[3];
+    if (lastOctet >= 101 && lastOctet <= 104) {
+      return lastOctet - 101;
+    }
+  }
+  return -1;
+}
+
+void printPillarIdentity() {
+  Serial.print("Configured IP: ");
+  Serial.println(ip);
+  int pillar = pillarNumberForIp(ip);
+  if (pillar >= 0) {
+    // 0-3, matching backend/event/IncomingEvents.ts's own pillar index --
+    // NOT the 1-4 numbering used in outgoing OSC addresses/UI-facing logs.
+    Serial.print("Derived pillar index (0-3, code convention): ");
+    Serial.println(pillar);
+  } else {
+    Serial.println(
+      "Derived pillar index: UNKNOWN -- this IP is not in the frozen 192.168.0.101-104 "
+      "pillar range (see docs/HARDWARE_INTEGRATION.md). The backend will silently "
+      "drop this device's tag events. Check PILLAR_IP in secrets.h.");
+  }
+}
+
 void setup() {
 
   Serial.begin(115200);
   uhf.begin(&Serial2, 115200, 17, 16, DEBUG);
+
+  printPillarIdentity();
 
   Serial.println("Connecting to Wi-Fi network...");
 

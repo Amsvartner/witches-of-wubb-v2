@@ -38,6 +38,28 @@ Recommendation:
 Blocked until human confirms:
 yes
 
+Decision needed (WOW-030):
+
+- Should pillar identity move from "derived from the RFID reader's source IP" to "carried explicitly in the OSC payload" (e.g. `/new/tag [rfid] [pillarId]`)? This is a **contract change** touching both `Arduino/Unit_RFID_M5Core/Unit_RFID_M5Core.ino` and `backend/event/IncomingEvents.ts`'s OSC handler — explicitly out of scope for WOW-030 itself, which only moved the per-device IP into `secrets.h` and documented it; this entry exists so the idea isn't lost, not because it's blocking anything today.
+
+Why this matters:
+
+- The current design has one structural fragility WOW-030 documents but doesn't remove: pillar identity is inferred entirely from which static IP a UDP packet arrives from. If a device is flashed with the wrong `PILLAR_IP`, physically swapped between pillars without reflashing, or a device's IP is ever misconfigured post-deployment, the backend silently can't place that device's tags (logged as a warning per WOW-017, but not surfaced anywhere visible to an operator mid-show). Carrying the pillar id explicitly in the payload would make the reader itself the single source of truth for its own identity, removing the IP-matching indirection entirely.
+- Not urgent: the current IP-based design already runs the installation successfully, and WOW-030's fix (per-device config file + boot-time serial diagnostic) closes the specific "checked-in default silently maps to no pillar" bug this batch was scoped to fix, without touching the contract.
+
+Options:
+
+1. Keep IP-based identity (status quo, as hardened by WOW-030). Simplest, zero contract change, but identity stays coupled to networking (source IP) rather than being self-declared by the device.
+2. Add an explicit pillar id to the RFID reader's OSC payload (e.g. `/new/tag [rfid] [pillarId]`), read directly by the backend instead of matching `requestAddress`. Removes the IP-coupling entirely; requires coordinated firmware + backend changes and a migration window (old firmware would need the IP-matching path kept as a fallback, or all 4 devices reflashed atomically).
+3. Keep IP-based routing but add a lightweight backend-side reconciliation check — the reader self-reports its configured pillar id in the payload purely as an assertion; the backend logs a loud warning if it disagrees with the IP-derived pillar, without changing which one actually wins. Cheaper than option 2 and catches "device physically moved but not reflashed" as an ongoing runtime check, not just at flash-time.
+
+Recommendation:
+
+- No action needed now. If this is ever revisited, option 3 is the more attractive middle ground — it extends WOW-030's flash-time boot diagnostic into an ongoing runtime cross-check, without option 2's coordinated-migration cost. Worth prioritizing only if a real incident (a device going silently dark because it was swapped without reflashing) makes the gap worth closing.
+
+Blocked until human confirms:
+yes
+
 ## Software architecture / dependencies
 
 - F1 dependency updates: any libs explicitly off-limits besides keeping socket.io wire-compat with backend 4.6? Proposed approach: audit first (`yarn audit`/`npm audit`), then upgrade in grouped PRs (tooling, React ecosystem, Tailwind) — confirm grouping in WOW-009 review.

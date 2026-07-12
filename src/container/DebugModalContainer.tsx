@@ -100,14 +100,7 @@ export const DebugModalContainer = ({ isModalOpen, setIsModalOpen }: Props): JSX
                                   <ClipButton
                                     queued
                                     clipName={queuedClip.clipName}
-                                    onClick={() =>
-                                      toggleSong(
-                                        ClipDatabaseUtil.clipNameToInfoMap[queuedClip.clipName]
-                                          .rfid,
-                                        index,
-                                        false,
-                                      )
-                                    }
+                                    onClick={() => toggleSong(queuedClip.rfid, index, false)}
                                   />
                                 </div>
                               )}

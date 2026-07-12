@@ -96,7 +96,7 @@ describe('Simulator', () => {
       simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
 
       // Same observable order as the real backend: ingredient_detected, key
-      // adoption from QueueClip, then the clip-start burst (clip_started,
+      // adoption from queueClip, then the clip-start burst (clip_started,
       // volume_changed, tempo_changed, master-key_changed again).
       const expected = ['ingredient_detected'];
       if (metadata.key) expected.push('master-key_changed');
@@ -247,7 +247,7 @@ describe('Simulator', () => {
       const queued = simulator.getQueuedClips();
       expect(queued).toHaveLength(4);
       const metadata = database.rfidToClipMap[melody.rfid];
-      // Exact 7-field projection (backend/events/incoming-events.ts:129-147):
+      // Exact 7-field projection (backend/event/IncomingEvents.ts:125-143):
       // ingredientName/key are dropped, and no live `clip` object leaks.
       expect(queued[melody.pillar]).toEqual({
         pillar: melody.pillar,
@@ -267,7 +267,7 @@ describe('Simulator', () => {
       simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
       events = [];
 
-      // Mirrors the "already queued" early return (backend/ableton-api.ts:150)
+      // Mirrors the "already queued" early return (backend/adapter/AbletonAdapter.ts:137)
       simulator.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar });
       simulator.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar });
       expect(eventNames().filter((name) => name === 'clip_queued')).toHaveLength(1);
@@ -282,7 +282,7 @@ describe('Simulator', () => {
       // Same tag placed again on its own pillar: it queues (the queue slot is
       // empty) and at the phrase boundary restarts the same clip — the real
       // backend's playing_slot_index handler then takes the clip_playing
-      // branch (backend/ableton-api.ts:330-331) with no volume reset.
+      // branch (backend/adapter/AbletonAdapter.ts:318-319) with no volume reset.
       simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
       expect(eventNames()).toEqual(['ingredient_detected', 'clip_queued']);
 
@@ -309,7 +309,7 @@ describe('Simulator', () => {
         pillar: drums.pillar,
         rfid: drums.rfid,
       });
-      // `clip: undefined` in the real payload spread (backend/ableton-api.ts:216-219)
+      // `clip: undefined` in the real payload spread (backend/adapter/AbletonAdapter.ts:203-206)
       // — must never be a live object (socket.io drops undefined on the wire)
       expect(stopping?.clip).toBeUndefined();
       const stopped = lastEvent('clip_stopped')?.data;
@@ -328,7 +328,7 @@ describe('Simulator', () => {
 
       simulator.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar });
       vi.advanceTimersByTime(PHRASE_LENGTH_MS);
-      // Adoption only happens when coming from silence (backend/ableton-api.ts:336-340)
+      // Adoption only happens when coming from silence (backend/adapter/AbletonAdapter.ts:324-328)
       expect(eventNames()).not.toContain('tempo_changed');
       expect(simulator.getTempo()).toBe(adoptedTempo);
       expect(simulator.getMasterKey()).toBe(adoptedKey);
@@ -391,7 +391,7 @@ describe('Simulator', () => {
   });
 });
 
-// Key-adoption semantics from QueueClip (backend/ableton-api.ts:160-163) need
+// Key-adoption semantics from queueClip (backend/adapter/AbletonAdapter.ts:147-150) need
 // clips with known, distinct keys — and one without a key — so this block uses
 // a synthetic database with the real CSV column headers instead of relying on
 // whatever rows the production CSV happens to contain.
@@ -450,8 +450,8 @@ describe('Simulator key adoption (synthetic database)', () => {
     simulator.handleNewTag({ rfid: 'rfid-keyless', pillar: 2 });
     events = [];
 
-    // Music is playing but masterKey === '': QueueClip adopts the new clip's
-    // key at queue time, before the phrase boundary (backend/ableton-api.ts:160-163)
+    // Music is playing but masterKey === '': queueClip adopts the new clip's
+    // key at queue time, before the phrase boundary (backend/adapter/AbletonAdapter.ts:147-150)
     simulator.handleNewTag({ rfid: 'rfid-melody', pillar: 1 });
     expect(eventNames()).toEqual(['ingredient_detected', 'master-key_changed', 'clip_queued']);
     expect(simulator.getMasterKey()).toBe('7B');

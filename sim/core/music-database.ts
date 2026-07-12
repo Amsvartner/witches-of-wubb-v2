@@ -1,11 +1,11 @@
 /**
  * Builds the RFID → clip-metadata map from `Music Database.csv` text, exactly
- * mirroring the real backend's pipeline (backend/utils/get-clip-from-rfid.ts
- * + backend/utils/parse-csv.ts):
+ * mirroring the real backend's pipeline (backend/service/MusicDatabaseService.ts
+ * + backend/util/CsvUtil.ts):
  *
- * - Same column mapping and row guard as ParseCSV (backend/utils/parse-csv.ts:3).
- * - `EnrichRecommendations` is NOT applied — the real backend has it commented
- *   out (backend/utils/get-clip-from-rfid.ts:21-23), so live
+ * - Same column mapping and row guard as parseCsv (backend/util/CsvUtil.ts:7).
+ * - `enrichRecommendations` is NOT applied — the real backend has it commented
+ *   out (backend/service/MusicDatabaseService.ts:22-24), so live
  *   `ingredient_detected` payloads carry no `recommendedClips`. The simulator
  *   mirrors that.
  * - BPM is kept in a separate lookup: the real backend derives bpm from
@@ -27,7 +27,7 @@ export function buildMusicDatabase(csvText: string): MusicDatabase {
   const bpmByRfid: Record<string, number> = {};
 
   rows.forEach((row) => {
-    // Field mapping mirrors ParseCSV (backend/utils/parse-csv.ts:8-38)
+    // Field mapping mirrors parseCsv (backend/util/CsvUtil.ts:12-40)
     const rfid = row['RFID'];
     const clipName = String(row['Clip Name']);
     const type = row['Clip Type (e.g. Vocals)'] as ClipTypes;
@@ -57,7 +57,7 @@ export function buildMusicDatabase(csvText: string): MusicDatabase {
 
 /**
  * Mirrors IP_ADDRESS_TO_PILLAR_INDEX_MAP and getPillarIPAddressFromIndex
- * (backend/events/incoming-events.ts:29-38): websocket tag events carry a
+ * (backend/event/IncomingEvents.ts:13-22): websocket tag events carry a
  * pillar index, which the real backend converts back to the pillar's IP so
  * `ingredient_detected`/`ingredient_removed` can include `requestAddress`.
  */

@@ -69,3 +69,57 @@ describe('AbletonAdapter.parseRemoteScriptVersion', () => {
     expect(AbletonAdapter.parseRemoteScriptVersion(realPath)).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
+
+// WOW-020: a clip with degenerate warp markers must not push Infinity/NaN
+// into setTempo - calculateBpmFromWarpMarkers returns undefined instead so
+// callers can skip tempo adoption.
+//
+// The existing (unchanged) formula is `(endBT - startBT) / ((endST - startST) / 60)`
+// - dividing the sample_time span by 60 only produces a sane BPM if that
+// span is in seconds, not raw audio samples, despite the field's name.
+// Verified against a known-good case before writing fixtures: 4 beats over
+// 2 seconds is 120 BPM, and `(4 - 0) / ((2 - 0) / 60) === 120`.
+describe('AbletonAdapter.calculateBpmFromWarpMarkers', () => {
+  it('returns undefined for zero warp markers (would otherwise throw destructuring markers[0])', () => {
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers([])).toBeUndefined();
+  });
+
+  it('returns undefined for a single warp marker (zero sample-time span)', () => {
+    const markers = [{ beat_time: 0, sample_time: 1 }];
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeUndefined();
+  });
+
+  it('returns undefined for two markers at the same sample_time (division by zero)', () => {
+    const markers = [
+      { beat_time: 0, sample_time: 1 },
+      { beat_time: 4, sample_time: 1 },
+    ];
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeUndefined();
+  });
+
+  it('returns undefined for a negative sample-time span (out-of-order markers)', () => {
+    const markers = [
+      { beat_time: 0, sample_time: 2 },
+      { beat_time: 4, sample_time: 1 },
+    ];
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeUndefined();
+  });
+
+  it('calculates BPM for a healthy two-marker array, byte-for-byte the same arithmetic as before this ticket', () => {
+    // 4 beats over 2 seconds = 120 BPM.
+    const markers = [
+      { beat_time: 0, sample_time: 0 },
+      { beat_time: 4, sample_time: 2 },
+    ];
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBe(120);
+  });
+
+  it('uses only the first and last markers for a healthy array with more than two', () => {
+    const markers = [
+      { beat_time: 0, sample_time: 0 },
+      { beat_time: 1, sample_time: 0.3 }, // ignored - not first or last
+      { beat_time: 4, sample_time: 2 },
+    ];
+    expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBe(120);
+  });
+});

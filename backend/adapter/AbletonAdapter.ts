@@ -453,6 +453,13 @@ const getTracksAndClips = async () => {
 
               const warpMarkers = await clip.get('warp_markers');
               const bpm = calculateBpmFromWarpMarkers(warpMarkers);
+              if (bpm === undefined) {
+                Logger.warn(
+                  `Could not calculate BPM for clip "${clipName}" on pillar ${
+                    pillar + 1
+                  }: degenerate warp markers`,
+                );
+              }
               const browserInfo = { ...clipInfo, bpm };
               if (playingClips[pillar]?.clipName === clipName) {
                 OutgoingEvents.emitEventWithoutResetingTimout('clip_playing', browserInfo);
@@ -463,8 +470,13 @@ const getTracksAndClips = async () => {
                 );
               }
               if (playingClips.every((item) => !item)) {
-                // we're coming from a silent state, so let's set the tempo to this new clip's bpm
-                setTempo(bpm);
+                // we're coming from a silent state, so let's set the tempo to this new
+                // clip's bpm - unless the warp markers were degenerate, in which case skip
+                // adoption and keep whatever tempo is already set (WOW-020: no fallback,
+                // no guess - the ticket's own "no-surprise behavior" instruction).
+                if (bpm !== undefined) {
+                  setTempo(bpm);
+                }
                 clipMetadata.key && setMasterKey(clipMetadata.key);
               }
 
@@ -523,6 +535,14 @@ async function getTempo() {
 }
 
 function setTempo(tempo: number) {
+  // Belt-and-suspenders: this is a shared entry point for both the
+  // warp-marker-driven path (already guarded at its own source, WOW-020)
+  // and the UI tempo slider's set_tempo socket handler, whose input isn't
+  // otherwise validated.
+  if (!Number.isFinite(tempo)) {
+    Logger.warn(`Ignoring setTempo(${tempo}): not a finite number`);
+    return;
+  }
   Logger.info(`Setting tempo to: ${tempo}`);
   ableton.song
     .set('tempo', tempo)
@@ -553,11 +573,18 @@ async function setTrackVolume(pillar: number, volume: number) {
   OutgoingEvents.emitEvent('volume_changed', { pillar, volume });
 }
 
-function calculateBpmFromWarpMarkers(warp_markers: WarpMarker[]) {
+// Pure. Fewer than 2 markers, a zero/negative sample-time span, or a
+// non-finite result all mean the clip's warp data can't produce a usable
+// BPM - returns undefined rather than Infinity/NaN so callers can skip tempo
+// adoption instead of pushing a broken tempo into Ableton (WOW-020).
+function calculateBpmFromWarpMarkers(warp_markers: WarpMarker[]): number | undefined {
+  if (warp_markers.length < 2) return undefined;
   const { beat_time: startBT, sample_time: startST } = warp_markers[0];
   const { beat_time: endBT, sample_time: endST } = warp_markers.slice(-1)[0];
-  const bpm = (endBT - startBT) / ((endST - startST) / 60);
-  return bpm;
+  const sampleTimeSpan = endST - startST;
+  if (sampleTimeSpan <= 0) return undefined;
+  const bpm = (endBT - startBT) / (sampleTimeSpan / 60);
+  return Number.isFinite(bpm) ? bpm : undefined;
 }
 
 function getKeyLockState() {

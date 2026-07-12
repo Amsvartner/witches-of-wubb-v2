@@ -3,6 +3,7 @@ import { ClipMetadataType } from '../type/ClipMetadataType';
 import { ClipNameToInfoMapType } from '../type/ClipNameToInfoMapType';
 import { CsvRow } from '../type/CsvRow';
 import { RFIDToClipMapType } from '../type/RFIDToClipMapType';
+import { ClipNameUtil } from './ClipNameUtil';
 
 function parseCsv(
   RFIDToClipMap: RFIDToClipMapType,
@@ -28,7 +29,7 @@ function parseCsv(
       ingredientName,
       key,
     };
-    ClipNameToInfoMap[clipName?.replace(/[ ]/g, '')] = {
+    ClipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)] = {
       rfid,
       type,
       assetName,
@@ -83,8 +84,8 @@ function enrichRecommendations(
     recommendedClips,
   };
 
-  ClipNameToInfoMap[clipName?.replace(/[ ]/g, '')] = {
-    ...ClipNameToInfoMap[clipName?.replace(/[ ]/g, '')],
+  ClipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)] = {
+    ...ClipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)],
     recommendedClips,
   };
 }

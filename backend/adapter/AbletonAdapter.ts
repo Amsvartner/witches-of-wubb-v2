@@ -9,6 +9,7 @@ import * as nodeOSC from 'node-osc';
 import throttle from 'lodash.throttle';
 import memoize from 'lodash.memoize';
 import { Logger } from '../util/Logger';
+import { ClipNameUtil } from '../util/ClipNameUtil';
 import { PhraseLeaderService } from '../service/PhraseLeaderService';
 import { ClipBoard } from '../type/ClipBoard';
 import { ClipInfo } from '../type/ClipInfo';
@@ -248,7 +249,12 @@ const FindAllClipsInLoop = memoize(
 function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
   const { clipName, key } = clipMetadata;
   Logger.info(`Begin queing clip ${clipName}`);
-  if (queuedClips[pillar]?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '')) {
+  const alreadyQueuedClipName = queuedClips[pillar]?.clipName;
+  if (
+    alreadyQueuedClipName !== undefined &&
+    ClipNameUtil.normalizeClipName(alreadyQueuedClipName) ===
+      ClipNameUtil.normalizeClipName(clipName)
+  ) {
     Logger.info(`Clip ${clipName} is already queued`);
     return;
   }
@@ -313,7 +319,9 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
   const queuedClip = queuedClips[pillar];
 
   const isClipPlaying =
-    playingClip?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '');
+    playingClip?.clipName !== undefined &&
+    ClipNameUtil.normalizeClipName(playingClip.clipName) ===
+      ClipNameUtil.normalizeClipName(clipName);
   if (isClipPlaying) {
     Logger.info(`Stopping clip "${clipName}" on pillar ${pillar + 1}`);
     stoppingClips[pillar] = playingClip;
@@ -328,7 +336,8 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
     if (!phraseLeader) {
       Logger.info(`No phrase leader set yet; skipping promotion check for pillar ${pillar + 1}`);
     } else if (
-      playingClip.clipName.replace(/[* ]/g, '') === phraseLeader.clipName.replace(/[* ]/g, '')
+      ClipNameUtil.normalizeClipName(playingClip.clipName) ===
+      ClipNameUtil.normalizeClipName(phraseLeader.clipName)
     ) {
       // Find the next phrase leader, check if such a clip is playing,
       // then promote that clip to phrase leader else trigger queued clips and let god sort it out.
@@ -344,7 +353,10 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
   }
 
   // check if the clip is queued
-  const isClipQueued = queuedClip?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '');
+  const isClipQueued =
+    queuedClip?.clipName !== undefined &&
+    ClipNameUtil.normalizeClipName(queuedClip.clipName) ===
+      ClipNameUtil.normalizeClipName(clipName);
   if (isClipQueued) {
     Logger.info(`Removing clip from queue "${clipName}" on pillar ${pillar + 1}`);
     if (keyLockEnabled) {
@@ -431,7 +443,7 @@ const getTracksAndClips = async () => {
             const clipName = clip?.raw.name;
             if (clipName) {
               const clipMetadata =
-                MusicDatabaseService.clipNameToInfoMap[clipName.replace(/[* ]/g, '')];
+                MusicDatabaseService.clipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)];
               const clipInfo = {
                 ...clipMetadata,
                 clipName,

@@ -1,0 +1,72 @@
+# WOW-031 — Backend clip-name matching uses two different normalizations (trim vs strip)
+
+- Role: creative-tech-integrator (implementer)
+- Date: 2026-07-12
+- Branch: `feat/wow-031-clip-name-normalization`, stacked on `feat/wow-021-clip-cache-invalidation` (the tip of the WOW-014→032→018→020→021 chain, since `backend/adapter/AbletonAdapter.ts` overlaps)
+
+## Ticket
+
+WOW-031 — see `docs/TICKETS_002_BUGS.md`. This ticket has an explicit, unambiguous stop condition: _"before changing matching behavior, confirm the actual Live set naming convention with the human ... Stop conditions: Human cannot confirm the Live naming convention → stop; do not align normalizations on a guess."_ No pre-answered decision about Ableton Live Set clip naming exists anywhere in `docs/DECISIONS_NEEDED.md`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, or `AGENTS.md` — checked all four before proceeding. **This PR is a partial landing, opened as a draft, blocked on that human confirmation.**
+
+## What "the Live set naming convention" actually means, precisely
+
+There are two genuinely different things being compared in this codebase, and only one of them is what's blocked:
+
+1. **CSV-derived clip name vs. CSV-derived clip name** (e.g. "is this newly-detected clip already the one queued on this pillar?", "is the clip that just stopped the current phrase leader?", "does the CSV metadata map have an entry for this clip name?"). Both sides of every one of these comparisons originate from `Music Database.csv` — nothing here depends on what Ableton itself reports.
+2. **CSV-derived clip name vs. Ableton's own reported raw clip name** (`clip.raw.name`, read live from the Ableton Live Set via `ableton-js`) — specifically inside `MemoizedClipIndex` and `FindAllClipsInLoop`, which exist to _locate_ a clip slot in the actual loaded Live Set given a CSV clip name. This is the only place where "what does a real clip name look like inside Ableton" actually matters, and it's exactly what the ticket says not to guess about.
+
+## What was done (safe, no-guess-required, fully landed)
+
+All of category 1 above — five sites in `backend/adapter/AbletonAdapter.ts` (queue dedup, playing-clip match, phrase-leader match, queued-clip match, `clipNameToInfoMap` lookup from `playing_slot_index`) plus two sites in `backend/util/CsvUtil.ts` (`ClipNameToInfoMap` key generation, in both `parseCsv` and `enrichRecommendations`) — were already using variations of "strip normalization," just inconsistently:
+
+- `AbletonAdapter.ts`'s five sites used `.replace(/[* ]/g, '')` (strips both asterisks and spaces) inline, repeated five times.
+- `CsvUtil.ts`'s two sites used `.replace(/[ ]/g, '')` (strips spaces **only**, not asterisks) — a **third**, even narrower normalization the ticket's own description doesn't explicitly call out (it frames this as a two-way trim-vs-strip split; it's actually three-way).
+
+Added `backend/util/ClipNameUtil.ts` (`normalizeClipName`, matching `.replace(/[* ]/g, '')` — the broader of the two pre-existing patterns) and pointed all seven of these sites at it. This is a **pure refactor** for `AbletonAdapter.ts`'s five sites (identical regex, just centralized) and a **behavior-preserving-for-current-data, latent-bug-fixing** change for `CsvUtil.ts`'s two sites — see below.
+
+### Bonus finding: a real, currently-inert latent bug this closes
+
+`CsvUtil.ts` built `ClipNameToInfoMap`'s keys by stripping spaces only (asterisks kept), while `AbletonAdapter.ts:441` (originally, now via the shared helper) looked that same map up by stripping **both** spaces and asterisks. If any CSV `Clip Name` ever contained an asterisk, the map would have been keyed with the asterisk still in it, but every lookup would strip it — a guaranteed key mismatch, silently returning `undefined` metadata for that clip's `playing_slot_index` resolution. **Verified empirically that this is inert today**: read the actual `Music Database.csv` directly (154 data rows) and confirmed zero rows contain a literal `*` anywhere, in any column, not just Clip Name. So this fix is a byte-for-byte no-op against current data, closing a bug that would otherwise silently reactivate the moment anyone adds an asterisk to a CSV clip name. Added a dedicated regression test for this (`backend/util/test/CsvUtil.test.ts`), mutation-tested by reverting to the old space-only regex and confirming it fails exactly as expected.
+
+## What was deliberately NOT done (blocked)
+
+The two trim-only sites — `MemoizedClipIndex` and `FindAllClipsInLoop` (`AbletonAdapter.ts`, both still `clip?.raw.name.trim() === clipName.trim()`) — are **unchanged**. These are the only sites where a CSV clip name is matched against Ableton's own live-reported clip name, and the ticket's own analysis is genuinely ambiguous about which direction is "correct" without knowing the real Live Set:
+
+- If real Ableton clip names **never** contain asterisks or non-trivial internal spacing, today's trim-only matching is already correct, and aligning it to the fuller strip normalization would be a no-op — safe, but also pointless to guess at.
+- If real Ableton clip names **do** contain asterisks (which the pervasive `[* ]`-stripping elsewhere in this file circumstantially suggests was a real, encountered problem for _some_ class of name at some point), then these two trim-only lookups are **currently silently broken** for those clips — `FindAllClipsInLoop` would return `[]`, and every caller (`queueClip`, `handleTimeout`, `stopOrRemoveClipFromQueue`) already has an empty-array guard, so the failure mode is "the clip can never be queued or found," not a crash — but it's a real, live, no-diagnostic-output functional bug in the core clip-triggering path.
+
+I cannot tell which of these is true from the code, the CSV, or any doc in this repo — the CSV data says nothing about what's _inside Ableton's own Live Set file_, which is a separately human-maintained artifact.
+
+### Supporting context for the human's decision (not a substitute for it)
+
+- The real `Music Database.csv` contains **zero asterisks** anywhere, in any column (checked directly, all 154 rows).
+- `sim/core/simulator.ts:58` **already independently implements** `const normalizeClipName = (clipName: string) => clipName.replace(/[* ]/g, '')` — the offline simulator, maintained separately per ADR-001, already converged on the fuller strip-normalization as "the" way to compare clip names. This is circumstantial (the sim's author may have been guarding against the same theoretical risk rather than an observed one), not proof either way, and `sim/` is out of this ticket's allowed files regardless — noted here only as context, not touched.
+
+### The specific question for the human
+
+**Do the actual clip names inside the Ableton Live Set (as they literally appear in Live's Clip View / the `.als` file — not the CSV) ever contain asterisks, or spacing beyond simple leading/trailing whitespace?**
+
+- **If yes**: `MemoizedClipIndex` and `FindAllClipsInLoop`'s trim-only matching should also switch to `ClipNameUtil.normalizeClipName()` — a follow-up change to this same PR (or a fast-follow ticket), and it _would_ change live matching behavior for those specific clips (in the direction of making them findable, where they currently silently aren't).
+- **If no**: today's trim-only lookups are already correct, this PR's refactor + latent-bug fix stands as the complete, sufficient fix for this ticket, and it can be marked ready for review as-is.
+
+## Validation (of the landed portion)
+
+- [x] `yarn lint` clean
+- [x] `npx tsc --noEmit` (root) clean
+- [x] `npx tsc --noEmit -p backend/tsconfig.json` clean
+- [x] `yarn test` — 95/95 (84 + 11 new: 8 `ClipNameUtil` tests, 3 `CsvUtil` tests)
+- [x] `yarn build` clean
+
+All new tests independently mutation-tested: `ClipNameUtil.normalizeClipName`'s own tests are self-evidently load-bearing (each asserts a specific transformation); the two `CsvUtil.test.ts` tests targeting the latent-bug fix were verified by reverting `CsvUtil.ts` to the old space-only regex and confirming both fail exactly as predicted, then restoring.
+
+## Safety checklist
+
+- [x] No changes under `src/assets/Music Database.csv`, `Arduino/`, `.env` — N/A (read-only inspection of the CSV, no edits)
+- [x] No new/renamed socket.io event names
+- [x] No new dependencies
+- [x] Clip-triggering path (musical mapping) — **audio-ableton-reviewer sign-off mandatory per this ticket's safety notes** — requested in PR; scope for this specific review is the landed refactor + latent-bug-fix only, since the actually-behavior-changing question (trim-only sites) is explicitly not part of this PR
+- [x] The two sites where a live behavior change would actually occur (`MemoizedClipIndex`, `FindAllClipsInLoop`) are untouched — no live musical mapping/timing assumption changes in this PR
+
+## Status
+
+**DRAFT / BLOCKED.** Not ready for the standard gate — the ticket's own acceptance criteria require _both_ "single normalization helper used at all seven-plus comparison sites" (7 of the ~9 total sites are done; the 2 Live-matching sites are blocked) _and_ "human confirms the Live naming convention before merge." Requesting that confirmation via this PR's description. If the answer is "no asterisks in Live," this PR is otherwise complete and can be marked ready-for-review with no further code changes. If "yes," a follow-up commit on this same branch will align the two remaining sites and this note will be updated.

@@ -19,10 +19,12 @@ describe('ClipNameUtil.normalizeClipName (WOW-031)', () => {
     expect(ClipNameUtil.normalizeClipName('WickedCasting')).toBe('WickedCasting');
   });
 
-  it('is a no-op for an already fully-trimmed, single-spaced name once spaces are the only difference', () => {
-    // Confirms the helper is a strict superset of a plain .trim(): a name
-    // that only ever needed trimming normalizes the same way either helper
-    // would produce, once internal spaces are also accounted for.
+  it('normalizes a padded variant to the same result as its already-trimmed counterpart (not a no-op - the internal space is stripped from both)', () => {
+    // Confirms the helper is a strict superset of a plain .trim(): two
+    // spellings of "the same" name that only differ by leading/trailing
+    // whitespace collapse to one identical key, exactly like .trim() alone
+    // would - but note neither side is returned unchanged, since the
+    // internal space between "Wicked" and "Casting" is stripped from both.
     expect(ClipNameUtil.normalizeClipName('Wicked Casting')).toBe(
       ClipNameUtil.normalizeClipName('  Wicked Casting  '),
     );

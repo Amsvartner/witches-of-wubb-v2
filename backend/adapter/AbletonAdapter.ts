@@ -248,7 +248,7 @@ const FindAllClipsInLoop = memoize(
 
 function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
   const { clipName, key } = clipMetadata;
-  Logger.info(`Begin queing clip ${clipName}`);
+  Logger.info(`Begin queuing clip ${clipName}`);
   const alreadyQueuedClipName = queuedClips[pillar]?.clipName;
   if (
     alreadyQueuedClipName !== undefined &&

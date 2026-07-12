@@ -84,8 +84,9 @@ function enrichRecommendations(
     recommendedClips,
   };
 
-  ClipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)] = {
-    ...ClipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)],
+  const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
+  ClipNameToInfoMap[normalizedClipName] = {
+    ...ClipNameToInfoMap[normalizedClipName],
     recommendedClips,
   };
 }

@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { Ableton } from 'ableton-js';
 import { Track } from 'ableton-js/ns/track';
 import { DeviceParameter } from 'ableton-js/ns/device-parameter';
@@ -25,6 +28,13 @@ const sockets: socketio.Socket[] = [];
 const TIMEOUT_IN_MILISECONDS = 60 * 3 * 1000; // three minutes
 const TIMEOUT_WARNING_IN_MILISECONDS = 30 * 1000; // thirty seconds
 
+// WOW-032: bounded startup connection timeout + remote-script version diagnostics.
+const ABLETON_START_TIMEOUT_MS = Number(process.env.ABLETON_START_TIMEOUT_MS) || 45000;
+const DEFAULT_REMOTE_SCRIPT_VERSION_PATH = path.join(
+  os.homedir(),
+  'Music/Ableton/User Library/Remote Scripts/AbletonJS/version.py',
+);
+
 let timeoutId: NodeJS.Timeout;
 let timeoutWarningId: NodeJS.Timeout;
 const ATTRACTOR_STATE_CLIP_NAME = 'Wicked Casting';
@@ -45,9 +55,88 @@ const ableton = new Ableton({ logger: Logger });
 const TRIGGER_ORDER = [ClipTypes.Drums, ClipTypes.Melody, ClipTypes.Bass, ClipTypes.Vox];
 const KEY_LEADER_ORDER = [ClipTypes.Vox, ClipTypes.Melody, ClipTypes.Bass, ClipTypes.Drums];
 
+// Pure: reads a `version = "X.Y.Z"` line from an AbletonJS midi-script version.py-style
+// file. Returns undefined (never throws) if the file is missing or unparseable - a missing
+// remote script is an expected, non-fatal state (e.g. before first install).
+function parseRemoteScriptVersion(filePath: string): Maybe<string> {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return content.match(/version\s*=\s*["']([\d.]+)["']/)?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
+function getShippedRemoteScriptVersionPath(): string {
+  const packageJsonPath = require.resolve('ableton-js/package.json');
+  return path.join(path.dirname(packageJsonPath), 'midi-script', 'version.py');
+}
+
+// Pre-flight, file-only, before attempting a connection: compares the remote-script
+// version this npm package ships against whatever's actually installed in Live's Remote
+// Scripts folder. Never fatal - a missing installed script just means "not installed yet".
+function checkRemoteScriptVersionPreflight() {
+  const shippedVersion = parseRemoteScriptVersion(getShippedRemoteScriptVersionPath());
+  const installedPath =
+    process.env.ABLETON_REMOTE_SCRIPT_VERSION_PATH || DEFAULT_REMOTE_SCRIPT_VERSION_PATH;
+  const installedVersion = parseRemoteScriptVersion(installedPath);
+
+  if (!installedVersion) {
+    Logger.info(
+      `No installed AbletonJS remote-script version found at "${installedPath}" - skipping pre-flight version check (expected if it isn't installed there, or installed elsewhere; override with ABLETON_REMOTE_SCRIPT_VERSION_PATH).`,
+    );
+  } else if (!shippedVersion) {
+    Logger.info(
+      'Could not read the npm-shipped AbletonJS remote-script version - skipping pre-flight version check.',
+    );
+  } else if (shippedVersion !== installedVersion) {
+    Logger.warn(
+      `AbletonJS remote-script version mismatch: npm package ships ${shippedVersion}, installed script at "${installedPath}" reports ${installedVersion}. If the connection hangs or times out, copy backend/node_modules/ableton-js/midi-script/ into Live's Remote Scripts folder as "AbletonJS" and restart Live.`,
+    );
+  } else {
+    Logger.info(`AbletonJS remote-script version OK (${shippedVersion}).`);
+  }
+}
+
+// Post-connect: the library's own isPluginUpToDate() only warns when the plugin is
+// *older* than this npm package, and never runs at all when the handshake itself is
+// incompatible (the observed failure). Log both versions unconditionally instead.
+async function logConnectedRemoteScriptVersion() {
+  const shippedVersion = parseRemoteScriptVersion(getShippedRemoteScriptVersionPath());
+  try {
+    const liveVersion = await ableton.internal.get('version');
+    if (shippedVersion && liveVersion !== shippedVersion) {
+      Logger.warn(
+        `Connected, but AbletonJS versions differ: npm package ${shippedVersion}, running remote script ${liveVersion}.`,
+      );
+    } else {
+      Logger.info(
+        `Connected to AbletonJS remote script version ${liveVersion} (npm package ${
+          shippedVersion ?? 'unknown'
+        }).`,
+      );
+    }
+  } catch (err) {
+    Logger.warn(err, 'Could not read the connected remote-script version (non-fatal)');
+  }
+}
+
 async function startAbleton() {
   Logger.info('Starting AbletonJS');
-  await ableton.start();
+  checkRemoteScriptVersionPreflight();
+  try {
+    await ableton.start(ABLETON_START_TIMEOUT_MS);
+  } catch (err) {
+    throw new Error(
+      `Failed to connect to Ableton within ${ABLETON_START_TIMEOUT_MS}ms. Common causes: ` +
+        "(1) Live isn't running; (2) the AbletonJS control surface isn't enabled in Live " +
+        "Preferences → Link/Tempo/MIDI; (3) the installed remote-script version doesn't " +
+        'match this npm package (see the pre-flight version check above). Remediation for (3): ' +
+        "copy backend/node_modules/ableton-js/midi-script/ into Live's Remote Scripts folder " +
+        `as "AbletonJS" and restart Live. Original error: ${err}`,
+    );
+  }
+  await logConnectedRemoteScriptVersion();
   await getTracksAndClips();
   await getTrackVolumes();
 }
@@ -528,6 +617,8 @@ export const AbletonAdapter = {
   ATTRACTOR_STATE_CLIP_NAME,
   TRIGGER_ORDER,
   KEY_LEADER_ORDER,
+  ABLETON_START_TIMEOUT_MS,
+  parseRemoteScriptVersion,
   ableton,
   sockets,
   playingClips,

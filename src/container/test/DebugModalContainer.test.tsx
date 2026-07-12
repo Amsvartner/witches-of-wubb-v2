@@ -61,6 +61,14 @@ describe('DebugModalContainer', () => {
     const emit = vi.fn();
     const socket = { emit } as unknown as Socket;
 
+    // The .not.toThrow() wrappers below are belt-and-suspenders only: in this
+    // React/jsdom stack, fireEvent.click() never rethrows an onClick handler's
+    // exception to the caller (jsdom reports it per-listener instead - see
+    // EventTarget-impl.js), so they can't actually fail here. The real regression
+    // guard against the pre-fix crash is the toHaveBeenCalledWith assertion below -
+    // pre-fix, the handler throws before reaching emit(), so emit is never called
+    // and that assertion fails cleanly. Don't remove it while trusting the
+    // .not.toThrow() lines to still catch the bug.
     expect(() => renderModal(socket)).not.toThrow();
 
     const clipButton = screen.getByText(SPACED_CLIP_NAME).closest('button');

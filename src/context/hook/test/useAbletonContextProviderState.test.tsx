@@ -2,11 +2,8 @@ import { act, renderHook } from '@testing-library/react';
 import { PropsWithChildren } from 'react';
 import { Socket } from 'socket.io-client';
 import { vi } from 'vitest';
-<<<<<<< HEAD
-=======
 import type { BrowserClipInfo } from 'backend/type/BrowserClipInfo';
 import { ClipTypes } from 'backend/type/ClipTypes';
->>>>>>> origin/main
 import { SocketContext } from '~/context/SocketContext';
 import { useAbletonContextProviderState } from '~/context/hook/useAbletonContextProviderState';
 
@@ -54,20 +51,15 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
 
     // The real assertion is that rendering doesn't throw calling methods
     // that don't exist on the placeholder object - see
-<<<<<<< HEAD
     // useAbletonContextProviderState's guard, which checks for real `on`/
     // `off` functions rather than `.connected` (WOW-033) precisely so it
     // can still tell this true placeholder apart from a real socket that's
     // merely disconnected, covered next.
-=======
-    // useAbletonContextProviderState's `if (!socket.connected) return;` guard.
->>>>>>> origin/main
     expect(() =>
       renderHook(() => useAbletonContextProviderState(), { wrapper: withSocket(placeholder) }),
     ).not.toThrow();
   });
 
-<<<<<<< HEAD
   it('attaches listeners for a real-but-not-yet-connected socket, so a live connect is not missed (WOW-033 connect transition)', () => {
     const fake = createFakeSocket(false);
     renderHook(() => useAbletonContextProviderState(), {
@@ -94,8 +86,6 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
     expect(getCalls('get_tempo')).toHaveLength(2);
   });
 
-=======
->>>>>>> origin/main
   it('fetches state and subscribes once rendered with an already-connected socket', () => {
     const fake = createFakeSocket(true);
     renderHook(() => useAbletonContextProviderState(), {
@@ -172,8 +162,6 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
     expect(fake.handlerCount('master-key_changed')).toBe(0);
   });
 });
-<<<<<<< HEAD
-=======
 
 function buildClip(pillar: number, clipName: string): BrowserClipInfo {
   return {
@@ -315,4 +303,3 @@ describe('useAbletonContextProviderState ingredient_removed pillar scoping (WOW-
     expect(result.current.queuedClips[2]).toEqual(queuedOnA);
   });
 });
->>>>>>> origin/main

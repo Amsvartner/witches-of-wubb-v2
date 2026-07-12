@@ -31,6 +31,24 @@ export const VolumeSliderContainer = ({ pillar }: Props): JSX.Element => {
     setDisplayVolume(contextVolume);
   }, [contextVolume]);
 
+  useEffect(() => {
+    // Fallback for a drag that ends without pointerup/pointercancel/blur
+    // ever firing on the element itself (e.g. the OS/window loses focus
+    // mid-drag - a blur doesn't fire from mere OS-level focus loss, and
+    // pointercancel isn't guaranteed if release happens while the browser
+    // isn't the OS pointer-capture target). Without this, isDraggingRef
+    // could get stuck true for this instance's remaining lifetime.
+    function clearDragging() {
+      isDraggingRef.current = false;
+    }
+    window.addEventListener('pointerup', clearDragging);
+    window.addEventListener('pointercancel', clearDragging);
+    return () => {
+      window.removeEventListener('pointerup', clearDragging);
+      window.removeEventListener('pointercancel', clearDragging);
+    };
+  }, []);
+
   const throttledChangeTrackVolume = useMemo(
     () => throttle(changeTrackVolume, EMIT_THROTTLE_MS),
     [changeTrackVolume],

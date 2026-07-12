@@ -182,4 +182,36 @@ describe('VolumeSliderContainer (WOW-027)', () => {
 
     expect(slider).toHaveValue('0.65');
   });
+
+  it('recovers from a drag interrupted without pointerup/pointercancel/blur on the element itself, via a window-level pointerup fallback', () => {
+    const changeTrackVolume = vi.fn();
+    let currentValue = buildContextValue({ trackVolume: [0.1, 0, 0, 0], changeTrackVolume });
+    function Wrapper() {
+      return (
+        <AbletonContext.Provider value={currentValue}>
+          <VolumeSliderContainer pillar={0} />
+        </AbletonContext.Provider>
+      );
+    }
+
+    const { rerender } = render(<Wrapper />);
+    const slider = screen.getByRole('slider');
+
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: '0.5' } });
+    expect(slider).toHaveValue('0.5');
+
+    // Drag ends without pointerup/pointercancel/blur ever firing on the
+    // element (e.g. OS/window focus loss while the mouse button is still
+    // held) - only a window-level pointerup fires, as it would natively
+    // once the button is eventually released off-element.
+    fireEvent.pointerUp(window);
+
+    // If isDraggingRef were stuck true, this external change would be
+    // suppressed and the slider would stay at the stale drag value.
+    currentValue = buildContextValue({ trackVolume: [0.65, 0, 0, 0], changeTrackVolume });
+    rerender(<Wrapper />);
+
+    expect(slider).toHaveValue('0.65');
+  });
 });

@@ -150,4 +150,36 @@ describe('TempoSliderContainer (WOW-027)', () => {
 
     expect(slider).toHaveValue('150');
   });
+
+  it('recovers from a drag interrupted without pointerup/pointercancel/blur on the element itself, via a window-level pointerup fallback', () => {
+    const changeTempo = vi.fn();
+    let currentValue = buildContextValue({ tempo: 120, changeTempo });
+    function Wrapper() {
+      return (
+        <AbletonContext.Provider value={currentValue}>
+          <TempoSliderContainer />
+        </AbletonContext.Provider>
+      );
+    }
+
+    const { rerender } = render(<Wrapper />);
+    const slider = screen.getByRole('slider');
+
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: '130' } });
+    expect(slider).toHaveValue('130');
+
+    // Drag ends without pointerup/pointercancel/blur ever firing on the
+    // element (e.g. OS/window focus loss while the mouse button is still
+    // held) - only a window-level pointerup fires, as it would natively
+    // once the button is eventually released off-element.
+    fireEvent.pointerUp(window);
+
+    // If isDraggingRef were stuck true, this external change would be
+    // suppressed and the slider would stay at the stale drag value.
+    currentValue = buildContextValue({ tempo: 150, changeTempo });
+    rerender(<Wrapper />);
+
+    expect(slider).toHaveValue('150');
+  });
 });

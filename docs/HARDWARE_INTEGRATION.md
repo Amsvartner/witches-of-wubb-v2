@@ -29,7 +29,7 @@ Status: observed from `Arduino/` sketches and backend code. **Entirely out of sc
 
 - ESP + FastLED driving WS2812 strips (144 LEDs per node, data pin 2), receiving Art-Net (`Arduino/ArtnetWifiFastLED/`), example static IP 192.168.0.65.
 - Art-Net is produced by an external lighting server (`LIGHTING_SERVER_ADDRESS`, default 127.0.0.1:9001) which receives OSC event mirrors from the backend (`/:pillar/:eventName`). Lighting server software: TBD.
-- Wi-Fi reconnect (WOW-029): `loop()` monitors `WiFi.status()` and retries `WiFi.begin()` with exponential backoff (1s → 30s cap) on disconnect, resuming normal Art-Net reception automatically once the AP returns — no power-cycle needed. **What the LEDs visibly show while disconnected is a still-open decision** (`docs/DECISIONS_NEEDED.md`, "Hardware / firmware") — today they simply hold whatever frame Art-Net last set, unchanged, pending that decision.
+- Wi-Fi reconnect (WOW-029): `loop()` monitors `WiFi.status()` and retries `WiFi.begin()` with exponential backoff (1s → 30s cap) on disconnect, intended to resume normal Art-Net reception automatically once the AP returns — no power-cycle needed. **Not yet bench-confirmed**: `artnet.begin()` (the UDP listener setup) only runs once at boot, never re-armed on reconnect — whether the underlying socket survives a Wi-Fi bounce without rebinding is genuinely unverified (code-review-only, no compiler/hardware access); this is the #1 thing the human bench test needs to check before relying on this. **What the LEDs visibly show while disconnected is a separate, still-open decision** (`docs/DECISIONS_NEEDED.md`, "Hardware / firmware") — today they simply hold whatever frame Art-Net last set, unchanged, pending that decision.
 
 ## Computers
 
@@ -51,7 +51,7 @@ Status: observed from `Arduino/` sketches and backend code. **Entirely out of sc
 
 ## Failure modes (known/suspected)
 
-- LED node loses WiFi → reconnects automatically with backoff (WOW-029); LEDs hold their last frame during the outage pending a fallback-state design decision (`docs/DECISIONS_NEEDED.md`)
+- LED node loses WiFi → reconnects automatically with backoff (WOW-029, not yet bench-confirmed whether Art-Net reception resumes without a rebind — see "LED controllers" above); LEDs hold their last frame during the outage pending a fallback-state design decision (`docs/DECISIONS_NEEDED.md`)
 - Reader loses WiFi → tags silently missed (TBD: any heartbeat?)
 - Ableton not running → backend startup fails (TBD: retry behavior)
 - Clip name mismatch CSV↔Ableton set → tag maps but nothing plays (logged warning)

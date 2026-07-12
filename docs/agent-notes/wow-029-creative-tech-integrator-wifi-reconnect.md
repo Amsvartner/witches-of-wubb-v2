@@ -39,7 +39,15 @@ The ticket separates two concerns cleanly: _whether_ the node recovers from a ne
 
 Per the ticket: _"Required tests/checks: human bench test per above; agents limit themselves to code review (no compile/flash capability)."_ This PR has **not** been compiled or flashed — no Arduino toolchain was invoked, and no hardware was touched, per that instruction and the run's own standing "never touch real hardware" constraint. The logic was hand-traced carefully (see below) but a human bench test (kill the AP mid-stream, confirm automatic recovery without power-cycling; boot without Wi-Fi, confirm the serial log shows the failure) is still required before this is considered proven, exactly as the ticket specifies.
 
-One specific implementation detail worth the human's attention during that bench test: `attemptWifiReconnect()` calls `WiFi.disconnect()` before re-issuing `WiFi.config(ip)` + `WiFi.begin(...)`, matching common ESP8266/ESP32 reconnect patterns — this is a standard idiom but its exact behavior can vary subtly by core version, and this is precisely the kind of thing that's easy to reason about but genuinely needs a real device to confirm.
+### #1 priority for the bench test (general reviewer's Finding 1 — genuinely uncertain, not a code defect)
+
+`artnet.begin()` (the Art-Net UDP listener setup) is called exactly once, in `setup()`, and never again — `attemptWifiReconnect()` cycles Wi-Fi association (`WiFi.disconnect()`/`WiFi.config()`/`WiFi.begin()`) but never re-touches the `artnet` object or its underlying UDP socket. Whether that original UDP binding survives a full Wi-Fi disconnect/reconnect cycle on this core, or needs to be explicitly rebound, is **not determinable from source alone** — it depends on ESP32-Arduino/lwIP internals that need a real device to confirm. If it does need rebinding and doesn't get it, the failure mode is silent and severe: the serial log will say "Wi-Fi reconnected," `WiFi.status()` will genuinely report connected, but `artnet.read()` will never receive another packet and the LEDs will stay frozen forever — i.e., this fix would _appear_ to work in the log while failing at the one thing the ticket cares about most.
+
+**When bench-testing "kill the AP mid-stream → confirm automatic recovery," explicitly confirm the LEDs resume following live Art-Net frames after reconnect — not just that the serial log says "reconnected."**
+
+**If the bench test finds this is a real problem**, the suggested fix is low-risk and localized: call `artnet.begin()` again inside `loop()`'s reconnect-transition branch (`else if (!wifiWasConnected) { ... }`, alongside the existing backoff reset), so the UDP listener is freshly re-armed every time a reconnect is detected. This fix is **deliberately not applied speculatively** in this PR — adding an unverified code change for an unverified problem would just trade one untested assumption for another; better to let the bench test establish whether it's actually needed first.
+
+One further implementation detail worth the human's attention during that same bench test: `attemptWifiReconnect()` calls `WiFi.disconnect()` before re-issuing `WiFi.config(ip)` + `WiFi.begin(...)`, matching common ESP8266/ESP32 reconnect patterns — a standard idiom, but one whose exact behavior can vary subtly by core version.
 
 ## Out of scope / deliberately not done
 

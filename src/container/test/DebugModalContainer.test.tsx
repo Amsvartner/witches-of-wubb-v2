@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+import { act, fireEvent, render, screen } from '@testing-library/react';
+=======
 import { fireEvent, render, screen } from '@testing-library/react';
+>>>>>>> origin/main
 import { PropsWithChildren } from 'react';
 import { Socket } from 'socket.io-client';
 import { vi } from 'vitest';
@@ -8,6 +12,23 @@ import { AbletonContext } from '~/context/AbletonContext';
 import { AbletonContextState } from '~/context/type/AbletonContextState';
 import { SocketContext } from '~/context/SocketContext';
 
+<<<<<<< HEAD
+// jsdom doesn't implement ResizeObserver, which @headlessui/react's Dialog
+// uses internally; it wasn't reached by this file's original single-render
+// test, but the extra act()-flushed render cycle the connection-indicator
+// tests below trigger (simulating live connect/disconnect) does reach it.
+// Not a fix specific to this ticket's logic - a real, pre-existing gap in
+// the test environment, only surfaced now. Scoped to this file rather than
+// the shared src/test/setup-tests.ts (out of this ticket's allowed files).
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+global.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
+
+=======
+>>>>>>> origin/main
 // Real clip names can contain spaces (e.g. `"Doink U" Vox 122`, per WOW-016) - a
 // synthetic name is used here (rather than a real CSV entry) so this test can't collide
 // with the "available clips" list, which is built from the real Music Database.csv and
@@ -56,10 +77,45 @@ function renderModal(socket: Socket) {
   return render(<DebugModalContainer isModalOpen setIsModalOpen={() => {}} />, { wrapper });
 }
 
+<<<<<<< HEAD
+type Handler = (...args: unknown[]) => void;
+
+// Supports live connect/disconnect simulation via `trigger`, for the
+// "connection indicator" tests below (WOW-024).
+function createFakeSocket(connected: boolean) {
+  const handlers: Record<string, Handler[]> = {};
+  const socket = {
+    connected,
+    emit: vi.fn(),
+    on: vi.fn((event: string, cb: Handler) => {
+      (handlers[event] ??= []).push(cb);
+    }),
+    off: vi.fn((event: string, cb?: Handler) => {
+      if (!handlers[event]) return;
+      handlers[event] = cb ? handlers[event].filter((h) => h !== cb) : [];
+    }),
+    trigger(event: 'connect' | 'disconnect') {
+      // Mirrors real socket.io-client: .connected flips alongside the event.
+      socket.connected = event === 'connect';
+      (handlers[event] ?? []).forEach((cb) => cb());
+    },
+  };
+  return socket;
+}
+
+describe('DebugModalContainer', () => {
+  it('unqueues a clip whose name contains spaces without throwing, using rfid directly', () => {
+    const emit = vi.fn();
+    // connected: true + on/off no-ops represent an already-connected socket -
+    // this test is about the spaced-name unqueue behavior, not connection
+    // state (see the "connection indicator" describe block below for that).
+    const socket = { emit, connected: true, on: vi.fn(), off: vi.fn() } as unknown as Socket;
+=======
 describe('DebugModalContainer', () => {
   it('unqueues a clip whose name contains spaces without throwing, using rfid directly', () => {
     const emit = vi.fn();
     const socket = { emit } as unknown as Socket;
+>>>>>>> origin/main
 
     // The .not.toThrow() wrappers below are belt-and-suspenders only: in this
     // React/jsdom stack, fireEvent.click() never rethrows an onClick handler's
@@ -81,4 +137,104 @@ describe('DebugModalContainer', () => {
       pillar: QUEUED_PILLAR_INDEX,
     });
   });
+<<<<<<< HEAD
+
+  // WOW-024: connection indicator + inert clip buttons until connected.
+  //
+  // The connection-tracking effect gates on whether `socket` has real
+  // `on`/`off` functions, not on `socket.connected` - a Copilot review
+  // caught that gating on `.connected` alone would permanently miss a
+  // future 'connect' if this component's effect ever ran while an
+  // already-real (not the bare placeholder) socket happened to be mid-
+  // reconnect, since the listeners would never get attached at all. That
+  // fix is what makes the "starts real-but-disconnected, then connects"
+  // test below directly simulatable - no need for a context reference
+  // change, since a real (if currently-disconnected) socket gets its
+  // listeners attached immediately on mount.
+  describe('connection indicator', () => {
+    it('shows a connecting indicator and makes clip buttons inert before the socket connects', () => {
+      const socket = createFakeSocket(false);
+      renderModal(socket as unknown as Socket);
+
+      expect(screen.getByText(/connecting to backend/i)).toBeInTheDocument();
+
+      const clipButton = screen.getByText(SPACED_CLIP_NAME).closest('button');
+      fireEvent.click(clipButton as HTMLButtonElement);
+
+      expect(socket.emit).not.toHaveBeenCalled();
+    });
+
+    it('flips to connected live: hides the indicator and allows clicks once a real-but-not-yet-connected socket connects (connect transition)', () => {
+      const socket = createFakeSocket(false);
+      renderModal(socket as unknown as Socket);
+      expect(screen.getByText(/connecting to backend/i)).toBeInTheDocument();
+
+      act(() => {
+        socket.trigger('connect');
+      });
+
+      expect(screen.queryByText(/connecting to backend/i)).not.toBeInTheDocument();
+
+      const clipButton = screen.getByText(SPACED_CLIP_NAME).closest('button');
+      fireEvent.click(clipButton as HTMLButtonElement);
+
+      expect(socket.emit).toHaveBeenCalledWith('/departed/tag', {
+        rfid: SPACED_CLIP_RFID,
+        pillar: QUEUED_PILLAR_INDEX,
+      });
+    });
+
+    it('hides the indicator and allows clicks once already connected', () => {
+      const socket = createFakeSocket(true);
+      renderModal(socket as unknown as Socket);
+
+      expect(screen.queryByText(/connecting to backend/i)).not.toBeInTheDocument();
+
+      const clipButton = screen.getByText(SPACED_CLIP_NAME).closest('button');
+      fireEvent.click(clipButton as HTMLButtonElement);
+
+      expect(socket.emit).toHaveBeenCalledWith('/departed/tag', {
+        rfid: SPACED_CLIP_RFID,
+        pillar: QUEUED_PILLAR_INDEX,
+      });
+    });
+
+    it('flips to disconnected live: shows the indicator again and makes clicks inert (disconnect transition)', () => {
+      const socket = createFakeSocket(true);
+      renderModal(socket as unknown as Socket);
+
+      act(() => {
+        socket.trigger('disconnect');
+      });
+
+      expect(screen.getByText(/connecting to backend/i)).toBeInTheDocument();
+
+      const clipButton = screen.getByText(SPACED_CLIP_NAME).closest('button');
+      fireEvent.click(clipButton as HTMLButtonElement);
+
+      expect(socket.emit).not.toHaveBeenCalled();
+    });
+
+    it('flips back to connected after a full disconnect+reconnect round trip', () => {
+      const socket = createFakeSocket(true);
+      renderModal(socket as unknown as Socket);
+
+      act(() => {
+        socket.trigger('disconnect');
+        socket.trigger('connect');
+      });
+
+      expect(screen.queryByText(/connecting to backend/i)).not.toBeInTheDocument();
+
+      const clipButton = screen.getByText(SPACED_CLIP_NAME).closest('button');
+      fireEvent.click(clipButton as HTMLButtonElement);
+
+      expect(socket.emit).toHaveBeenCalledWith('/departed/tag', {
+        rfid: SPACED_CLIP_RFID,
+        pillar: QUEUED_PILLAR_INDEX,
+      });
+    });
+  });
+=======
+>>>>>>> origin/main
 });

@@ -12,8 +12,8 @@ WOW-031 — see `docs/TICKETS_002_BUGS.md`. This ticket has an explicit, unambig
 
 There are two genuinely different things being compared in this codebase, and only one of them is what's blocked:
 
-1. **CSV-derived clip name vs. CSV-derived clip name** (e.g. "is this newly-detected clip already the one queued on this pillar?", "is the clip that just stopped the current phrase leader?", "does the CSV metadata map have an entry for this clip name?"). Both sides of every one of these comparisons originate from `Music Database.csv` — nothing here depends on what Ableton itself reports.
-2. **CSV-derived clip name vs. Ableton's own reported raw clip name** (`clip.raw.name`, read live from the Ableton Live Set via `ableton-js`) — specifically inside `MemoizedClipIndex` and `FindAllClipsInLoop`, which exist to _locate_ a clip slot in the actual loaded Live Set given a CSV clip name. This is the only place where "what does a real clip name look like inside Ableton" actually matters, and it's exactly what the ticket says not to guess about.
+1. **Comparisons whose normalization doesn't depend on what's inside the Live Set** — the seven sites this PR unifies. **Correction, per audio-ableton-reviewer's independent provenance trace** (`docs/agent-notes/wow-031-audio-ableton-reviewer-signoff.md`): this is _not_ simply "CSV vs. CSV" as originally claimed here. 3 of the 5 `AbletonAdapter.ts` sites (`isClipPlaying`, the phrase-leader match, and the `clipNameToInfoMap` lookup) do involve a value ultimately sourced from `clip.raw.name` (via `playingClips[pillar].clipName`, itself set from `clip?.raw.name` inside the `playing_slot_index` listener). What actually makes unifying these seven sites safe regardless of the Live Set's naming convention is narrower and more precise than "no Ableton data involved": **the normalization regex applied at each of these seven sites is byte-for-byte unchanged by this PR** — pure code motion from an inline `.replace(/[* ]/g, '')`/`.replace(/[ ]/g, '')` to the identical pattern inside `ClipNameUtil.normalizeClipName`, regardless of which side (or both) of a given comparison happens to be Ableton-raw. No comparison's _outcome_ can change, because no comparison's _inputs_ changed — only where the regex text lives.
+2. **The only two sites where the normalization itself is genuinely open to change**: `MemoizedClipIndex` and `FindAllClipsInLoop`, which use `.trim()` today and exist to _locate_ a clip slot in the actual loaded Live Set given a CSV clip name — the only place "what does a real clip name look like inside Ableton" could actually change matching _behavior_, not just refactor where existing logic lives. This is exactly what the ticket says not to guess about.
 
 ## What was done (safe, no-guess-required, fully landed)
 
@@ -44,10 +44,13 @@ I cannot tell which of these is true from the code, the CSV, or any doc in this 
 
 ### The specific question for the human
 
-**Do the actual clip names inside the Ableton Live Set (as they literally appear in Live's Clip View / the `.als` file — not the CSV) ever contain asterisks, or spacing beyond simple leading/trailing whitespace?**
+**Do the actual clip names inside the Ableton Live Set (as they literally appear in Live's Clip View / the `.als` file — not the CSV) ever contain any of the following, in a way that could differ from the corresponding CSV `Clip Name` entry?**
 
-- **If yes**: `MemoizedClipIndex` and `FindAllClipsInLoop`'s trim-only matching should also switch to `ClipNameUtil.normalizeClipName()` — a follow-up change to this same PR (or a fast-follow ticket), and it _would_ change live matching behavior for those specific clips (in the direction of making them findable, where they currently silently aren't).
-- **If no**: today's trim-only lookups are already correct, this PR's refactor + latent-bug fix stands as the complete, sufficient fix for this ticket, and it can be marked ready for review as-is.
+- Asterisks, or spacing beyond simple leading/trailing whitespace (the original question — exactly what `ClipNameUtil.normalizeClipName` strips today).
+- **Broadened per audio-ableton-reviewer's review** (`docs/agent-notes/wow-031-audio-ableton-reviewer-signoff.md`), since the human's attention is already needed here: smart/curly quotes (`'`/`'`) vs. straight quotes (`'`) — a common split when names get copy-pasted between apps, and the current regex (`[* ]`) wouldn't catch it either; non-breaking spaces (` `) — not matched by a literal-space regex; case differences.
+
+- **If any of the above ever differs**: `MemoizedClipIndex` and `FindAllClipsInLoop`'s trim-only matching should switch to a normalization that also handles whichever of these is real — a follow-up change to this same PR (or a fast-follow ticket), and it _would_ change live matching behavior for those specific clips (in the direction of making them findable, where they currently silently aren't).
+- **If none of the above is ever true**: today's trim-only lookups are already correct, this PR's refactor + latent-bug fix stands as the complete, sufficient fix for this ticket, and it can be marked ready for review as-is.
 
 ## Validation (of the landed portion)
 

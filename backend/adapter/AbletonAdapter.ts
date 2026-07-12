@@ -31,7 +31,7 @@ let allAbletonClips: ClipBoard;
 let tracks: Track[];
 let trackVolumes: Array<DeviceParameter>;
 let phraseLeader: ClipInfo;
-let cleanUpPhraseLeaderEventListener: (() => unknown) | undefined;
+let cleanUpPhraseLeaderEventListener: (() => Promise<unknown>) | undefined;
 
 let keyLockEnabled = true;
 let masterKey = '';
@@ -75,7 +75,7 @@ function startTimeoutTimer() {
   timeoutId = setTimeout(() => {
     if (shouldShowTimeout()) {
       Logger.warn('Timeout exceeded, restarting the UI');
-      handleTimeout();
+      handleTimeout().catch((err) => Logger.error(err, 'Error handling idle timeout'));
     }
   }, TIMEOUT_IN_MILISECONDS);
 }
@@ -156,7 +156,11 @@ function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
       );
     if (silence) {
       Logger.info(`Triggering clip "${clipName}" on pillar ${pillar + 1}`);
-      clips[0]?.fire();
+      clips[0]
+        ?.fire()
+        .catch((err) =>
+          Logger.error(err, `Error firing clip "${clipName}" on pillar ${pillar + 1}`),
+        );
     } else if (clips[0]) {
       Logger.info(`Queuing clip "${clipName}" on pillar ${pillar + 1}`);
       queuedClips[pillar] = {
@@ -207,14 +211,20 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
     await tracks[pillar].sendCommand('stop_all_clips');
 
     playingClips[pillar] = null;
-    if (playingClip.clipName.replace(/[* ]/g, '') === phraseLeader.clipName.replace(/[* ]/g, '')) {
+    if (!phraseLeader) {
+      Logger.debug(`No phrase leader set yet; skipping promotion check for pillar ${pillar + 1}`);
+    } else if (
+      playingClip.clipName.replace(/[* ]/g, '') === phraseLeader.clipName.replace(/[* ]/g, '')
+    ) {
       // Find the next phrase leader, check if such a clip is playing,
       // then promote that clip to phrase leader else trigger queued clips and let god sort it out.
       const promotedClip = PhraseLeaderService.findNextPhraseLeader(playingClips);
       if (promotedClip) {
-        addPhraseLeader(promotedClip);
+        addPhraseLeader(promotedClip).catch((err) =>
+          Logger.error(err, `Error adding phrase leader on pillar ${pillar + 1}`),
+        );
       } else {
-        triggerQueuedClips();
+        triggerQueuedClips().catch((err) => Logger.error(err, 'Error triggering queued clips'));
       }
     }
   }
@@ -247,7 +257,11 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
 }
 
 async function addPhraseLeader(newPhraseLeader: ClipInfo) {
-  if (cleanUpPhraseLeaderEventListener) cleanUpPhraseLeaderEventListener();
+  if (cleanUpPhraseLeaderEventListener) {
+    cleanUpPhraseLeaderEventListener().catch((err) =>
+      Logger.error(err, 'Error cleaning up previous phrase leader listener'),
+    );
+  }
   phraseLeader = newPhraseLeader;
 
   const { clip, clipName, pillar } = newPhraseLeader;
@@ -264,8 +278,12 @@ async function addPhraseLeader(newPhraseLeader: ClipInfo) {
           Logger.info(
             `Clip ending soon on pillar ${clip.pillar} > "${clip.clipName}" | ${currentTime} / ${endTime}`,
           );
-          if (cleanUpPhraseLeaderEventListener) cleanUpPhraseLeaderEventListener();
-          triggerQueuedClips();
+          if (cleanUpPhraseLeaderEventListener) {
+            cleanUpPhraseLeaderEventListener().catch((err) =>
+              Logger.error(err, 'Error cleaning up phrase leader listener'),
+            );
+          }
+          triggerQueuedClips().catch((err) => Logger.error(err, 'Error triggering queued clips'));
         }
       }.bind({}, newPhraseLeader, endTime),
       300,
@@ -283,77 +301,94 @@ const getTracksAndClips = async () => {
     const track = tracks[pillar];
     const clipSlots = await track.get('clip_slots');
 
-    track.addListener('playing_slot_index', async (clipSlotIndex: number) => {
-      Logger.info('Playing slot index changed: ' + clipSlotIndex);
-      if (clipSlotIndex >= 0) {
-        const clip = allAbletonClips[pillar][clipSlotIndex];
-        const clipName = clip?.raw.name;
-        if (clipName) {
-          const clipMetadata =
-            MusicDatabaseService.clipNameToInfoMap[clipName.replace(/[* ]/g, '')];
-          const clipInfo = {
-            ...clipMetadata,
-            clipName,
-            pillar,
-          };
+    track
+      .addListener('playing_slot_index', async (clipSlotIndex: number) => {
+        try {
+          Logger.info('Playing slot index changed: ' + clipSlotIndex);
+          if (clipSlotIndex >= 0) {
+            const clip = allAbletonClips[pillar][clipSlotIndex];
+            const clipName = clip?.raw.name;
+            if (clipName) {
+              const clipMetadata =
+                MusicDatabaseService.clipNameToInfoMap[clipName.replace(/[* ]/g, '')];
+              const clipInfo = {
+                ...clipMetadata,
+                clipName,
+                pillar,
+              };
 
-          Logger.info(`Pillar ${pillar + 1} started playing ${clipName}`);
-          if (!clipMetadata) {
-            throw new Error(`Couldn't find clip metadata for "${clipName}"`);
-          }
+              Logger.info(`Pillar ${pillar + 1} started playing ${clipName}`);
+              if (!clipMetadata) {
+                Logger.error(`Couldn't find clip metadata for "${clipName}"`);
+                return;
+              }
 
-          if (playingClips[pillar]?.clipName && clipName !== playingClips[pillar]?.clipName) {
-            // In the case where a whole new song gets queued and triggered without the previous
-            // song being stopped, we need to make sure that we transpose the previous song back to 0
-            const previousClipsInLoop = FindAllClipsInLoop(playingClips[pillar]?.clipName, pillar);
-            previousClipsInLoop.forEach(
-              (clip) =>
-                clip && transposeClipToNewKey({ ...(playingClips[pillar] as ClipInfo), clip }, ''),
-            );
-          }
+              if (playingClips[pillar]?.clipName && clipName !== playingClips[pillar]?.clipName) {
+                // In the case where a whole new song gets queued and triggered without the previous
+                // song being stopped, we need to make sure that we transpose the previous song back to 0
+                const previousClipsInLoop = FindAllClipsInLoop(
+                  playingClips[pillar]?.clipName,
+                  pillar,
+                );
+                previousClipsInLoop.forEach(
+                  (clip) =>
+                    clip &&
+                    transposeClipToNewKey({ ...(playingClips[pillar] as ClipInfo), clip }, ''),
+                );
+              }
 
-          const warpMarkers = await clip.get('warp_markers');
-          const bpm = calculateBpmFromWarpMarkers(warpMarkers);
-          const browserInfo = { ...clipInfo, bpm };
-          if (playingClips[pillar]?.clipName === clipName) {
-            OutgoingEvents.emitEventWithoutResetingTimout('clip_playing', browserInfo);
+              const warpMarkers = await clip.get('warp_markers');
+              const bpm = calculateBpmFromWarpMarkers(warpMarkers);
+              const browserInfo = { ...clipInfo, bpm };
+              if (playingClips[pillar]?.clipName === clipName) {
+                OutgoingEvents.emitEventWithoutResetingTimout('clip_playing', browserInfo);
+              } else {
+                OutgoingEvents.emitEvent('clip_started', browserInfo);
+                setTrackVolume(pillar, 0.6).catch((err) =>
+                  Logger.error(err, `Error setting track volume on pillar ${pillar + 1}`),
+                );
+              }
+              if (playingClips.every((item) => !item)) {
+                // we're coming from a silent state, so let's set the tempo to this new clip's bpm
+                setTempo(bpm);
+                clipMetadata.key && setMasterKey(clipMetadata.key);
+              }
+
+              playingClips[pillar] = { ...clipInfo, clip };
+
+              const newPhraseLeader = PhraseLeaderService.findNextPhraseLeader(playingClips);
+              if (newPhraseLeader?.clipName === clipName) {
+                addPhraseLeader(newPhraseLeader).catch((err) =>
+                  Logger.error(err, `Error adding phrase leader on pillar ${pillar + 1}`),
+                );
+              }
+            }
           } else {
-            OutgoingEvents.emitEvent('clip_started', browserInfo);
-            setTrackVolume(pillar, 0.6);
-          }
-          if (playingClips.every((item) => !item)) {
-            // we're coming from a silent state, so let's set the tempo to this new clip's bpm
-            setTempo(bpm);
-            clipMetadata.key && setMasterKey(clipMetadata.key);
-          }
+            const clipInfo = stoppingClips[pillar];
+            Logger.info(`Clip stopped playing on pillar ${pillar + 1} > "${clipInfo?.clipName}"`);
+            OutgoingEvents.emitEventWithoutResetingTimout('clip_stopped', {
+              ...clipInfo,
+              pillar,
+              clip: undefined,
+            });
 
-          playingClips[pillar] = { ...clipInfo, clip };
+            if (clipInfo?.clipName && keyLockEnabled) {
+              const playingClipsInLoop = FindAllClipsInLoop(clipInfo?.clipName, pillar);
+              playingClipsInLoop.forEach(
+                (clip) => clip && transposeClipToNewKey({ ...clipInfo, clip }, ''),
+              );
+            }
 
-          const newPhraseLeader = PhraseLeaderService.findNextPhraseLeader(playingClips);
-          if (newPhraseLeader?.clipName === clipName) {
-            addPhraseLeader(newPhraseLeader);
+            stoppingClips[pillar] = null;
+            playingClips[pillar] = null;
           }
+        } catch (err) {
+          Logger.error(err, `Error handling playing_slot_index change on pillar ${pillar + 1}`);
         }
-      } else {
-        const clipInfo = stoppingClips[pillar];
-        Logger.info(`Clip stopped playing on pillar ${pillar + 1} > "${clipInfo?.clipName}"`);
-        OutgoingEvents.emitEventWithoutResetingTimout('clip_stopped', {
-          ...clipInfo,
-          pillar,
-          clip: undefined,
-        });
-
-        if (clipInfo?.clipName && keyLockEnabled) {
-          const playingClipsInLoop = FindAllClipsInLoop(clipInfo?.clipName, pillar);
-          playingClipsInLoop.forEach(
-            (clip) => clip && transposeClipToNewKey({ ...clipInfo, clip }, ''),
-          );
-        }
-
-        stoppingClips[pillar] = null;
-        playingClips[pillar] = null;
-      }
-    });
+      })
+      .catch((err) =>
+        Logger.error(err, `Error registering playing_slot_index listener on pillar ${pillar + 1}`),
+      );
 
     allAbletonClips.push([]);
 
@@ -375,7 +410,9 @@ async function getTempo() {
 
 function setTempo(tempo: number) {
   Logger.info(`Setting tempo to: ${tempo}`);
-  ableton.song.set('tempo', tempo);
+  ableton.song
+    .set('tempo', tempo)
+    .catch((err) => Logger.error(err, `Error setting tempo to ${tempo}`));
   OutgoingEvents.emitEvent('tempo_changed', { tempo });
 }
 
@@ -458,7 +495,9 @@ function transposeClipToNewKey(item: ClipInfo, newKey: string) {
   const { key, clip, clipName } = item;
   if (!newKey || key === newKey) {
     Logger.info(`Resetting clip "${clipName}" to original key`);
-    clip.set('pitch_coarse', 0);
+    clip
+      .set('pitch_coarse', 0)
+      .catch((err) => Logger.error(err, `Error resetting pitch for clip "${clipName}"`));
   } else if (key) {
     const trackKeyPitch = key.match(/[A-Z]/g)?.[0];
     const newKeyPitch = newKey.match(/[A-Z]/g)?.[0];
@@ -474,7 +513,9 @@ function transposeClipToNewKey(item: ClipInfo, newKey: string) {
         newKeyPitch === trackKeyPitch ? newKey : backupKey
       } > ${transposeAmount ?? 0}`,
     );
-    clip.set('pitch_coarse', transposeAmount);
+    clip
+      .set('pitch_coarse', transposeAmount)
+      .catch((err) => Logger.error(err, `Error transposing clip "${clipName}"`));
   } else {
     Logger.warn(`Cannot transpose clip "${item.clipName}": it does not have a key`);
   }

@@ -52,3 +52,19 @@ Both are now called out explicitly in `docs/HARDWARE_INTEGRATION.md`'s flashing 
 ## Status
 
 Implementation complete, not yet gated. This ticket's acceptance criteria require a human bench-verification step regardless of review outcome ("human bench-verifies one reader end-to-end against the real backend on a hardware day") — matching WOW-028/WOW-029's pattern, this PR can reach a clean review state but not a fully "gated" one in this run.
+
+## Restack note — 2026-07-12
+
+WOW-028 (PR #15) has been deferred by the human, so this branch (via its base
+`feat/wow-029-wifi-reconnect`) no longer stacks on it. Three things WOW-028's
+commits used to provide are now carried by this branch's own base commit
+instead: the `#include "secrets.h"` line in `Unit_RFID_M5Core.ino`, the
+`Arduino/Unit_RFID_M5Core/secrets.h.example` file (now holding only
+`PILLAR_IP` — Wi-Fi credentials stay hardcoded in the sketches until WOW-028
+lands and moves them into `secrets.h`), and the `.gitignore` entry for
+`Arduino/**/secrets.h`. The flashing checklist in
+`docs/HARDWARE_INTEGRATION.md` was rescoped accordingly. Separately, the
+"once WOW-017 lands" phrasing this branch's earlier review round introduced
+was updated: WOW-017's unknown-IP warning has since merged to `main`, so it
+is described as live again. PR #31 still stacks on PR #30 (shared docs
+sections) — that ordering is unchanged.

@@ -1,14 +1,33 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useAbletonContext } from '~/context/hook/useAbletonContext';
+import { throttle } from '~/util/throttle';
 
 const MIN_VALUE = 75;
 const MAX_VALUE = 155;
+const EMIT_THROTTLE_MS = 100;
 
 export const TempoSliderContainer = (): JSX.Element => {
   const { changeTempo, tempo } = useAbletonContext();
+  // changeTempo only updates context tempo once the backend ACKs the emit
+  // (see useAbletonContextProviderState), so throttling it directly would
+  // make the slider visibly lag behind the user's finger. This tracks the
+  // drag position locally for instant feedback, independent of the
+  // throttled emission below.
+  const [displayTempo, setDisplayTempo] = useState(tempo);
+
+  useEffect(() => {
+    setDisplayTempo(tempo);
+  }, [tempo]);
+
+  const throttledChangeTempo = useMemo(
+    () => throttle(changeTempo, EMIT_THROTTLE_MS),
+    [changeTempo],
+  );
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newTempo = parseInt(e.target.value);
-    changeTempo(newTempo);
+    setDisplayTempo(newTempo);
+    throttledChangeTempo(newTempo);
   }
 
   return (
@@ -17,7 +36,7 @@ export const TempoSliderContainer = (): JSX.Element => {
         htmlFor='tempo-slider'
         className='absolute2 block text-3xl font-medium stroke-black font-fondamento mb-3'
       >
-        <strong>{Math.ceil(tempo)}</strong> BPM
+        <strong>{Math.ceil(displayTempo)}</strong> BPM
       </label>
       <div className='flex items-center text-lg h-[100px]'>
         <span className='relative text-gray-500 dark:text-gray-400 self-end left-[20px]'>
@@ -28,7 +47,7 @@ export const TempoSliderContainer = (): JSX.Element => {
           type='range'
           min={MIN_VALUE}
           max={MAX_VALUE}
-          value={tempo}
+          value={displayTempo}
           onChange={handleChange}
           className='w-[31vw] h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 custom-tempo-slider'
         />

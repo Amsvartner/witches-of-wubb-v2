@@ -1,21 +1,40 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useAbletonContext } from '~/context/hook/useAbletonContext';
+import { throttle } from '~/util/throttle';
 
 const MIN_VALUE = 0;
 const MAX_VALUE = 0.7;
 const RESET_VALUE = 0.6;
+const EMIT_THROTTLE_MS = 100;
 
 type Props = { pillar: number };
 
 export const VolumeSliderContainer = ({ pillar }: Props): JSX.Element => {
   const { trackVolume, changeTrackVolume } = useAbletonContext();
-  const value = trackVolume[pillar] ? Math.min(trackVolume[pillar], 0.7) : 0;
+  const contextVolume = trackVolume[pillar] ? Math.min(trackVolume[pillar], 0.7) : 0;
+  // changeTrackVolume is fire-and-forget - trackVolume only updates once the
+  // backend re-broadcasts volume_changed, so throttling the emission
+  // directly would make the slider visibly lag. Track the drag position
+  // locally for instant feedback, independent of the throttled emission.
+  const [displayVolume, setDisplayVolume] = useState(contextVolume);
+
+  useEffect(() => {
+    setDisplayVolume(contextVolume);
+  }, [contextVolume]);
+
+  const throttledChangeTrackVolume = useMemo(
+    () => throttle(changeTrackVolume, EMIT_THROTTLE_MS),
+    [changeTrackVolume],
+  );
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newVolume = Number(e.target.value);
-    changeTrackVolume({ pillar, volume: newVolume });
+    setDisplayVolume(newVolume);
+    throttledChangeTrackVolume({ pillar, volume: newVolume });
   }
 
   function resetVolume() {
+    setDisplayVolume(RESET_VALUE);
     changeTrackVolume({ pillar, volume: RESET_VALUE });
   }
 
@@ -38,7 +57,7 @@ export const VolumeSliderContainer = ({ pillar }: Props): JSX.Element => {
             min={MIN_VALUE}
             max={MAX_VALUE}
             step={0.01}
-            value={value}
+            value={displayVolume}
             onChange={handleChange}
             className='h-2 w-[170px] cursor-pointer accent-red-800 custom-volume-slider'
           />

@@ -9,6 +9,7 @@ import * as nodeOSC from 'node-osc';
 import throttle from 'lodash.throttle';
 import memoize from 'lodash.memoize';
 import { Logger } from '../util/Logger';
+import { ClipNameUtil } from '../util/ClipNameUtil';
 import { PhraseLeaderService } from '../service/PhraseLeaderService';
 import { ClipBoard } from '../type/ClipBoard';
 import { ClipInfo } from '../type/ClipInfo';
@@ -206,12 +207,18 @@ function connectOscServer(server: nodeOSC.Server) {
   oscServer.on('message', IncomingEvents.oscEventHandlers);
 }
 
+// Live-set lookups use the same asterisk-and-whitespace-stripping normalization as every other
+// comparison site (WOW-031): clip names in the Live set may freely contain spaces and asterisks
+// (human decision 2026-07-12), so the previous trim-only matching would silently fail to locate
+// those clips.
 const MemoizedClipIndex = memoize(
-  (clipName, pillar) =>
-    allAbletonClips[pillar].findIndex((clip) => {
-      return clip?.raw.name.trim() === clipName.trim();
-    }),
-  (clipName, pillar) => `${clipName}-${pillar}`,
+  (clipName, pillar) => {
+    const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
+    return allAbletonClips[pillar].findIndex((clip) => {
+      return clip !== null && ClipNameUtil.normalizeClipName(clip.raw.name) === normalizedClipName;
+    });
+  },
+  (clipName, pillar) => `${ClipNameUtil.normalizeClipName(clipName)}-${pillar}`,
 );
 
 function addWebSocket(s: socketio.Socket) {
@@ -230,10 +237,13 @@ const FindAllClipsInLoop = memoize(
     const firstClipIndex = MemoizedClipIndex(clipName, pillar);
     if (firstClipIndex < 0) return [];
 
+    const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
     const lastClipIndex = allAbletonClips[pillar]
       .slice(firstClipIndex, firstClipIndex + 20)
       .findLastIndex((clip) => {
-        return clip?.raw.name.trim() === clipName.trim();
+        return (
+          clip !== null && ClipNameUtil.normalizeClipName(clip.raw.name) === normalizedClipName
+        );
       });
     Logger.debug(
       `Loop for ${clipName} found on ${pillar + 1} > [${firstClipIndex}, ${
@@ -242,13 +252,18 @@ const FindAllClipsInLoop = memoize(
     );
     return allAbletonClips[pillar].slice(firstClipIndex, firstClipIndex + lastClipIndex + 1);
   },
-  (clipName, pillar) => `${clipName}-${pillar}`,
+  (clipName, pillar) => `${ClipNameUtil.normalizeClipName(clipName)}-${pillar}`,
 );
 
 function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
   const { clipName, key } = clipMetadata;
-  Logger.info(`Begin queing clip ${clipName}`);
-  if (queuedClips[pillar]?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '')) {
+  Logger.info(`Begin queuing clip ${clipName}`);
+  const alreadyQueuedClipName = queuedClips[pillar]?.clipName;
+  if (
+    alreadyQueuedClipName !== undefined &&
+    ClipNameUtil.normalizeClipName(alreadyQueuedClipName) ===
+      ClipNameUtil.normalizeClipName(clipName)
+  ) {
     Logger.info(`Clip ${clipName} is already queued`);
     return;
   }
@@ -313,7 +328,9 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
   const queuedClip = queuedClips[pillar];
 
   const isClipPlaying =
-    playingClip?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '');
+    playingClip?.clipName !== undefined &&
+    ClipNameUtil.normalizeClipName(playingClip.clipName) ===
+      ClipNameUtil.normalizeClipName(clipName);
   if (isClipPlaying) {
     Logger.info(`Stopping clip "${clipName}" on pillar ${pillar + 1}`);
     stoppingClips[pillar] = playingClip;
@@ -328,7 +345,8 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
     if (!phraseLeader) {
       Logger.info(`No phrase leader set yet; skipping promotion check for pillar ${pillar + 1}`);
     } else if (
-      playingClip.clipName.replace(/[* ]/g, '') === phraseLeader.clipName.replace(/[* ]/g, '')
+      ClipNameUtil.normalizeClipName(playingClip.clipName) ===
+      ClipNameUtil.normalizeClipName(phraseLeader.clipName)
     ) {
       // Find the next phrase leader, check if such a clip is playing,
       // then promote that clip to phrase leader else trigger queued clips and let god sort it out.
@@ -344,7 +362,10 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
   }
 
   // check if the clip is queued
-  const isClipQueued = queuedClip?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '');
+  const isClipQueued =
+    queuedClip?.clipName !== undefined &&
+    ClipNameUtil.normalizeClipName(queuedClip.clipName) ===
+      ClipNameUtil.normalizeClipName(clipName);
   if (isClipQueued) {
     Logger.info(`Removing clip from queue "${clipName}" on pillar ${pillar + 1}`);
     if (keyLockEnabled) {
@@ -431,7 +452,7 @@ const getTracksAndClips = async () => {
             const clipName = clip?.raw.name;
             if (clipName) {
               const clipMetadata =
-                MusicDatabaseService.clipNameToInfoMap[clipName.replace(/[* ]/g, '')];
+                MusicDatabaseService.clipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)];
               const clipInfo = {
                 ...clipMetadata,
                 clipName,

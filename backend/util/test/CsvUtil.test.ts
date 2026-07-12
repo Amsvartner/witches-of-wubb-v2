@@ -3,6 +3,8 @@ import { ClipTypes } from '../../type/ClipTypes';
 import { CsvRow } from '../../type/CsvRow';
 import { ClipNameToInfoMapType } from '../../type/ClipNameToInfoMapType';
 import { RFIDToClipMapType } from '../../type/RFIDToClipMapType';
+import { Logger } from '../Logger';
+import { afterEach, vi } from 'vitest';
 
 function makeRow(overrides: Partial<CsvRow> = {}): CsvRow {
   return {
@@ -18,6 +20,24 @@ function makeRow(overrides: Partial<CsvRow> = {}): CsvRow {
     ...overrides,
   };
 }
+
+function buildRow(overrides: Partial<CsvRow> = {}): CsvRow {
+  return {
+    RFID: 'e280f3372000f00003effc41',
+    'Clip Name': 'Wicked Casting',
+    'Clip Type (e.g. Vocals)': ClipTypes.Vox,
+    'Icon / Asset Name': 'wicked-casting.png',
+    Artist: 'Test Artist',
+    'Song Title': 'Test Song',
+    'Ingredient Name / Description': 'Test Ingredient',
+    Key: '4A',
+    ...overrides,
+  };
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('CsvUtil.parseCsv', () => {
   let rfidToClipMap: RFIDToClipMapType;
@@ -166,5 +186,90 @@ describe('CsvUtil.enrichRecommendations', () => {
     CsvUtil.enrichRecommendations(rfidToClipMap, clipNameToInfoMap, rows, rows[0]);
 
     expect(rfidToClipMap['r1'].recommendedClips).toEqual({});
+  });
+
+  it('skips ClipNameToInfoMap enrichment and logs a warning when the normalized clip name is empty', () => {
+    const rfidToClipMap: RFIDToClipMapType = {};
+    const clipNameToInfoMap: ClipNameToInfoMapType = {};
+    const warnSpy = vi.spyOn(Logger, 'warn');
+
+    const rows = [
+      makeRow({ RFID: 'r1', 'Clip Name': '***', 'Key Numerical': '5' }),
+      makeRow({
+        RFID: 'r2',
+        'Clip Name': 'Neighbor Drums',
+        'Clip Type (e.g. Vocals)': ClipTypes.Drums,
+        'Key Numerical': '6',
+      }),
+    ];
+    rows.forEach((row) => CsvUtil.parseCsv(rfidToClipMap, clipNameToInfoMap, row));
+
+    CsvUtil.enrichRecommendations(rfidToClipMap, clipNameToInfoMap, rows, rows[0]);
+
+    expect(clipNameToInfoMap['']).toBeUndefined();
+    expect(rfidToClipMap['r1'].recommendedClips).toEqual({
+      [ClipTypes.Drums]: [
+        expect.objectContaining({
+          rfid: 'r2',
+          type: ClipTypes.Drums,
+        }),
+      ],
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Could not find clip "***" in ClipNameToInfoMap while enriching recommendations',
+    );
+  });
+});
+
+describe('CsvUtil.parseCsv - ClipNameToInfoMap key normalization (WOW-031)', () => {
+  it('keys ClipNameToInfoMap with all spaces stripped, matching pre-existing behavior for plain names', () => {
+    const RFIDToClipMap: RFIDToClipMapType = {};
+    const ClipNameToInfoMap: ClipNameToInfoMapType = {};
+
+    CsvUtil.parseCsv(RFIDToClipMap, ClipNameToInfoMap, buildRow({ 'Clip Name': 'Wicked Casting' }));
+
+    expect(ClipNameToInfoMap['WickedCasting']).toBeDefined();
+    expect(ClipNameToInfoMap['WickedCasting'].rfid).toBe('e280f3372000f00003effc41');
+  });
+
+  it("keys ClipNameToInfoMap with asterisks also stripped - closes a latent mismatch against AbletonAdapter's own [* ] stripping at every lookup site", () => {
+    const RFIDToClipMap: RFIDToClipMapType = {};
+    const ClipNameToInfoMap: ClipNameToInfoMapType = {};
+
+    CsvUtil.parseCsv(
+      RFIDToClipMap,
+      ClipNameToInfoMap,
+      buildRow({ 'Clip Name': '*Wicked Casting*' }),
+    );
+
+    // Before this fix, CsvUtil only stripped spaces (`.replace(/[ ]/g, '')`),
+    // so this row would have been keyed '*WickedCasting*' (asterisks kept) -
+    // a key that AbletonAdapter.ts's own [* ]-stripping lookup sites would
+    // never produce or look up, since they strip asterisks too. That
+    // key mismatch (a latent bug, inert only because no CSV row today
+    // actually contains an asterisk) is what this test guards against.
+    expect(ClipNameToInfoMap['WickedCasting']).toBeDefined();
+    expect(ClipNameToInfoMap['*WickedCasting*']).toBeUndefined();
+  });
+
+  it('collapses two differently-decorated CSV rows for what is meant to be the same clip name into a single map key', () => {
+    const RFIDToClipMap: RFIDToClipMapType = {};
+    const ClipNameToInfoMap: ClipNameToInfoMapType = {};
+
+    CsvUtil.parseCsv(
+      RFIDToClipMap,
+      ClipNameToInfoMap,
+      buildRow({ RFID: 'rfid-1', 'Clip Name': 'Wicked Casting' }),
+    );
+    CsvUtil.parseCsv(
+      RFIDToClipMap,
+      ClipNameToInfoMap,
+      buildRow({ RFID: 'rfid-2', 'Clip Name': '*Wicked  Casting*' }),
+    );
+
+    expect(Object.keys(ClipNameToInfoMap)).toEqual(['WickedCasting']);
+    // The second row (processed later) wins the shared key - documenting
+    // actual behavior, not asserting it's the only valid choice.
+    expect(ClipNameToInfoMap['WickedCasting'].rfid).toBe('rfid-2');
   });
 });

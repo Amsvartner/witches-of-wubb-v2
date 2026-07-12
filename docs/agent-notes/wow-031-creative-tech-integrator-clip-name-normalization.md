@@ -75,3 +75,32 @@ All new tests independently mutation-tested: `ClipNameUtil.normalizeClipName`'s 
 ## Status
 
 **DRAFT / BLOCKED.** Not ready for the standard gate — the ticket's own acceptance criteria require _both_ "single normalization helper used at all seven-plus comparison sites" (7 of the ~9 total sites are done; the 2 Live-matching sites are blocked) _and_ "human confirms the Live naming convention before merge." Requesting that confirmation via this PR's description. If the answer is "no asterisks in Live," this PR is otherwise complete and can be marked ready-for-review with no further code changes. If "yes," a follow-up commit on this same branch will align the two remaining sites and this note will be updated.
+
+## Decision received — 2026-07-12
+
+The human answered the blocking question: **"Let's make it safe to use spacing
+and asterisks in clip names."** Clip names in the Ableton Live set may freely
+contain spaces and asterisks, and the system must match them robustly. That
+lands on the side where the trim-only lookups were silently broken.
+
+What changed in response:
+
+- `MemoizedClipIndex` and `FindAllClipsInLoop` now compare
+  `clip.raw.name` against the requested name via
+  `ClipNameUtil.normalizeClipName` on **both** sides, replacing the
+  trim-only comparison. Names without asterisks or odd spacing match exactly
+  as before (the helper is a strict superset of `.trim()` — see the dedicated
+  test in `backend/util/test/ClipNameUtil.test.ts`).
+- Both memoize **cache keys** normalize the clip name too, so variant
+  spellings of the same clip share a single cache entry instead of computing
+  (identical) results under different keys. Cache lifetime is unchanged
+  (cleared per fetch, WOW-021).
+- The branch was rebased onto `main` (the WOW-014→032→018→020→021 chain it
+  stacked on has merged), so PR #29's diff now shows only WOW-031.
+
+With this, every clip-name comparison in `backend/` goes through the single
+helper — the ticket's full acceptance criteria, not just the partial landing.
+Validation: `yarn lint` and `yarn test` (181 tests, incl. the normalization
+suites) green under Node 22. audio-ableton-reviewer re-sign-off required and
+recorded separately, since matching behavior for asterisked/spaced Live names
+changes (from "silently never found" to "found").

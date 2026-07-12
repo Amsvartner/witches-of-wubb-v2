@@ -145,6 +145,7 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 - Allowed files: `src/context/AbletonProvider.tsx`, `src/context/test/**`
 - Risk: low (isolated conditional; UI state only, no backend/hardware path)
 - Dependencies: WOW-011 stack merged.
+- Status note: Closed as done, superseded by WOW-012's own text below — the context restructure (commit `0aaa123`) already replaced this `findIndex`-truthiness check with `.some(...)` before this ticket was ever picked up, so the specific bug described here no longer exists in that form. That `.some(...)` replacement introduced a different, related bug (searching _all_ pillars instead of the event's own pillar), fixed by `docs/TICKETS_002_BUGS.md`'s WOW-026, which supersedes this ticket. See `src/context/hook/useAbletonContextProviderState.ts` (WOW-011's later context restructure moved this handler out of `AbletonProvider.tsx`).
 
 ---
 

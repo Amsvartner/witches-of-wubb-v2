@@ -140,10 +140,10 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     socket.on('clip_playing', onUpdatePlayState);
 
     socket.on('ingredient_removed', (data: BrowserClipInfo) => {
-      if (playingClipsRef.current.some((item) => item?.clipName === data.clipName)) {
+      if (playingClipsRef.current[data.pillar]?.clipName === data.clipName) {
         setPlayingClips((current) => updateIndex(data.pillar, null, current));
         setStoppingClips((current) => updateIndex(data.pillar, data, current));
-      } else if (queuedClipsRef.current.some((item) => item?.clipName === data.clipName)) {
+      } else if (queuedClipsRef.current[data.pillar]?.clipName === data.clipName) {
         setQueuedClips((current) => updateIndex(data.pillar, null, current));
       }
     });

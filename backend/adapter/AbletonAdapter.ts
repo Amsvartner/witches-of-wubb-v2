@@ -207,10 +207,10 @@ function connectOscServer(server: nodeOSC.Server) {
   oscServer.on('message', IncomingEvents.oscEventHandlers);
 }
 
-// Live-set lookups use the same [* ]-strip normalization as every other
-// comparison site (WOW-031): clip names in the Live set may freely contain
-// spaces and asterisks (human decision 2026-07-12), so the previous
-// trim-only matching would silently fail to locate those clips.
+// Live-set lookups use the same asterisk-and-whitespace-stripping normalization as every other
+// comparison site (WOW-031): clip names in the Live set may freely contain spaces and asterisks
+// (human decision 2026-07-12), so the previous trim-only matching would silently fail to locate
+// those clips.
 const MemoizedClipIndex = memoize(
   (clipName, pillar) => {
     const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);

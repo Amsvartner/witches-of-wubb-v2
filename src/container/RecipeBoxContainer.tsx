@@ -21,7 +21,7 @@ export const RecipeBoxContainer = (): JSX.Element => {
             />
           </div>
         </div>
-        <div id='ingredients_contianer' className='flex text-center align-top'>
+        <div id='ingredients_container' className='flex text-center align-top'>
           {Object.entries(spellRecipe).map(([type, recipe]) => {
             return recipe ? (
               <div className='relative' key={recipe.rfid}>

@@ -26,8 +26,8 @@ import { KeyTranspositionService } from '../service/KeyTranspositionService';
 
 let oscServer: nodeOSC.Server;
 const sockets: socketio.Socket[] = [];
-const TIMEOUT_IN_MILISECONDS = 60 * 3 * 1000; // three minutes
-const TIMEOUT_WARNING_IN_MILISECONDS = 30 * 1000; // thirty seconds
+const TIMEOUT_IN_MILLISECONDS = 60 * 3 * 1000; // three minutes
+const TIMEOUT_WARNING_IN_MILLISECONDS = 30 * 1000; // thirty seconds
 
 // WOW-032: bounded startup connection timeout + remote-script version diagnostics.
 const ABLETON_START_TIMEOUT_MS = Number(process.env.ABLETON_START_TIMEOUT_MS) || 45000;
@@ -38,7 +38,6 @@ const DEFAULT_REMOTE_SCRIPT_VERSION_PATH = path.join(
 
 let timeoutId: NodeJS.Timeout;
 let timeoutWarningId: NodeJS.Timeout;
-const ATTRACTOR_STATE_CLIP_NAME = 'Wicked Casting';
 let allAbletonClips: ClipBoard;
 let tracks: Track[];
 let trackVolumes: Array<DeviceParameter>;
@@ -54,7 +53,6 @@ const queuedClips: ClipList = [];
 const ableton = new Ableton({ logger: Logger });
 
 const TRIGGER_ORDER = [ClipTypes.Drums, ClipTypes.Melody, ClipTypes.Bass, ClipTypes.Vox];
-const KEY_LEADER_ORDER = [ClipTypes.Vox, ClipTypes.Melody, ClipTypes.Bass, ClipTypes.Drums];
 
 // Pure: reads a `version = "X.Y.Z"` line from an AbletonJS midi-script version.py-style
 // file. Returns undefined (never throws) if the file is missing or unparseable - a missing
@@ -151,7 +149,7 @@ async function handleTimeout() {
     await tracks[i].sendCommand('stop_all_clips');
   }
   masterKey = '';
-  OutgoingEvents.emitEventWithoutResetingTimout('master-key_changed', { key: masterKey });
+  OutgoingEvents.emitEventWithoutResettingTimeout('master-key_changed', { key: masterKey });
 
   queuedClips.forEach((queuedClip, pillar) => {
     if (!queuedClip) return;
@@ -166,7 +164,7 @@ async function handleTimeout() {
       );
     }
     queuedClips[pillar] = null;
-    OutgoingEvents.emitEventWithoutResetingTimout('clip_unqueued', {
+    OutgoingEvents.emitEventWithoutResettingTimeout('clip_unqueued', {
       ...queuedClip,
       clip: undefined,
     });
@@ -184,15 +182,15 @@ function startTimeoutTimer() {
   timeoutWarningId = setTimeout(() => {
     if (shouldShowTimeout()) {
       Logger.warn('Timeout warning');
-      OutgoingEvents.emitEventWithoutResetingTimout('timeout_warning');
+      OutgoingEvents.emitEventWithoutResettingTimeout('timeout_warning');
     }
-  }, TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS);
+  }, TIMEOUT_IN_MILLISECONDS - TIMEOUT_WARNING_IN_MILLISECONDS);
   timeoutId = setTimeout(() => {
     if (shouldShowTimeout()) {
       Logger.warn('Timeout exceeded, restarting the UI');
       handleTimeout().catch((err) => Logger.error(err, 'Error handling idle timeout'));
     }
-  }, TIMEOUT_IN_MILISECONDS);
+  }, TIMEOUT_IN_MILLISECONDS);
 }
 
 function restartTimeoutTimer() {
@@ -268,7 +266,6 @@ function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
     return;
   }
   const clips = FindAllClipsInLoop(clipName, pillar);
-  console.log('clips', clips);
   if (clips.length) {
     // if no items are playing, skip the queue
     const silence = playingClips.every((clip) => !clip);
@@ -387,7 +384,7 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
       `Clip ${clipName} is neither playing or queue. Stopping pillar ${pillar + 1} just in case.`,
     );
     await tracks[pillar].sendCommand('stop_all_clips');
-    OutgoingEvents.emitEventWithoutResetingTimout('clip_stopped', { pillar });
+    OutgoingEvents.emitEventWithoutResettingTimeout('clip_stopped', { pillar });
   }
 }
 
@@ -490,7 +487,7 @@ const getTracksAndClips = async () => {
               }
               const browserInfo = { ...clipInfo, bpm };
               if (playingClips[pillar]?.clipName === clipName) {
-                OutgoingEvents.emitEventWithoutResetingTimout('clip_playing', browserInfo);
+                OutgoingEvents.emitEventWithoutResettingTimeout('clip_playing', browserInfo);
               } else {
                 OutgoingEvents.emitEvent('clip_started', browserInfo);
                 setTrackVolume(pillar, 0.6).catch((err) =>
@@ -520,7 +517,7 @@ const getTracksAndClips = async () => {
           } else {
             const clipInfo = stoppingClips[pillar];
             Logger.info(`Clip stopped playing on pillar ${pillar + 1} > "${clipInfo?.clipName}"`);
-            OutgoingEvents.emitEventWithoutResetingTimout('clip_stopped', {
+            OutgoingEvents.emitEventWithoutResettingTimeout('clip_stopped', {
               ...clipInfo,
               pillar,
               clip: undefined,
@@ -691,11 +688,9 @@ function transposeClipToNewKey(item: ClipInfo, newKey: string) {
 }
 
 export const AbletonAdapter = {
-  TIMEOUT_IN_MILISECONDS,
-  TIMEOUT_WARNING_IN_MILISECONDS,
-  ATTRACTOR_STATE_CLIP_NAME,
+  TIMEOUT_IN_MILLISECONDS,
+  TIMEOUT_WARNING_IN_MILLISECONDS,
   TRIGGER_ORDER,
-  KEY_LEADER_ORDER,
   ABLETON_START_TIMEOUT_MS,
   parseRemoteScriptVersion,
   ableton,

@@ -150,6 +150,16 @@ async function handleTimeout() {
     await tracks[i].sendCommand('stop_all_clips');
   }
   masterKey = '';
+  OutgoingEvents.emitEventWithoutResetingTimout('master-key_changed', { key: masterKey });
+
+  queuedClips.forEach((queuedClip, pillar) => {
+    if (!queuedClip) return;
+    queuedClips[pillar] = null;
+    OutgoingEvents.emitEventWithoutResetingTimout('clip_unqueued', {
+      ...queuedClip,
+      clip: undefined,
+    });
+  });
 }
 
 function startTimeoutTimer() {

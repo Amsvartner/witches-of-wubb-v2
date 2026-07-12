@@ -26,7 +26,9 @@ describe('Music Database.csv data integrity (real CSV, read-only)', () => {
   it('has a unique RFID per row', () => {
     const byRfid = new Map<string, string[]>();
     validRows.forEach((row) => {
-      byRfid.set(row.RFID, [...(byRfid.get(row.RFID) ?? []), row['Clip Name']]);
+      const clipNames = byRfid.get(row.RFID) ?? [];
+      clipNames.push(row['Clip Name']);
+      byRfid.set(row.RFID, clipNames);
     });
     const duplicates = [...byRfid.entries()].filter(([, clipNames]) => clipNames.length > 1);
     expect(duplicates).toEqual([]);
@@ -36,7 +38,9 @@ describe('Music Database.csv data integrity (real CSV, read-only)', () => {
     const byStrippedName = new Map<string, string[]>();
     validRows.forEach((row) => {
       const key = stripSpaces(row['Clip Name']);
-      byStrippedName.set(key, [...(byStrippedName.get(key) ?? []), row.RFID]);
+      const rfids = byStrippedName.get(key) ?? [];
+      rfids.push(row.RFID);
+      byStrippedName.set(key, rfids);
     });
     const duplicates = [...byStrippedName.entries()].filter(([, rfids]) => rfids.length > 1);
     // Failure output shows the full [strippedName, [rfid, rfid, ...]] entries via
@@ -47,7 +51,7 @@ describe('Music Database.csv data integrity (real CSV, read-only)', () => {
   it('has a Key present in KeyTranspositionService.TRANSPOSITIONS whenever Key is non-empty (empty allowed for keyless clips)', () => {
     const invalid = validRows
       .filter((row) => row.Key?.trim())
-      .filter((row) => !(row.Key in KeyTranspositionService.TRANSPOSITIONS))
+      .filter((row) => !Object.hasOwn(KeyTranspositionService.TRANSPOSITIONS, row.Key))
       .map((row) => ({ clipName: row['Clip Name'], key: row.Key }));
     expect(invalid).toEqual([]);
   });

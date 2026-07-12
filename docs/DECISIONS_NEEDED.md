@@ -44,7 +44,7 @@ Decision needed (WOW-030):
 
 Why this matters:
 
-- The current design has one structural fragility WOW-030 documents but doesn't remove: pillar identity is inferred entirely from which static IP a UDP packet arrives from. If a device is flashed with the wrong `PILLAR_IP`, physically swapped between pillars without reflashing, or a device's IP is ever misconfigured post-deployment, the backend silently can't place that device's tags (logged as a warning per WOW-017, but not surfaced anywhere visible to an operator mid-show). Carrying the pillar id explicitly in the payload would make the reader itself the single source of truth for its own identity, removing the IP-matching indirection entirely.
+- The current design has one structural fragility WOW-030 documents but doesn't remove: pillar identity is inferred entirely from which static IP a UDP packet arrives from. If a device is flashed with the wrong `PILLAR_IP`, physically swapped between pillars without reflashing, or a device's IP is ever misconfigured post-deployment, the backend silently can't place that device's tags (once WOW-017 lands, this will be logged as an unknown-IP warning — today it's swallowed by a generic catch-and-log with no IP or unknown-pillar framing), and either way nothing is surfaced visibly to an operator mid-show. Carrying the pillar id explicitly in the payload would make the reader itself the single source of truth for its own identity, removing the IP-matching indirection entirely.
 - Not urgent: the current IP-based design already runs the installation successfully, and WOW-030's fix (per-device config file + boot-time serial diagnostic) closes the specific "checked-in default silently maps to no pillar" bug this batch was scoped to fix, without touching the contract.
 
 Options:
@@ -58,7 +58,7 @@ Recommendation:
 - No action needed now. If this is ever revisited, option 3 is the more attractive middle ground — it extends WOW-030's flash-time boot diagnostic into an ongoing runtime cross-check, without option 2's coordinated-migration cost. Worth prioritizing only if a real incident (a device going silently dark because it was swapped without reflashing) makes the gap worth closing.
 
 Blocked until human confirms:
-yes
+no (informational; doesn't block WOW-030's own landing or any other work — recorded for future prioritization only)
 
 ## Software architecture / dependencies
 

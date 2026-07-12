@@ -142,8 +142,8 @@ void printPillarIdentity() {
   } else {
     Serial.println(
       "Derived pillar index: UNKNOWN -- this IP is not in the frozen 192.168.0.101-104 "
-      "pillar range (see docs/HARDWARE_INTEGRATION.md). The backend will silently "
-      "drop this device's tag events. Check PILLAR_IP in secrets.h.");
+      "pillar range (see docs/HARDWARE_INTEGRATION.md). The backend won't be able to "
+      "place this device's tag events on any pillar. Check PILLAR_IP in secrets.h.");
   }
 }
 

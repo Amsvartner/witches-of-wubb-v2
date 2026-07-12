@@ -8,7 +8,7 @@ Project docs live in [`docs/`](docs/). Start with the [project brief](docs/PROJE
 
 ## Setup
 
-You should have `node` 22 (LTS — see `.nvmrc`/`engines` in `package.json`) installed as well as `yarn` installed. See [yarnpkg.com](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable) for insall options.
+You should have `node` 22 (LTS — see `.nvmrc`/`engines` in `package.json`) installed as well as `yarn` installed. See [yarnpkg.com](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable) for install options.
 
 You'll need to make sure that `ableton-js` is installed. You can find the installation steps here: [leolabs/ableton-js](https://github.com/leolabs/ableton-js#prerequisites).
 

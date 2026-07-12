@@ -407,6 +407,13 @@ async function addPhraseLeader(newPhraseLeader: ClipInfo) {
 
 const getTracksAndClips = async () => {
   Logger.info('Fetching tracks and clips from Ableton');
+  // MemoizedClipIndex/FindAllClipsInLoop cache Clip object references keyed
+  // by clipName-pillar with no expiry - stale entries from a previous fetch
+  // would otherwise keep resolving to Clip handles from the old
+  // allAbletonClips array after a re-scan (WOW-021). Clear before
+  // reassigning allAbletonClips below so every fetch starts from empty caches.
+  MemoizedClipIndex.cache.clear?.();
+  FindAllClipsInLoop.cache.clear?.();
   // 2-D array of all the clips, ordered by Track
   allAbletonClips = [];
   tracks = await ableton.song.get('tracks');

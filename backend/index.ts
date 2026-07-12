@@ -9,9 +9,11 @@ import * as nodeOSC from 'node-osc';
 const wsPort: number = parseInt(process.env.WS_SEVER_PORT as string, 10);
 const oscPort: number = parseInt(process.env.OSC_SERVER_PORT as string, 10);
 
-// Bounded so a crash can never hang exit indefinitely waiting on Ableton;
-// ableton-js's own per-command timeout (~2s) alone isn't a tight enough bound
-// across 4 tracks, so this race enforces the bound directly.
+// Races against a bare, ableton-js-independent timer, not against the
+// library's own per-command timeout: ableton-js's handleDisconnect cancels
+// in-flight commands' timeouts on disconnect without ever rejecting them, so
+// a command in flight at that exact moment hangs forever at the library
+// layer. This outer race is what actually bounds the exit in that case.
 const CRASH_EXIT_STOP_TIMEOUT_MS = 1500;
 let isCrashExiting = false;
 

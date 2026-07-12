@@ -154,6 +154,16 @@ async function handleTimeout() {
 
   queuedClips.forEach((queuedClip, pillar) => {
     if (!queuedClip) return;
+    // Mirrors stopOrRemoveClipFromQueue's queued-removal branch: pitch_coarse
+    // is a persistent Ableton clip-slot parameter, so a clip key-lock had
+    // transposed while queued must be reset before it's dropped, or it stays
+    // wrongly transposed for its next unrelated use.
+    if (keyLockEnabled) {
+      const queuedClipsInLoop = FindAllClipsInLoop(queuedClip.clipName, pillar);
+      queuedClipsInLoop.forEach(
+        (clip) => clip !== null && transposeClipToNewKey({ ...queuedClip, clip }, ''),
+      );
+    }
     queuedClips[pillar] = null;
     OutgoingEvents.emitEventWithoutResetingTimout('clip_unqueued', {
       ...queuedClip,

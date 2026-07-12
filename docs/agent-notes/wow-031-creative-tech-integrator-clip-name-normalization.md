@@ -6,7 +6,7 @@
 
 ## Ticket
 
-WOW-031 — see `docs/TICKETS_002_BUGS.md`. This ticket has an explicit, unambiguous stop condition: _"before changing matching behavior, confirm the actual Live set naming convention with the human ... Stop conditions: Human cannot confirm the Live naming convention → stop; do not align normalizations on a guess."_ No pre-answered decision about Ableton Live Set clip naming exists anywhere in `docs/DECISIONS_NEEDED.md`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, or `AGENTS.md` — checked all four before proceeding. **This PR is a partial landing, opened as a draft, blocked on that human confirmation.**
+WOW-031 — see `docs/TICKETS_002_BUGS.md`. This ticket has an explicit, unambiguous stop condition: _"before changing matching behavior, confirm the actual Live set naming convention with the human ... Stop conditions: Human cannot confirm the Live naming convention → stop; do not align normalizations on a guess."_ No pre-answered decision about Ableton Live Set clip naming exists anywhere in `docs/DECISIONS_NEEDED.md`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, `AGENTS.md`, or `docs/ABLETON_INTEGRATION.md` — checked all five before proceeding (general reviewer independently checked `ABLETON_INTEGRATION.md` too and confirmed the same: no mention of asterisks or naming convention, "observed from code" only). **This PR is a partial landing, opened as a draft, blocked on that human confirmation.**
 
 ## What "the Live set naming convention" actually means, precisely
 
@@ -27,6 +27,8 @@ Added `backend/util/ClipNameUtil.ts` (`normalizeClipName`, matching `.replace(/[
 ### Bonus finding: a real, currently-inert latent bug this closes
 
 `CsvUtil.ts` built `ClipNameToInfoMap`'s keys by stripping spaces only (asterisks kept), while `AbletonAdapter.ts:441` (originally, now via the shared helper) looked that same map up by stripping **both** spaces and asterisks. If any CSV `Clip Name` ever contained an asterisk, the map would have been keyed with the asterisk still in it, but every lookup would strip it — a guaranteed key mismatch, silently returning `undefined` metadata for that clip's `playing_slot_index` resolution. **Verified empirically that this is inert today**: read the actual `Music Database.csv` directly (154 data rows) and confirmed zero rows contain a literal `*` anywhere, in any column, not just Clip Name. So this fix is a byte-for-byte no-op against current data, closing a bug that would otherwise silently reactivate the moment anyone adds an asterisk to a CSV clip name. Added a dedicated regression test for this (`backend/util/test/CsvUtil.test.ts`), mutation-tested by reverting to the old space-only regex and confirming it fails exactly as expected.
+
+**Additional context confirming this is even more inert than initially stated, per general reviewer's finding**: `parseCsv`'s two-site fix is what actually matters (it runs on every backend startup, per `MusicDatabaseService.ts:20`). The _other_ `CsvUtil.ts` site this PR touches, `enrichRecommendations`, is currently **dead code** — its only call site (`MusicDatabaseService.ts:22-24`) is commented out, and this is already independently documented elsewhere in the codebase (`sim/test/music-database.test.ts`'s "does not attach recommendedClips — EnrichRecommendations is disabled in the real backend" test title). So half of this fix's `CsvUtil.ts` surface isn't just inert against current data — it isn't executed by the running backend at all today.
 
 ## What was deliberately NOT done (blocked)
 

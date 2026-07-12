@@ -63,17 +63,24 @@ order; branching from WOW-016's tip avoids that risk entirely.
     WOW-019's already-gated file - not fixed here, flagged as a follow-up
     instead; see below.)
 - `toggleSong` now returns early (logging a warning, never calling
-  `socket.emit`) if `!isConnected` - a defense-in-depth backstop.
+  `socket.emit`) if `!isConnected`. **Correction (general-reviewer nit)**:
+  this isn't merely a "defense-in-depth backstop" alongside the CSS layer
+  below - `pointer-events-none` only blocks mouse/touch activation; a
+  focused `ClipButton` is still reachable and activatable via keyboard
+  (Enter/Space), which never goes through `pointer-events`. For keyboard
+  input, this guard is the _only_ thing preventing an emit while
+  disconnected, not a secondary layer.
 - UI: a "Connecting to backend…" banner shown only while `!isConnected`,
   and the entire clip-button grid gets `opacity-50 pointer-events-none`
   while disconnected. **`ClipButton.tsx` itself is untouched** (it isn't in
   this ticket's allowed files, and has no `disabled` prop to add one
   without touching it) - the grid-level wrapper achieves both the visual
-  dimming and functional inertness without needing one. Confirmed live in a
-  real browser: `pointer-events-none` actually prevents a genuine mouse
-  click from ever reaching the button (unlike `fireEvent.click()` in a
-  jsdom test, which bypasses CSS pointer-events entirely - so the `toggleSong`
-  guard is the thing the component tests can exercise, while the CSS layer
+  dimming and functional inertness (for mouse/touch) without needing one.
+  Confirmed live in a real browser: `pointer-events-none` actually prevents
+  a genuine mouse click from ever reaching the button (unlike
+  `fireEvent.click()` in a jsdom test, which bypasses CSS pointer-events
+  entirely - so the `toggleSong` guard is the thing the component tests can
+  exercise, while the CSS layer
   is the thing that actually protects a real operator's real click).
 
 ## Tests (`DebugModalContainer.test.tsx`)

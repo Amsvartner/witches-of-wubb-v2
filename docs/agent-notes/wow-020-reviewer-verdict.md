@@ -6,9 +6,7 @@ ever.") and correctly declined to check this file out or commit it itself,
 per the same pattern already established on WOW-018/019/024. This file
 transcribes its reported findings verbatim/faithfully.
 
-## Verdict: APPROVE-WITH-NITS (scope/quality) — was conditional on the
-
-## required specialist sign-off, now obtained
+## Verdict: APPROVE-WITH-NITS (scope/quality) — was conditional on the required specialist sign-off, now obtained
 
 Per the reviewer's own non-negotiables it couldn't approve a diff lacking
 a required specialist review at the time it ran. The ticket mandates

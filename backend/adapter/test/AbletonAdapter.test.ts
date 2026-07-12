@@ -26,7 +26,7 @@ describe('AbletonAdapter.parseRemoteScriptVersion', () => {
     return filePath;
   }
 
-  it('parses a real ableton-js midi-script version.py (double-quoted)', () => {
+  it("parses a double-quoted version string, matching midi-script/version.py's own format", () => {
     const filePath = writeFixture('version = "3.1.5"\n');
     expect(AbletonAdapter.parseRemoteScriptVersion(filePath)).toBe('3.1.5');
   });
@@ -34,6 +34,11 @@ describe('AbletonAdapter.parseRemoteScriptVersion', () => {
   it('parses single-quoted version strings', () => {
     const filePath = writeFixture("version = '3.7.0'\n");
     expect(AbletonAdapter.parseRemoteScriptVersion(filePath)).toBe('3.7.0');
+  });
+
+  it('parses pre-release/build-suffixed versions (e.g. ableton-js historical "2.2.1-0")', () => {
+    const filePath = writeFixture('version = "2.2.1-0"\n');
+    expect(AbletonAdapter.parseRemoteScriptVersion(filePath)).toBe('2.2.1-0');
   });
 
   it('tolerates extra whitespace around the equals sign', () => {

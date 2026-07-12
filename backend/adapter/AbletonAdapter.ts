@@ -57,11 +57,14 @@ const KEY_LEADER_ORDER = [ClipTypes.Vox, ClipTypes.Melody, ClipTypes.Bass, ClipT
 
 // Pure: reads a `version = "X.Y.Z"` line from an AbletonJS midi-script version.py-style
 // file. Returns undefined (never throws) if the file is missing or unparseable - a missing
-// remote script is an expected, non-fatal state (e.g. before first install).
+// remote script is an expected, non-fatal state (e.g. before first install). Captures
+// anything between the quotes (not just digits/dots) so pre-release/build-suffixed
+// versions like ableton-js's own historical "2.2.1-0" still parse instead of silently
+// falling through to "can't read version, skip check".
 function parseRemoteScriptVersion(filePath: string): Maybe<string> {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    return content.match(/version\s*=\s*["']([\d.]+)["']/)?.[1];
+    return content.match(/version\s*=\s*["']([^"']+)["']/)?.[1];
   } catch {
     return undefined;
   }
@@ -133,7 +136,8 @@ async function startAbleton() {
         "Preferences → Link/Tempo/MIDI; (3) the installed remote-script version doesn't " +
         'match this npm package (see the pre-flight version check above). Remediation for (3): ' +
         "copy backend/node_modules/ableton-js/midi-script/ into Live's Remote Scripts folder " +
-        `as "AbletonJS" and restart Live. Original error: ${err}`,
+        'as "AbletonJS" and restart Live.',
+      { cause: err instanceof Error ? err : new Error(String(err)) },
     );
   }
   await logConnectedRemoteScriptVersion();

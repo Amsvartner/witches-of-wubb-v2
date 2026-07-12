@@ -6,10 +6,12 @@ This example may be copied under the terms of the MIT license, see the LICENSE f
 #include <ArtnetWifi.h>
 #include <Arduino.h>
 #include <FastLED.h>
+#include "secrets.h"
 
-// Wifi settings
-const char* ssid = "wubb-net";
-const char* password = "audioshitstorm";
+// Wifi settings — real values live in secrets.h (gitignored).
+// Copy secrets.h.example to secrets.h and fill in the real network credentials.
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 
 // UPDATE ME!!!
 IPAddress ip(192, 168, 0, 65);

@@ -25,3 +25,6 @@ dist-ssr
 *.sw?
 
 tsconfig.tsbuildinfo
+
+# Arduino secrets (WOW-028) — per-sketch WiFi credentials, never committed
+Arduino/**/secrets.h

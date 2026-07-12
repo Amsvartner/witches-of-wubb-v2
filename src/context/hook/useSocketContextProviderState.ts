@@ -9,21 +9,30 @@ import { Logger } from '~/util/Logger';
 export const useSocketContextProviderState = (): Socket => {
   const [socket, setSocket] = useState<Socket>({} as Socket);
 
+  // Runs exactly once per mount: the connection itself must not be torn down
+  // and recreated just because `socket.connected` flips (that was the old
+  // dependency, and it meant this effect could re-run mid-connection). The
+  // `connect` handler below still fires on every future reconnect too - it's
+  // the same socket.io behavior useAbletonContextProviderState now relies on
+  // for its own re-fetch-on-reconnect fix (WOW-019).
   useEffect(() => {
-    if (!socket.connected) {
-      const sock = io(
-        `${import.meta.env.VITE_WS_SERVER_ADDRESS}:${import.meta.env.VITE_WS_SERVER_PORT}`,
-      );
+    const sock = io(
+      `${import.meta.env.VITE_WS_SERVER_ADDRESS}:${import.meta.env.VITE_WS_SERVER_PORT}`,
+    );
 
-      sock.on('connect', () => {
-        setSocket(sock);
-        Logger.debug('Connected to socket.io server');
-      });
-      sock.onAny((event, ...args) => {
-        Logger.debug(`${event} received with:`, args);
-      });
-    }
-  }, [socket.connected]);
+    sock.on('connect', () => {
+      setSocket(sock);
+      Logger.debug('Connected to socket.io server');
+    });
+    sock.onAny((event, ...args) => {
+      Logger.debug(`${event} received with:`, args);
+    });
+
+    return () => {
+      sock.offAny();
+      sock.disconnect();
+    };
+  }, []);
 
   return socket;
 };

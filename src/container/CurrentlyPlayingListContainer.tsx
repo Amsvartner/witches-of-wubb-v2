@@ -8,18 +8,22 @@ export const CurrentlyPlayingListContainer = (): JSX.Element => {
   return (
     <div id='inner_playing' className='w-screen relative'>
       <div id='pillars' className='w-screen grid grid-cols-2 gap-8 justify-items-center'>
-        {[1, 2, 3, 4]?.map((pillar, index) => {
+        {[1, 2, 3, 4].map((pillar, index) => {
           const playing = playingClips[index];
           const queued = queuedClips[index];
           const stopping = stoppingClips[index];
           const info = queued ?? playing ?? stopping;
 
-          let clipName = info?.clipName?.trimStart() ?? '';
+          let clipName = '';
 
           if (info?.artist && info?.songTitle) {
             clipName = `${info?.artist} - ${info?.songTitle}`;
           } else {
-            clipName = '';
+            // Intentionally blank, not a fallback to info?.clipName - that's an
+            // internal CSV/Ableton clip identifier (e.g. "Wicked Casting"), not
+            // a visitor-friendly display name. No clip active, or a clip
+            // missing artist/songTitle metadata, both show nothing rather than
+            // that raw string.
           }
 
           // determine the color-blur color based on the track type
@@ -30,7 +34,11 @@ export const CurrentlyPlayingListContainer = (): JSX.Element => {
               <div className='object-scale-down grid grid-cols-4'>
                 <div
                   id='bpm'
-                  className={`col-start-${index % 2 === 0 ? 2 : 1} col-span-3 font-fondamento`}
+                  className={
+                    index % 2 === 0
+                      ? 'col-start-2 col-span-3 font-fondamento'
+                      : 'col-start-1 col-span-3 font-fondamento'
+                  }
                 >
                   {clipTempo[index] ? `${Math.ceil(clipTempo[index] as number)} ` : ``}BPM
                 </div>

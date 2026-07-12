@@ -2,7 +2,7 @@
 
 Status: **observed** — documented from code reading on 2026-07-09.
 
-> **Scope note (ADR-004):** current work is frontend-only. Everything below the socket.io boundary (backend, Ableton, OSC, hardware) is read-only reference. The socket.io event contract is the hard boundary the UI codes against; an offline simulator (ADR-001) stands in for the backend during development.
+> **Scope note (ADR-004):** current work is frontend-only. Everything below the socket.io boundary (backend, Ableton, OSC, hardware) is read-only reference, outside two scoped exceptions documented in ADR-004 (the WOW-011 conventions migration; the `docs/TICKETS_002_BUGS.md` WOW-014–WOW-032 batch). The socket.io event contract is the hard boundary the UI codes against; an offline simulator (ADR-001) stands in for the backend during development.
 
 ## Observed architecture
 

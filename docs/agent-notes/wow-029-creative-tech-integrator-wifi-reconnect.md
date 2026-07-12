@@ -70,3 +70,14 @@ One further implementation detail worth the human's attention during that same b
 - [x] No new/renamed OSC/Art-Net addresses, no pillar IP map changes
 - [x] Reconnect/fallback transitions must not strobe — **hardware-safety-reviewer sign-off required per ticket** — requested in PR; scope for this review is the landed reconnection-logic-only change (confirming zero visible LED behavior change and no strobe/flicker risk in what _was_ touched), not a chosen fallback/transition (there isn't one yet)
 - [x] No visible LED behavior change in this PR at all — the actual "must not strobe" concern applies to the eventual follow-up once the decision is answered, not to this PR's contents
+
+## Restack note — 2026-07-12
+
+WOW-028 (PR #15) has been deferred by the human. This branch was rebased off
+`feat/wow-028-wifi-secrets` onto `main` (dropping WOW-028's commits) and PR #30
+retargeted to `main`. The "stacked on" line at the top of this note is
+historical. The reconnect change itself never depended on the secrets.h
+pattern — it only references the `ssid`/`password`/`ip` globals, which exist
+identically (as plaintext, pending WOW-028) on `main` — so every WOW-029-owned
+hunk is byte-identical to what the reviews below signed off on; only the base
+changed.

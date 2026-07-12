@@ -6,8 +6,18 @@ import { AbletonAdapter } from './adapter/AbletonAdapter';
 import { Logger } from './util/Logger';
 import * as nodeOSC from 'node-osc';
 
-const wsPort: number = parseInt(process.env.WS_SEVER_PORT as string, 10);
+const wsPort: number = parseInt(process.env.WS_SERVER_PORT as string, 10);
 const oscPort: number = parseInt(process.env.OSC_SERVER_PORT as string, 10);
+
+process.on('unhandledRejection', (reason) => {
+  Logger.error(reason, 'Unhandled promise rejection');
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  Logger.error(err, 'Uncaught exception');
+  process.exit(1);
+});
 
 async function main() {
   await AbletonAdapter.startAbleton();
@@ -36,4 +46,7 @@ async function main() {
   });
 }
 
-main();
+main().catch((err) => {
+  Logger.error(err, 'Fatal error during backend startup');
+  process.exit(1);
+});

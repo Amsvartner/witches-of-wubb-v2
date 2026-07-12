@@ -40,7 +40,7 @@ if (!scenario) {
   process.exit(1);
 }
 
-// Demo aid: the real 3m/30s idle timeout (backend/ableton-api.ts:19-20) can
+// Demo aid: the real 3m/30s idle timeout (backend/adapter/AbletonAdapter.ts) can
 // be shortened to see timeout_warning quickly. Invalid values are ignored
 // with a warning so a typo can't produce 0ms/NaN timers.
 function envMs(name: string): number | undefined {
@@ -88,7 +88,7 @@ io.on('connection', (socket) => {
   };
 
   // Tag events — websocket variants of /new/tag and /departed/tag
-  // (backend/events/incoming-events.ts:42-65)
+  // (backend/event/IncomingEvents.ts)
   socket.on('/new/tag', (data: TagDetectionData) => {
     logReceived('/new/tag', data);
     simulator.handleNewTag(data);
@@ -98,7 +98,7 @@ io.on('connection', (socket) => {
     simulator.handleDepartedTag(data);
   });
 
-  // Ack-style requests (backend/events/incoming-events.ts:110-176)
+  // Ack-style requests (backend/event/IncomingEvents.ts)
   socket.on('get_playing_clips', (_, callback) => {
     logReceived('get_playing_clips');
     callback(simulator.getPlayingClips());
@@ -133,7 +133,7 @@ io.on('connection', (socket) => {
   });
 
   // Fire-and-forget requests — the real backend registers no ack callback
-  // (backend/events/incoming-events.ts:164,177)
+  // (backend/event/IncomingEvents.ts)
   socket.on('set_track_volume', (data: SetTrackVolumeInputType) => {
     logReceived('set_track_volume', data);
     simulator.setTrackVolume(data);

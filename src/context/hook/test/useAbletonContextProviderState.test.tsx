@@ -2,6 +2,11 @@ import { act, renderHook } from '@testing-library/react';
 import { PropsWithChildren } from 'react';
 import { Socket } from 'socket.io-client';
 import { vi } from 'vitest';
+<<<<<<< HEAD
+=======
+import type { BrowserClipInfo } from 'backend/type/BrowserClipInfo';
+import { ClipTypes } from 'backend/type/ClipTypes';
+>>>>>>> origin/main
 import { SocketContext } from '~/context/SocketContext';
 import { useAbletonContextProviderState } from '~/context/hook/useAbletonContextProviderState';
 
@@ -49,15 +54,20 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
 
     // The real assertion is that rendering doesn't throw calling methods
     // that don't exist on the placeholder object - see
+<<<<<<< HEAD
     // useAbletonContextProviderState's guard, which checks for real `on`/
     // `off` functions rather than `.connected` (WOW-033) precisely so it
     // can still tell this true placeholder apart from a real socket that's
     // merely disconnected, covered next.
+=======
+    // useAbletonContextProviderState's `if (!socket.connected) return;` guard.
+>>>>>>> origin/main
     expect(() =>
       renderHook(() => useAbletonContextProviderState(), { wrapper: withSocket(placeholder) }),
     ).not.toThrow();
   });
 
+<<<<<<< HEAD
   it('attaches listeners for a real-but-not-yet-connected socket, so a live connect is not missed (WOW-033 connect transition)', () => {
     const fake = createFakeSocket(false);
     renderHook(() => useAbletonContextProviderState(), {
@@ -84,6 +94,8 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
     expect(getCalls('get_tempo')).toHaveLength(2);
   });
 
+=======
+>>>>>>> origin/main
   it('fetches state and subscribes once rendered with an already-connected socket', () => {
     const fake = createFakeSocket(true);
     renderHook(() => useAbletonContextProviderState(), {
@@ -160,3 +172,147 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
     expect(fake.handlerCount('master-key_changed')).toBe(0);
   });
 });
+<<<<<<< HEAD
+=======
+
+function buildClip(pillar: number, clipName: string): BrowserClipInfo {
+  return {
+    pillar,
+    clipName,
+    rfid: `rfid-${pillar}-${clipName}`,
+    type: ClipTypes.Vox,
+    assetName: `${clipName}.wav`,
+  };
+}
+
+describe('useAbletonContextProviderState ingredient_removed pillar scoping (WOW-026)', () => {
+  it("leaves pillar A's own state untouched, and correctly clears pillar B's own queued clip, when the same clip name is playing on pillar A while ingredient_removed arrives for pillar B (the actual WOW-026 bug)", () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    const playingOnA = buildClip(0, 'Shared Name');
+    const queuedOnB = buildClip(1, 'Shared Name');
+
+    act(() => {
+      fake.trigger('clip_started', playingOnA);
+    });
+    act(() => {
+      fake.trigger('clip_queued', queuedOnB);
+    });
+
+    expect(result.current.playingClips[0]).toEqual(playingOnA);
+    expect(result.current.queuedClips[1]).toEqual(queuedOnB);
+
+    act(() => {
+      fake.trigger('ingredient_removed', queuedOnB);
+    });
+
+    // Pillar A's own playing clip must be completely unaffected by an event
+    // whose pillar is B.
+    expect(result.current.playingClips[0]).toEqual(playingOnA);
+
+    // The actual bug: the old code decided "was it playing?" by scanning
+    // ALL pillars for a name match, found pillar A's clip, and wrongly took
+    // the playing-clip branch for pillar B - leaving B's real queued clip
+    // stuck forever (never reaching the queued branch) and marking B as
+    // "stopping" a clip it never played.
+    expect(result.current.queuedClips[1]).toBeFalsy();
+    expect(result.current.stoppingClips[1]).toBeFalsy();
+  });
+
+  it('still handles the normal single-pillar playing removal correctly', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    const playing = buildClip(2, 'Solo Clip');
+    act(() => {
+      fake.trigger('clip_started', playing);
+    });
+    expect(result.current.playingClips[2]).toEqual(playing);
+
+    act(() => {
+      fake.trigger('ingredient_removed', playing);
+    });
+
+    expect(result.current.playingClips[2]).toBeFalsy();
+    expect(result.current.stoppingClips[2]).toEqual(playing);
+  });
+
+  it('still handles the normal single-pillar queued removal correctly', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    const queued = buildClip(3, 'Waiting Clip');
+    act(() => {
+      fake.trigger('clip_queued', queued);
+    });
+    expect(result.current.queuedClips[3]).toEqual(queued);
+
+    act(() => {
+      fake.trigger('ingredient_removed', queued);
+    });
+
+    expect(result.current.queuedClips[3]).toBeFalsy();
+  });
+
+  it('does not fabricate a stopping clip on pillar B when a same-named clip is only playing on pillar A and pillar B has nothing at all', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    const playingOnA = buildClip(0, 'Ghost Clip');
+    act(() => {
+      fake.trigger('clip_started', playingOnA);
+    });
+
+    // Pillar B (1) never had anything playing or queued.
+    act(() => {
+      fake.trigger('ingredient_removed', buildClip(1, 'Ghost Clip'));
+    });
+
+    // The old .some() scan would match pillar A and wrongly fabricate a
+    // "stopping" clip on pillar B, which never played anything - exactly the
+    // symptom the ticket itself describes ("set stopping-state on the other
+    // pillar's UI slot").
+    expect(result.current.stoppingClips[1]).toBeFalsy();
+    expect(result.current.playingClips[1]).toBeFalsy();
+    expect(result.current.queuedClips[1]).toBeFalsy();
+    expect(result.current.playingClips[0]).toEqual(playingOnA);
+  });
+
+  it("does not wipe pillar B's own queued clip when a same-named clip is only queued on pillar A (closes the queued branch's own coverage gap)", () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    const queuedOnA = buildClip(2, 'Other Clip');
+    const queuedOnB = buildClip(3, 'My Own Clip');
+    act(() => {
+      fake.trigger('clip_queued', queuedOnA);
+    });
+    act(() => {
+      fake.trigger('clip_queued', queuedOnB);
+    });
+
+    // Removal event for pillar B names pillar A's queued clip, not B's own.
+    act(() => {
+      fake.trigger('ingredient_removed', buildClip(3, 'Other Clip'));
+    });
+
+    // The old code's queued branch also scanned every pillar via .some(),
+    // so it would match pillar A's "Other Clip" and wrongly clear pillar B's
+    // real queued clip ("My Own Clip") even though B's own slot never
+    // matched the removed name. Pillar A's own queue must stay untouched too.
+    expect(result.current.queuedClips[3]).toEqual(queuedOnB);
+    expect(result.current.queuedClips[2]).toEqual(queuedOnA);
+  });
+});
+>>>>>>> origin/main

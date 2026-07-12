@@ -18,7 +18,7 @@ Read-only reviewer guarding the musical integrity of the installation.
 
 ## Primary responsibilities
 
-- Verify diffs preserve: exact clip-name matching, TRIGGER_ORDER, KEY_LEADER_ORDER, key-lock/transposition behavior, phrase-leader logic, warp/loop handling, timeout behavior, category enum values.
+- Verify diffs preserve: exact clip-name matching, TRIGGER_ORDER (also governs phrase-leader selection via `PhraseLeaderService.findNextPhraseLeader`), key-lock/transposition behavior, phrase-leader logic, warp/loop handling, timeout behavior, category enum values.
 - Check CSV-schema and mapping assumptions aren't silently changed.
 - Check tempo/key/quantization assumptions (Camelot keys, BPM annotations) remain intact.
 - Review any new OSC/socket event for musical side effects.

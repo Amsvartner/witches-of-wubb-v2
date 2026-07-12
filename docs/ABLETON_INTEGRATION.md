@@ -14,8 +14,8 @@ Status: observed from `backend/adapter/AbletonAdapter.ts`, `backend/type/`, `bac
 
 ## Musical constraints
 
-- **Trigger order:** `Drums → Melody → Bass → Vox` (`TRIGGER_ORDER`).
-- **Key-leader order:** `Vox → Melody → Bass → Drums` (`KEY_LEADER_ORDER`); a "phrase leader" concept determines timing/key reference (`backend/service/PhraseLeaderService.ts`).
+- **Trigger order:** `Drums → Melody → Bass → Vox` (`TRIGGER_ORDER`). Also governs phrase-leader selection: `PhraseLeaderService.findNextPhraseLeader` sorts playing clips by this same order and picks the first, determining the timing/key reference clip.
+- **Correction (WOW-023):** this doc previously described a separate "key-leader order" (`KEY_LEADER_ORDER`, `Vox → Melody → Bass → Drums`) as governing phrase-leader/timing-key reference. Verified by reading `PhraseLeaderService.ts` directly: that constant was never actually referenced by it, or anywhere else in the codebase (confirmed via a repo-wide grep before removing it as dead code) — `TRIGGER_ORDER` alone governs both triggering priority and phrase-leader selection, as stated above.
 - **Key lock:** enabled by default (`keyLockEnabled = true`); a master key is set from playing clips and others are transposed to match via `KeyTranspositionService.ts` (Camelot-style notation, e.g. `4A` minor). Departing clips clean up their transposition.
 - **Tempo:** get/set via websocket events; clips are BPM-annotated in the CSV (multiple BPMs exist, e.g. 86). Warp/quantization assumptions: clips have warp markers; details TBD.
 - **Timeout:** 3 min inactivity → `stop_all_clips` on all 4 tracks, master key reset.

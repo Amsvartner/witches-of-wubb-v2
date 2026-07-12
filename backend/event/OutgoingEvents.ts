@@ -16,7 +16,7 @@ function emit(eventName: string, data?: OutgoingEventData) {
   }
 }
 
-function emitEventWithoutResetingTimout(eventName: string, data?: OutgoingEventData) {
+function emitEventWithoutResettingTimeout(eventName: string, data?: OutgoingEventData) {
   emit(eventName, data);
 }
 
@@ -27,5 +27,5 @@ function emitEvent(eventName: string, data?: OutgoingEventData) {
 
 export const OutgoingEvents = {
   emitEvent,
-  emitEventWithoutResetingTimout,
+  emitEventWithoutResettingTimeout,
 };

@@ -39,7 +39,7 @@ This project consists of a backend and frontend that you'll need to start indepe
 
 This package assumes that your lighting server is `127.0.0.1`. If that's not the case, you'll want to change that in the [.env](https://github.com/jonathan3692bf/witches-of-wubb/blob/main/.env) file.
 
-You can also change the port of the `socket.io` server via `WS_SEVER_PORT` and the exposed port of the `osc` server (for RFID events) via `OSC_SERVER_PORT`.
+You can also change the port of the `socket.io` server via `WS_SERVER_PORT` and the exposed port of the `osc` server (for RFID events) via `OSC_SERVER_PORT`.
 
 #### Starting the backend
 
@@ -52,7 +52,7 @@ yarn start-backend
 At which point you will have:
 
 - an OSC server listening on port `9000`, or whatever you've assigned to `OSC_SERVER_PORT`
-- a Websocket server listening on port `3335`, or whatever you've assigned to `WS_SEVER_PORT`
+- a Websocket server listening on port `3335`, or whatever you've assigned to `WS_SERVER_PORT`
 - a process listening to the socket exposed by `ableton-js`
 
 ##### Troubleshooting: backend hangs or exits at startup

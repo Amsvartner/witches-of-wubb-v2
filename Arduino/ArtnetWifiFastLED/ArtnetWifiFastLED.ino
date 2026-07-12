@@ -29,6 +29,17 @@ const int maxUniverses = numberOfChannels / 510 + ((numberOfChannels % 510) ? 1 
 bool universesReceived[maxUniverses];
 bool sendFrame = 1;
 
+// Wi-Fi reconnect state (WOW-029). loop() monitors WiFi.status() and retries
+// with backoff instead of freezing forever after the first drop. This is the
+// safe half of WOW-029's fix: reconnection logic only, zero LED behavior
+// change. What the LEDs should visibly show during an outage is a show-design
+// decision - see docs/DECISIONS_NEEDED.md ("Hardware / firmware") - until
+// that's answered, the strip simply keeps whatever frame Art-Net last set.
+bool wifiWasConnected = true;
+unsigned long lastWifiRetryMs = 0;
+unsigned long wifiRetryIntervalMs = 1000; // starts at 1s, backs off on repeated failure
+const unsigned long WIFI_RETRY_INTERVAL_MAX_MS = 30000; // cap at 30s so a long outage doesn't spam WiFi.begin()
+
 
 // connect to wifi – returns true if successful or false if not
 bool ConnectWifi(void)
@@ -69,6 +80,28 @@ bool ConnectWifi(void)
   }
 
   return state;
+}
+
+// Non-blocking reconnect attempt (WOW-029): called from loop() once already
+// disconnected. Unlike ConnectWifi()'s blocking retry-loop (fine at boot,
+// would freeze artnet.read() from ever running again if reused here), this
+// only re-issues WiFi.begin() once wifiRetryIntervalMs has elapsed since the
+// last attempt, backing off (capped) on each consecutive failure.
+void attemptWifiReconnect()
+{
+  unsigned long now = millis();
+  if (now - lastWifiRetryMs < wifiRetryIntervalMs)
+  {
+    return;
+  }
+  lastWifiRetryMs = now;
+
+  Serial.println("Wi-Fi disconnected, attempting reconnect...");
+  WiFi.disconnect();
+  WiFi.config(ip);
+  WiFi.begin(ssid, password);
+
+  wifiRetryIntervalMs = min(wifiRetryIntervalMs * 2, WIFI_RETRY_INTERVAL_MAX_MS);
 }
 
 void initTest()
@@ -152,7 +185,17 @@ void onDmxFrame(uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* d
 void setup()
 {
   Serial.begin(115200,SERIAL_8N1, -1, -1, false, 1000);
-  ConnectWifi();
+  // WOW-029: ConnectWifi()'s return value used now (was previously
+  // discarded) so a boot-time failure is at least visible in the serial
+  // log, instead of silently proceeding with no network. No LED change
+  // here - a visible boot-failure indicator is part of the same still-open
+  // show-design decision as the mid-show fallback state (see the
+  // attemptWifiReconnect() comment above and docs/DECISIONS_NEEDED.md).
+  wifiWasConnected = ConnectWifi();
+  if (!wifiWasConnected)
+  {
+    Serial.println("Booting without Wi-Fi connectivity - will keep retrying in the background once loop() starts.");
+  }
   artnet.begin();
   FastLED.addLeds<WS2812, dataPin, GRB>(leds, numLeds);
   initTest();
@@ -164,6 +207,25 @@ void setup()
 
 void loop()
 {
+  // WOW-029: track connection state and reconnect in the background instead
+  // of never checking WiFi.status() again after setup(). No LED behavior
+  // change - see attemptWifiReconnect()'s comment above.
+  bool wifiConnected = (WiFi.status() == WL_CONNECTED);
+  if (!wifiConnected)
+  {
+    if (wifiWasConnected)
+    {
+      Serial.println("Wi-Fi connection lost.");
+    }
+    attemptWifiReconnect();
+  }
+  else if (!wifiWasConnected)
+  {
+    Serial.println("Wi-Fi reconnected.");
+    wifiRetryIntervalMs = 1000; // reset backoff for the next outage
+  }
+  wifiWasConnected = wifiConnected;
+
   // we call the read function inside the loop
   artnet.read();
 }

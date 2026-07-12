@@ -4,6 +4,7 @@ import { ClipNameToInfoMapType } from '../type/ClipNameToInfoMapType';
 import { CsvRow } from '../type/CsvRow';
 import { RFIDToClipMapType } from '../type/RFIDToClipMapType';
 import { ClipNameUtil } from './ClipNameUtil';
+import { Logger } from './Logger';
 
 function parseCsv(
   RFIDToClipMap: RFIDToClipMapType,
@@ -18,6 +19,7 @@ function parseCsv(
   const songTitle = String(row['Song Title']);
   const ingredientName = String(row['Ingredient Name / Description']);
   const key = String(row['Key']);
+  const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
 
   if (clipName?.trim() && rfid?.trim()) {
     RFIDToClipMap[rfid] = {
@@ -29,15 +31,17 @@ function parseCsv(
       ingredientName,
       key,
     };
-    ClipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)] = {
-      rfid,
-      type,
-      assetName,
-      artist,
-      songTitle,
-      ingredientName,
-      key,
-    };
+    if (normalizedClipName) {
+      ClipNameToInfoMap[normalizedClipName] = {
+        rfid,
+        type,
+        assetName,
+        artist,
+        songTitle,
+        ingredientName,
+        key,
+      };
+    }
   }
 }
 
@@ -85,10 +89,14 @@ function enrichRecommendations(
   };
 
   const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
-  ClipNameToInfoMap[normalizedClipName] = {
-    ...ClipNameToInfoMap[normalizedClipName],
-    recommendedClips,
-  };
+  if (normalizedClipName) {
+    ClipNameToInfoMap[normalizedClipName] = {
+      ...ClipNameToInfoMap[normalizedClipName],
+      recommendedClips,
+    };
+  } else {
+    Logger.warn(`Could not find clip "${clipName}" in ClipNameToInfoMap while enriching recommendations`);
+  }
 }
 
 export const CsvUtil = {

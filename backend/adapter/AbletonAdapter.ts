@@ -207,12 +207,18 @@ function connectOscServer(server: nodeOSC.Server) {
   oscServer.on('message', IncomingEvents.oscEventHandlers);
 }
 
+// Live-set lookups use the same [* ]-strip normalization as every other
+// comparison site (WOW-031): clip names in the Live set may freely contain
+// spaces and asterisks (human decision 2026-07-12), so the previous
+// trim-only matching would silently fail to locate those clips.
 const MemoizedClipIndex = memoize(
-  (clipName, pillar) =>
-    allAbletonClips[pillar].findIndex((clip) => {
-      return clip?.raw.name.trim() === clipName.trim();
-    }),
-  (clipName, pillar) => `${clipName}-${pillar}`,
+  (clipName, pillar) => {
+    const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
+    return allAbletonClips[pillar].findIndex((clip) => {
+      return clip !== null && ClipNameUtil.normalizeClipName(clip.raw.name) === normalizedClipName;
+    });
+  },
+  (clipName, pillar) => `${ClipNameUtil.normalizeClipName(clipName)}-${pillar}`,
 );
 
 function addWebSocket(s: socketio.Socket) {
@@ -231,10 +237,13 @@ const FindAllClipsInLoop = memoize(
     const firstClipIndex = MemoizedClipIndex(clipName, pillar);
     if (firstClipIndex < 0) return [];
 
+    const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
     const lastClipIndex = allAbletonClips[pillar]
       .slice(firstClipIndex, firstClipIndex + 20)
       .findLastIndex((clip) => {
-        return clip?.raw.name.trim() === clipName.trim();
+        return (
+          clip !== null && ClipNameUtil.normalizeClipName(clip.raw.name) === normalizedClipName
+        );
       });
     Logger.debug(
       `Loop for ${clipName} found on ${pillar + 1} > [${firstClipIndex}, ${
@@ -243,7 +252,7 @@ const FindAllClipsInLoop = memoize(
     );
     return allAbletonClips[pillar].slice(firstClipIndex, firstClipIndex + lastClipIndex + 1);
   },
-  (clipName, pillar) => `${clipName}-${pillar}`,
+  (clipName, pillar) => `${ClipNameUtil.normalizeClipName(clipName)}-${pillar}`,
 );
 
 function queueClip(clipMetadata: ClipMetadataType, pillar: number) {

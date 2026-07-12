@@ -119,4 +119,67 @@ describe('VolumeSliderContainer (WOW-027)', () => {
 
     expect(screen.getByRole('slider')).toHaveValue('0.45');
   });
+
+  it("does not let a pending drag's stale trailing emission undo a Reset pressed moments later (the Reset/throttle race)", () => {
+    const changeTrackVolume = vi.fn();
+    render(<VolumeSliderContainer pillar={1} />, {
+      wrapper: withAbletonContext(
+        buildContextValue({ trackVolume: [0, 0.1, 0, 0], changeTrackVolume }),
+      ),
+    });
+
+    const slider = screen.getByRole('slider');
+    // Leading edge fires immediately; the second change is queued as a
+    // pending trailing call still waiting inside the throttle window.
+    fireEvent.change(slider, { target: { value: '0.2' } });
+    fireEvent.change(slider, { target: { value: '0.3' } });
+    expect(changeTrackVolume).toHaveBeenCalledTimes(1);
+
+    // Reset pressed before that pending 0.3 would have fired.
+    fireEvent.click(screen.getByRole('button', { name: /reset/i }));
+    expect(changeTrackVolume).toHaveBeenLastCalledWith({ pillar: 1, volume: 0.6 });
+
+    // The stale pending drag value must never fire afterward.
+    vi.advanceTimersByTime(1000);
+
+    expect(changeTrackVolume).toHaveBeenCalledTimes(2);
+    expect(changeTrackVolume).toHaveBeenLastCalledWith({ pillar: 1, volume: 0.6 });
+    expect(slider).toHaveValue('0.6');
+  });
+
+  it('does not let a stale leading-edge echo snap the display backward while the user is still dragging', () => {
+    const changeTrackVolume = vi.fn();
+    let currentValue = buildContextValue({ trackVolume: [0.1, 0, 0, 0], changeTrackVolume });
+    function Wrapper() {
+      return (
+        <AbletonContext.Provider value={currentValue}>
+          <VolumeSliderContainer pillar={0} />
+        </AbletonContext.Provider>
+      );
+    }
+
+    const { rerender } = render(<Wrapper />);
+    const slider = screen.getByRole('slider');
+
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: '0.2' } }); // leading edge: 0.2
+    fireEvent.change(slider, { target: { value: '0.5' } }); // user keeps dragging past it
+    expect(slider).toHaveValue('0.5');
+
+    // The leading edge's own broadcast echo (volume_changed: 0.2) lands
+    // back in context while the pointer is still down.
+    currentValue = buildContextValue({ trackVolume: [0.2, 0, 0, 0], changeTrackVolume });
+    rerender(<Wrapper />);
+
+    // Must NOT snap back to the stale 0.2 echo while still dragging.
+    expect(slider).toHaveValue('0.5');
+
+    fireEvent.pointerUp(slider);
+
+    // Once released, a genuinely new external change still syncs normally.
+    currentValue = buildContextValue({ trackVolume: [0.65, 0, 0, 0], changeTrackVolume });
+    rerender(<Wrapper />);
+
+    expect(slider).toHaveValue('0.65');
+  });
 });

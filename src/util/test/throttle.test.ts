@@ -99,4 +99,52 @@ describe('throttle', () => {
 
     expect(fn).toHaveBeenCalledWith('pillar', 2);
   });
+
+  describe('cancel', () => {
+    it('drops a pending trailing call so it never fires', () => {
+      const fn = vi.fn();
+      const throttled = throttle(fn, 100);
+
+      throttled(1); // leading edge
+      throttled(2); // would-be trailing call
+
+      throttled.cancel();
+      vi.advanceTimersByTime(1000);
+
+      expect(fn).toHaveBeenCalledTimes(1);
+      expect(fn).toHaveBeenCalledWith(1);
+    });
+
+    it('does not affect a call already delivered before cancel was requested', () => {
+      const fn = vi.fn();
+      const throttled = throttle(fn, 100);
+
+      throttled(1);
+      throttled.cancel();
+
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('resets the cooldown, so the next call after cancel fires immediately as a fresh leading edge', () => {
+      const fn = vi.fn();
+      const throttled = throttle(fn, 100);
+
+      throttled(1);
+      throttled(2); // queued as pending, then cancelled below
+      throttled.cancel();
+
+      throttled(3);
+
+      expect(fn).toHaveBeenCalledTimes(2);
+      expect(fn).toHaveBeenLastCalledWith(3);
+    });
+
+    it('is a no-op when called with nothing pending', () => {
+      const fn = vi.fn();
+      const throttled = throttle(fn, 100);
+
+      expect(() => throttled.cancel()).not.toThrow();
+      expect(fn).not.toHaveBeenCalled();
+    });
+  });
 });

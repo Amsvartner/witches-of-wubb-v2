@@ -112,4 +112,42 @@ describe('TempoSliderContainer (WOW-027)', () => {
 
     expect(screen.getByText('140')).toBeInTheDocument();
   });
+
+  it('does not let a stale leading-edge echo snap the display backward while the user is still dragging', () => {
+    const changeTempo = vi.fn();
+    let currentValue = buildContextValue({ tempo: 120, changeTempo });
+    function Wrapper() {
+      return (
+        <AbletonContext.Provider value={currentValue}>
+          <TempoSliderContainer />
+        </AbletonContext.Provider>
+      );
+    }
+
+    const { rerender } = render(<Wrapper />);
+    const slider = screen.getByRole('slider');
+
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: '121' } }); // leading edge: 121
+    fireEvent.change(slider, { target: { value: '135' } }); // user keeps dragging past it
+    expect(slider).toHaveValue('135');
+
+    // The leading edge's own ack/broadcast echo (tempo: 121) lands back in
+    // context while the pointer is still down - exactly the scenario the
+    // implementer's own live-verification methodology (a burst of events
+    // faster than one network round trip) would have hit in a real drag.
+    currentValue = buildContextValue({ tempo: 121, changeTempo });
+    rerender(<Wrapper />);
+
+    // Must NOT snap back to the stale 121 echo while still dragging.
+    expect(slider).toHaveValue('135');
+
+    fireEvent.pointerUp(slider);
+
+    // Once released, a genuinely new external change still syncs normally.
+    currentValue = buildContextValue({ tempo: 150, changeTempo });
+    rerender(<Wrapper />);
+
+    expect(slider).toHaveValue('150');
+  });
 });

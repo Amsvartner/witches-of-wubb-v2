@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAbletonContext } from '~/context/hook/useAbletonContext';
 import { throttle } from '~/util/throttle';
 
@@ -14,8 +14,17 @@ export const TempoSliderContainer = (): JSX.Element => {
   // drag position locally for instant feedback, independent of the
   // throttled emission below.
   const [displayTempo, setDisplayTempo] = useState(tempo);
+  // Every set_tempo emission - including this component's own - gets
+  // broadcast back as an ack/tempo_changed and lands in `tempo`. Sync'ing
+  // unconditionally would let a stale leading-edge echo (e.g. the drag's
+  // starting value) snap the display backward mid-drag, before the
+  // trailing emission's own echo catches it back up. Suppress the sync
+  // while the user is actively dragging; the drag's own local updates are
+  // already authoritative until release.
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
+    if (isDraggingRef.current) return;
     setDisplayTempo(tempo);
   }, [tempo]);
 
@@ -25,9 +34,17 @@ export const TempoSliderContainer = (): JSX.Element => {
   );
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const newTempo = parseInt(e.target.value);
+    const newTempo = parseInt(e.target.value, 10);
     setDisplayTempo(newTempo);
     throttledChangeTempo(newTempo);
+  }
+
+  function handleDragStart() {
+    isDraggingRef.current = true;
+  }
+
+  function handleDragEnd() {
+    isDraggingRef.current = false;
   }
 
   return (
@@ -49,6 +66,10 @@ export const TempoSliderContainer = (): JSX.Element => {
           max={MAX_VALUE}
           value={displayTempo}
           onChange={handleChange}
+          onPointerDown={handleDragStart}
+          onPointerUp={handleDragEnd}
+          onPointerCancel={handleDragEnd}
+          onBlur={handleDragEnd}
           className='w-[31vw] h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 custom-tempo-slider'
         />
         <span className='relative text-gray-500 dark:text-gray-400 self-end right-[20px] z-[-1]'>

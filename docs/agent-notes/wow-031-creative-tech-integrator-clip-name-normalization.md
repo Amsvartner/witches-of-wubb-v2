@@ -100,7 +100,7 @@ What changed in response:
 
 With this, every clip-name comparison in `backend/` goes through the single
 helper — the ticket's full acceptance criteria, not just the partial landing.
-Validation: `yarn lint` and `yarn test` (181 tests, incl. the normalization
+Validation: `yarn lint` and `yarn test` (182 tests, incl. the normalization
 suites) green under Node 22. audio-ableton-reviewer re-sign-off required and
 recorded separately, since matching behavior for asterisked/spaced Live names
 changes (from "silently never found" to "found").

@@ -30,6 +30,16 @@ describe('ClipNameUtil.normalizeClipName (WOW-031)', () => {
     );
   });
 
+  it('strips non-space whitespace too (tab, NBSP, newline, BOM), staying a strict superset of the .trim() it replaced', () => {
+    // A Live clip name carrying a pasted trailing tab or non-breaking space
+    // matched its CSV counterpart under the old trim-only lookup sites;
+    // stripping only U+0020 would have silently regressed exactly those names
+    // (audio-ableton-reviewer re-sign-off, Required item).
+    expect(ClipNameUtil.normalizeClipName('Wicked Casting\t')).toBe('WickedCasting');
+    expect(ClipNameUtil.normalizeClipName('Wicked\u00A0Casting')).toBe('WickedCasting');
+    expect(ClipNameUtil.normalizeClipName('\uFEFFWicked Casting\n')).toBe('WickedCasting');
+  });
+
   it('returns an empty string for a name made up entirely of asterisks and spaces', () => {
     expect(ClipNameUtil.normalizeClipName(' * * ')).toBe('');
   });
@@ -38,7 +48,7 @@ describe('ClipNameUtil.normalizeClipName (WOW-031)', () => {
     expect(ClipNameUtil.normalizeClipName('')).toBe('');
   });
 
-  it('leaves other punctuation and casing untouched (only [* ] are stripped)', () => {
+  it('leaves other punctuation and casing untouched (only asterisks and whitespace are stripped)', () => {
     expect(ClipNameUtil.normalizeClipName("Sally Jack's Worms Wort")).toBe("SallyJack'sWormsWort");
   });
 });

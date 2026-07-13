@@ -112,7 +112,7 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     // placeholder and permanently missing the future 'connect' that would
     // otherwise trigger the resync (Copilot review, PR #24 - `.connected`
     // alone can't distinguish "not a real socket yet" from "a real socket
-    // that's momentarily down"; WOW-033, mirroring WOW-024's identical fix
+    // that's momentarily down"; WOW-035, mirroring WOW-024's identical fix
     // in DebugModalContainer.tsx).
     if (typeof socket.on !== 'function' || typeof socket.off !== 'function') {
       // TODO: Show in UI

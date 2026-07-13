@@ -52,7 +52,7 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
     // The real assertion is that rendering doesn't throw calling methods
     // that don't exist on the placeholder object - see
     // useAbletonContextProviderState's guard, which checks for real `on`/
-    // `off` functions rather than `.connected` (WOW-033) precisely so it
+    // `off` functions rather than `.connected` (WOW-035) precisely so it
     // can still tell this true placeholder apart from a real socket that's
     // merely disconnected, covered next.
     expect(() =>
@@ -60,7 +60,7 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
     ).not.toThrow();
   });
 
-  it('attaches listeners for a real-but-not-yet-connected socket, so a live connect is not missed (WOW-033 connect transition)', () => {
+  it('attaches listeners for a real-but-not-yet-connected socket, so a live connect is not missed (WOW-035 connect transition)', () => {
     const fake = createFakeSocket(false);
     renderHook(() => useAbletonContextProviderState(), {
       wrapper: withSocket(fake as unknown as Socket),

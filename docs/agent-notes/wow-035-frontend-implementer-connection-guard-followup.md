@@ -1,4 +1,4 @@
-# WOW-033 — frontend-implementer handoff (connection-guard follow-up)
+# WOW-035 — frontend-implementer handoff (connection-guard follow-up)
 
 Executor: Claude Sonnet 5 (spawned as a follow-up task from the WOW-024 session, `task_094a1ced`)
 Branch: `feat/wow-033-connection-guard-followup`, based on `feat/wow-019-frontend-reconnect-resync` (PR #23, open) — not `main`. The `'connect'` re-fetch listener this ticket's guard protects, and the "extensive test coverage" it extends, only exist on that branch.

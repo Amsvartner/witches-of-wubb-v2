@@ -8,7 +8,7 @@ Project docs live in [`docs/`](docs/). Start with the [project brief](docs/PROJE
 
 ## Setup
 
-You should have `node` (version 21+) installed as well as `yarn` installed. See [yarnpkg.com](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable) for insall options.
+You should have `node` 22 (LTS — see `.nvmrc`/`engines` in `package.json`) installed as well as `yarn` installed. See [yarnpkg.com](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable) for install options.
 
 You'll need to make sure that `ableton-js` is installed. You can find the installation steps here: [leolabs/ableton-js](https://github.com/leolabs/ableton-js#prerequisites).
 
@@ -39,7 +39,7 @@ This project consists of a backend and frontend that you'll need to start indepe
 
 This package assumes that your lighting server is `127.0.0.1`. If that's not the case, you'll want to change that in the [.env](https://github.com/jonathan3692bf/witches-of-wubb/blob/main/.env) file.
 
-You can also change the port of the `socket.io` server via `WS_SEVER_PORT` and the exposed port of the `osc` server (for RFID events) via `OSC_SERVER_PORT`.
+You can also change the port of the `socket.io` server via `WS_SERVER_PORT` and the exposed port of the `osc` server (for RFID events) via `OSC_SERVER_PORT`.
 
 #### Starting the backend
 
@@ -52,7 +52,7 @@ yarn start-backend
 At which point you will have:
 
 - an OSC server listening on port `9000`, or whatever you've assigned to `OSC_SERVER_PORT`
-- a Websocket server listening on port `3335`, or whatever you've assigned to `WS_SEVER_PORT`
+- a Websocket server listening on port `3335`, or whatever you've assigned to `WS_SERVER_PORT`
 - a process listening to the socket exposed by `ableton-js`
 
 ##### Troubleshooting: backend hangs or exits at startup

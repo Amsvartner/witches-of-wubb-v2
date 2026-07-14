@@ -9,6 +9,7 @@ import * as nodeOSC from 'node-osc';
 import throttle from 'lodash.throttle';
 import memoize from 'lodash.memoize';
 import { Logger } from '../util/Logger';
+import { ClipNameUtil } from '../util/ClipNameUtil';
 import { PhraseLeaderService } from '../service/PhraseLeaderService';
 import { ClipBoard } from '../type/ClipBoard';
 import { ClipInfo } from '../type/ClipInfo';
@@ -25,8 +26,8 @@ import { KeyTranspositionService } from '../service/KeyTranspositionService';
 
 let oscServer: nodeOSC.Server;
 const sockets: socketio.Socket[] = [];
-const TIMEOUT_IN_MILISECONDS = 60 * 3 * 1000; // three minutes
-const TIMEOUT_WARNING_IN_MILISECONDS = 30 * 1000; // thirty seconds
+const TIMEOUT_IN_MILLISECONDS = 60 * 3 * 1000; // three minutes
+const TIMEOUT_WARNING_IN_MILLISECONDS = 30 * 1000; // thirty seconds
 
 // WOW-032: bounded startup connection timeout + remote-script version diagnostics.
 const ABLETON_START_TIMEOUT_MS = Number(process.env.ABLETON_START_TIMEOUT_MS) || 45000;
@@ -37,7 +38,6 @@ const DEFAULT_REMOTE_SCRIPT_VERSION_PATH = path.join(
 
 let timeoutId: NodeJS.Timeout;
 let timeoutWarningId: NodeJS.Timeout;
-const ATTRACTOR_STATE_CLIP_NAME = 'Wicked Casting';
 let allAbletonClips: ClipBoard;
 let tracks: Track[];
 let trackVolumes: Array<DeviceParameter>;
@@ -53,7 +53,6 @@ const queuedClips: ClipList = [];
 const ableton = new Ableton({ logger: Logger });
 
 const TRIGGER_ORDER = [ClipTypes.Drums, ClipTypes.Melody, ClipTypes.Bass, ClipTypes.Vox];
-const KEY_LEADER_ORDER = [ClipTypes.Vox, ClipTypes.Melody, ClipTypes.Bass, ClipTypes.Drums];
 
 // Pure: reads a `version = "X.Y.Z"` line from an AbletonJS midi-script version.py-style
 // file. Returns undefined (never throws) if the file is missing or unparseable - a missing
@@ -150,6 +149,26 @@ async function handleTimeout() {
     await tracks[i].sendCommand('stop_all_clips');
   }
   masterKey = '';
+  OutgoingEvents.emitEventWithoutResettingTimeout('master-key_changed', { key: masterKey });
+
+  queuedClips.forEach((queuedClip, pillar) => {
+    if (!queuedClip) return;
+    // Mirrors stopOrRemoveClipFromQueue's queued-removal branch: pitch_coarse
+    // is a persistent Ableton clip-slot parameter, so a clip key-lock had
+    // transposed while queued must be reset before it's dropped, or it stays
+    // wrongly transposed for its next unrelated use.
+    if (keyLockEnabled) {
+      const queuedClipsInLoop = FindAllClipsInLoop(queuedClip.clipName, pillar);
+      queuedClipsInLoop.forEach(
+        (clip) => clip !== null && transposeClipToNewKey({ ...queuedClip, clip }, ''),
+      );
+    }
+    queuedClips[pillar] = null;
+    OutgoingEvents.emitEventWithoutResettingTimeout('clip_unqueued', {
+      ...queuedClip,
+      clip: undefined,
+    });
+  });
 }
 
 // Crash-exit only: unlike handleTimeout, this must never throw or hang past
@@ -188,15 +207,15 @@ function startTimeoutTimer() {
   timeoutWarningId = setTimeout(() => {
     if (shouldShowTimeout()) {
       Logger.warn('Timeout warning');
-      OutgoingEvents.emitEventWithoutResetingTimout('timeout_warning');
+      OutgoingEvents.emitEventWithoutResettingTimeout('timeout_warning');
     }
-  }, TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS);
+  }, TIMEOUT_IN_MILLISECONDS - TIMEOUT_WARNING_IN_MILLISECONDS);
   timeoutId = setTimeout(() => {
     if (shouldShowTimeout()) {
       Logger.warn('Timeout exceeded, restarting the UI');
       handleTimeout().catch((err) => Logger.error(err, 'Error handling idle timeout'));
     }
-  }, TIMEOUT_IN_MILISECONDS);
+  }, TIMEOUT_IN_MILLISECONDS);
 }
 
 function restartTimeoutTimer() {
@@ -211,12 +230,18 @@ function connectOscServer(server: nodeOSC.Server) {
   oscServer.on('message', IncomingEvents.oscEventHandlers);
 }
 
+// Live-set lookups use the same [* ]-strip normalization as every other
+// comparison site (WOW-031): clip names in the Live set may freely contain
+// spaces and asterisks (human decision 2026-07-12), so the previous
+// trim-only matching would silently fail to locate those clips.
 const MemoizedClipIndex = memoize(
-  (clipName, pillar) =>
-    allAbletonClips[pillar].findIndex((clip) => {
-      return clip?.raw.name.trim() === clipName.trim();
-    }),
-  (clipName, pillar) => `${clipName}-${pillar}`,
+  (clipName, pillar) => {
+    const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
+    return allAbletonClips[pillar].findIndex((clip) => {
+      return clip !== null && ClipNameUtil.normalizeClipName(clip.raw.name) === normalizedClipName;
+    });
+  },
+  (clipName, pillar) => `${ClipNameUtil.normalizeClipName(clipName)}-${pillar}`,
 );
 
 function addWebSocket(s: socketio.Socket) {
@@ -235,10 +260,13 @@ const FindAllClipsInLoop = memoize(
     const firstClipIndex = MemoizedClipIndex(clipName, pillar);
     if (firstClipIndex < 0) return [];
 
+    const normalizedClipName = ClipNameUtil.normalizeClipName(clipName);
     const lastClipIndex = allAbletonClips[pillar]
       .slice(firstClipIndex, firstClipIndex + 20)
       .findLastIndex((clip) => {
-        return clip?.raw.name.trim() === clipName.trim();
+        return (
+          clip !== null && ClipNameUtil.normalizeClipName(clip.raw.name) === normalizedClipName
+        );
       });
     Logger.debug(
       `Loop for ${clipName} found on ${pillar + 1} > [${firstClipIndex}, ${
@@ -247,18 +275,22 @@ const FindAllClipsInLoop = memoize(
     );
     return allAbletonClips[pillar].slice(firstClipIndex, firstClipIndex + lastClipIndex + 1);
   },
-  (clipName, pillar) => `${clipName}-${pillar}`,
+  (clipName, pillar) => `${ClipNameUtil.normalizeClipName(clipName)}-${pillar}`,
 );
 
 function queueClip(clipMetadata: ClipMetadataType, pillar: number) {
   const { clipName, key } = clipMetadata;
-  Logger.info(`Begin queing clip ${clipName}`);
-  if (queuedClips[pillar]?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '')) {
+  Logger.info(`Begin queuing clip ${clipName}`);
+  const alreadyQueuedClipName = queuedClips[pillar]?.clipName;
+  if (
+    alreadyQueuedClipName !== undefined &&
+    ClipNameUtil.normalizeClipName(alreadyQueuedClipName) ===
+      ClipNameUtil.normalizeClipName(clipName)
+  ) {
     Logger.info(`Clip ${clipName} is already queued`);
     return;
   }
   const clips = FindAllClipsInLoop(clipName, pillar);
-  console.log('clips', clips);
   if (clips.length) {
     // if no items are playing, skip the queue
     const silence = playingClips.every((clip) => !clip);
@@ -318,7 +350,9 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
   const queuedClip = queuedClips[pillar];
 
   const isClipPlaying =
-    playingClip?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '');
+    playingClip?.clipName !== undefined &&
+    ClipNameUtil.normalizeClipName(playingClip.clipName) ===
+      ClipNameUtil.normalizeClipName(clipName);
   if (isClipPlaying) {
     Logger.info(`Stopping clip "${clipName}" on pillar ${pillar + 1}`);
     stoppingClips[pillar] = playingClip;
@@ -333,7 +367,8 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
     if (!phraseLeader) {
       Logger.info(`No phrase leader set yet; skipping promotion check for pillar ${pillar + 1}`);
     } else if (
-      playingClip.clipName.replace(/[* ]/g, '') === phraseLeader.clipName.replace(/[* ]/g, '')
+      ClipNameUtil.normalizeClipName(playingClip.clipName) ===
+      ClipNameUtil.normalizeClipName(phraseLeader.clipName)
     ) {
       // Find the next phrase leader, check if such a clip is playing,
       // then promote that clip to phrase leader else trigger queued clips and let god sort it out.
@@ -349,7 +384,10 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
   }
 
   // check if the clip is queued
-  const isClipQueued = queuedClip?.clipName.replace(/[* ]/g, '') === clipName.replace(/[* ]/g, '');
+  const isClipQueued =
+    queuedClip?.clipName !== undefined &&
+    ClipNameUtil.normalizeClipName(queuedClip.clipName) ===
+      ClipNameUtil.normalizeClipName(clipName);
   if (isClipQueued) {
     Logger.info(`Removing clip from queue "${clipName}" on pillar ${pillar + 1}`);
     if (keyLockEnabled) {
@@ -371,7 +409,7 @@ async function stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
       `Clip ${clipName} is neither playing or queue. Stopping pillar ${pillar + 1} just in case.`,
     );
     await tracks[pillar].sendCommand('stop_all_clips');
-    OutgoingEvents.emitEventWithoutResetingTimout('clip_stopped', { pillar });
+    OutgoingEvents.emitEventWithoutResettingTimeout('clip_stopped', { pillar });
   }
 }
 
@@ -412,6 +450,13 @@ async function addPhraseLeader(newPhraseLeader: ClipInfo) {
 
 const getTracksAndClips = async () => {
   Logger.info('Fetching tracks and clips from Ableton');
+  // MemoizedClipIndex/FindAllClipsInLoop cache Clip object references keyed
+  // by clipName-pillar with no expiry - stale entries from a previous fetch
+  // would otherwise keep resolving to Clip handles from the old
+  // allAbletonClips array after a re-scan (WOW-021). Clear before
+  // reassigning allAbletonClips below so every fetch starts from empty caches.
+  MemoizedClipIndex.cache.clear?.();
+  FindAllClipsInLoop.cache.clear?.();
   // 2-D array of all the clips, ordered by Track
   allAbletonClips = [];
   tracks = await ableton.song.get('tracks');
@@ -429,7 +474,7 @@ const getTracksAndClips = async () => {
             const clipName = clip?.raw.name;
             if (clipName) {
               const clipMetadata =
-                MusicDatabaseService.clipNameToInfoMap[clipName.replace(/[* ]/g, '')];
+                MusicDatabaseService.clipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)];
               const clipInfo = {
                 ...clipMetadata,
                 clipName,
@@ -458,9 +503,16 @@ const getTracksAndClips = async () => {
 
               const warpMarkers = await clip.get('warp_markers');
               const bpm = calculateBpmFromWarpMarkers(warpMarkers);
+              if (bpm === undefined) {
+                Logger.warn(
+                  `Could not calculate BPM for clip "${clipName}" on pillar ${
+                    pillar + 1
+                  }: degenerate warp markers`,
+                );
+              }
               const browserInfo = { ...clipInfo, bpm };
               if (playingClips[pillar]?.clipName === clipName) {
-                OutgoingEvents.emitEventWithoutResetingTimout('clip_playing', browserInfo);
+                OutgoingEvents.emitEventWithoutResettingTimeout('clip_playing', browserInfo);
               } else {
                 OutgoingEvents.emitEvent('clip_started', browserInfo);
                 setTrackVolume(pillar, 0.6).catch((err) =>
@@ -468,8 +520,13 @@ const getTracksAndClips = async () => {
                 );
               }
               if (playingClips.every((item) => !item)) {
-                // we're coming from a silent state, so let's set the tempo to this new clip's bpm
-                setTempo(bpm);
+                // we're coming from a silent state, so let's set the tempo to this new
+                // clip's bpm - unless the warp markers were degenerate, in which case skip
+                // adoption and keep whatever tempo is already set (WOW-020: no fallback,
+                // no guess - the ticket's own "no-surprise behavior" instruction).
+                if (bpm !== undefined) {
+                  setTempo(bpm);
+                }
                 clipMetadata.key && setMasterKey(clipMetadata.key);
               }
 
@@ -485,7 +542,7 @@ const getTracksAndClips = async () => {
           } else {
             const clipInfo = stoppingClips[pillar];
             Logger.info(`Clip stopped playing on pillar ${pillar + 1} > "${clipInfo?.clipName}"`);
-            OutgoingEvents.emitEventWithoutResetingTimout('clip_stopped', {
+            OutgoingEvents.emitEventWithoutResettingTimeout('clip_stopped', {
               ...clipInfo,
               pillar,
               clip: undefined,
@@ -528,6 +585,14 @@ async function getTempo() {
 }
 
 function setTempo(tempo: number) {
+  // Belt-and-suspenders: this is a shared entry point for both the
+  // warp-marker-driven path (already guarded at its own source, WOW-020)
+  // and the UI tempo slider's set_tempo socket handler, whose input isn't
+  // otherwise validated.
+  if (!Number.isFinite(tempo)) {
+    Logger.warn(`Ignoring setTempo(${tempo}): not a finite number`);
+    return;
+  }
   Logger.info(`Setting tempo to: ${tempo}`);
   ableton.song
     .set('tempo', tempo)
@@ -558,11 +623,18 @@ async function setTrackVolume(pillar: number, volume: number) {
   OutgoingEvents.emitEvent('volume_changed', { pillar, volume });
 }
 
-function calculateBpmFromWarpMarkers(warp_markers: WarpMarker[]) {
-  const { beat_time: startBT, sample_time: startST } = warp_markers[0];
-  const { beat_time: endBT, sample_time: endST } = warp_markers.slice(-1)[0];
-  const bpm = (endBT - startBT) / ((endST - startST) / 60);
-  return bpm;
+// Pure. Fewer than 2 markers, a zero/negative sample-time span, or a
+// non-finite result all mean the clip's warp data can't produce a usable
+// BPM - returns undefined rather than Infinity/NaN so callers can skip tempo
+// adoption instead of pushing a broken tempo into Ableton (WOW-020).
+function calculateBpmFromWarpMarkers(warpMarkers: WarpMarker[]): Maybe<number> {
+  if (warpMarkers.length < 2) return undefined;
+  const { beat_time: startBT, sample_time: startST } = warpMarkers[0];
+  const { beat_time: endBT, sample_time: endST } = warpMarkers[warpMarkers.length - 1];
+  const sampleTimeSpan = endST - startST;
+  if (sampleTimeSpan <= 0) return undefined;
+  const bpm = (endBT - startBT) / (sampleTimeSpan / 60);
+  return Number.isFinite(bpm) ? bpm : undefined;
 }
 
 function getKeyLockState() {
@@ -641,11 +713,9 @@ function transposeClipToNewKey(item: ClipInfo, newKey: string) {
 }
 
 export const AbletonAdapter = {
-  TIMEOUT_IN_MILISECONDS,
-  TIMEOUT_WARNING_IN_MILISECONDS,
-  ATTRACTOR_STATE_CLIP_NAME,
+  TIMEOUT_IN_MILLISECONDS,
+  TIMEOUT_WARNING_IN_MILLISECONDS,
   TRIGGER_ORDER,
-  KEY_LEADER_ORDER,
   ABLETON_START_TIMEOUT_MS,
   parseRemoteScriptVersion,
   ableton,

@@ -7,6 +7,37 @@ Open questions for the human. Answered decisions live in ADRs (`docs/adr/`) and 
 - Which themed elements host the dj-mode and debug-mode gestures (wax seal, sigil, bookmark…) and what distinguishes the two gestures — designer proposes the pair, human picks (part of WOW-006 review; ADR-006 amended).
 - Debug panel content beyond the confirmed baseline (API/socket-event log, versions, connection state) — e.g. log filtering, copy/export — designer proposes (part of WOW-006 review).
 
+## Hardware / firmware
+
+Decision needed:
+
+- What should the LED strip on `ArtnetWifiFastLED.ino` (WOW-029) show during two distinct failure windows: (1) a **mid-show Wi-Fi disconnect** (AP reboot, signal dropout) after the node was already running normally, and (2) a **boot-time Wi-Fi connection failure** (the node powers on but never reaches the AP)?
+
+Why this matters:
+
+- The ticket's own safety note: "reconnect/fallback transitions must not strobe — hardware-safety-reviewer sign-off required on the chosen fallback and transition behavior (visitor-facing light)." The installation runs unattended for hours; whatever the LEDs do during an outage is visible to visitors, potentially for an extended period, and the wrong choice (rapid flashing) is a photosensitivity/safety concern, not just aesthetic.
+- The reconnection _logic_ itself (detecting disconnect, retrying with backoff, resuming normal operation automatically once the AP returns) is already implemented per the ticket's own partial-landing instruction ("implement reconnection but stop before changing any visible LED behavior") — this decision blocks only the _visible_ part.
+
+Options for the mid-show disconnect fallback state:
+
+1. Hold last frame — LEDs freeze on whatever Art-Net last told them to show. Zero new code, but visually indistinguishable from "the node itself has crashed"; a visitor or operator can't tell "network blip, reconnecting" from "hardware failure."
+2. Fade to a dim, static ambient color after a short grace period (so a sub-second blip doesn't visibly flicker the show). Clearly signals "something's different" without being alarming; requires picking a specific color/brightness and grace-period duration.
+3. Blank (off) after a grace period. Simplest "clearly not normal" signal, but a fully dark pillar in a dim installation space may read as "broken" rather than "reconnecting."
+
+Options for the boot-time failure indicator:
+
+1. A distinct, static, low-brightness color (different from any color used in normal show operation, and different from whichever mid-show fallback is chosen) held indefinitely until connectivity succeeds — e.g. dim red.
+2. No distinct LED indicator; rely solely on the (already-implemented) serial log output for diagnosis during setup/bench-testing.
+
+Recommendation:
+
+- Mid-show: Option 2 (fade to dim ambient after a short grace period, e.g. 3–5s) — signals a problem without alarming visitors, and gives the operator a clear, distinct-from-normal-show state to look for.
+- Boot-time: Option 1 (a distinct dim color, different from the mid-show fallback) — a node that has never connected needs a diagnosable signal, and this occurs during bench-testing before the installation is live to visitors, so a more obvious color than the mid-show fallback is reasonable.
+- Both are recommendations only — final color/brightness/timing values are a show-design call for whoever owns the installation's visual language (the same "designer" role referenced elsewhere in this doc for gesture/palette decisions).
+
+Blocked until human confirms:
+yes
+
 ## Software architecture / dependencies
 
 - F1 dependency updates: any libs explicitly off-limits besides keeping socket.io wire-compat with backend 4.6? Proposed approach: audit first (`yarn audit`/`npm audit`), then upgrade in grouped PRs (tooling, React ecosystem, Tailwind) — confirm grouping in WOW-009 review.
@@ -49,6 +80,10 @@ yes
 - ADR-008: Dependency modernization baseline (after WOW-009 audit)
 
 ## Resolved → ADRs / owning docs
+
+**2026-07-12:**
+
+- Backend/Arduino read-only restriction (ADR-004): resolved as **a second, ticket-scoped exception** for the `docs/TICKETS_002_BUGS.md` batch (WOW-014...WOW-032, 19 tickets), alongside WOW-011's existing one — surfaced when a WOW-022 reviewer correctly flagged that `backend/package.json`'s change conflicted with ADR-004's literal "one-time exception, WOW-011 only" text, even though this ticket batch's own text already extensively scopes backend/Arduino work and every prior backend-touching ticket in this batch relied on the same (previously undocumented-in-ADR-004) authorization → ADR-004 (amended), AGENTS.md v0.5
 
 **2026-07-11:**
 

@@ -6,7 +6,7 @@ import { AbletonAdapter } from './adapter/AbletonAdapter';
 import { Logger } from './util/Logger';
 import * as nodeOSC from 'node-osc';
 
-const wsPort: number = parseInt(process.env.WS_SEVER_PORT as string, 10);
+const wsPort: number = parseInt(process.env.WS_SERVER_PORT as string, 10);
 const oscPort: number = parseInt(process.env.OSC_SERVER_PORT as string, 10);
 
 // Races against a bare, ableton-js-independent timer, not against the

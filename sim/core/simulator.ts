@@ -55,7 +55,9 @@ export type SimulatorOptions = {
 // subset of these fields (see toBrowserClipInfoList).
 type ClipSlot = BrowserClipInfo | null;
 
-const normalizeClipName = (clipName: string) => clipName.replace(/[* ]/g, '');
+// Mirrors ClipNameUtil.normalizeClipName (backend/util/ClipNameUtil.ts): strip
+// asterisks and ALL whitespace (tab/NBSP/BOM too), and keep the two in sync.
+const normalizeClipName = (clipName: string) => clipName.replace(/[*\s]/g, '');
 
 const positiveOrDefault = (value: number | undefined, fallback: number) =>
   value !== undefined && Number.isFinite(value) && value > 0 ? value : fallback;

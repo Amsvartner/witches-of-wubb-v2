@@ -1,6 +1,6 @@
 # Ableton integration
 
-Status: observed from `backend/adapter/AbletonAdapter.ts`, `backend/type/`, `backend/service/KeyTranspositionService.ts` (pre-migration paths: `backend/ableton-api.ts`, `backend/types.ts`, `backend/key-transpositions.ts`). Verify with the human before relying on musical assumptions.
+Status: observed from `backend/adapter/AbletonAdapter.ts`, `backend/type/`, `backend/service/KeyTranspositionService.ts`, `backend/util/ClipNameUtil.ts` (pre-migration paths: `backend/ableton-api.ts`, `backend/types.ts`, `backend/key-transpositions.ts`). Verify with the human before relying on musical assumptions.
 
 **Do not modify the Ableton project, routing, clip naming, transposition tables, quantization, trigger/key-leader order, or RFID→clip mappings without explicit human approval.**
 
@@ -8,9 +8,20 @@ Status: observed from `backend/adapter/AbletonAdapter.ts`, `backend/type/`, `bac
 
 - `ableton-js` 3.1.5 bridges to a running Ableton Live set (requires the ableton-js MIDI remote script installed in Live — see README link).
 - On startup the backend loads all tracks and clips (`GetTracksAndClips`) and track volume parameters.
-- An RFID `/new/tag` event → CSV lookup → `QueueClip(clipMetadata, pillar)`; clips are found by **exact clip-name match (trimmed)** within the pillar's track. Looped clips: the code finds all clips sharing a name within a 20-slot window ("clips in loop").
+- An RFID `/new/tag` event → CSV lookup → `QueueClip(clipMetadata, pillar)`; clips are found by **normalized clip-name match** within the pillar's track (see "Clip-name matching" below — spaces and asterisks are ignored on both sides). Looped clips: the code finds all clips sharing a normalized name within a 20-slot window ("clips in loop").
 - `/departed/tag` → `StopOrRemoveClipFromQueue`.
 - 4 tracks correspond to pillars 0–3. Track 5+: TBD (attractor clip `Wicked Casting` lives somewhere — TBD which track).
+
+## Clip-name matching and naming rules (WOW-031)
+
+Human decision (2026-07-12): clip names in the Live set may freely contain spaces and asterisks, and matching must be robust to both. Since WOW-031 (PR #29), every backend clip-name comparison — Live-set clip lookup, loop-block grouping, memo cache keys, playing/queued checks — goes through `ClipNameUtil.normalizeClipName` (`backend/util/ClipNameUtil.ts`), which strips asterisks and **all** whitespace (`/[*\s]/g`, so also tabs, non-breaking spaces, and BOMs) from both sides before comparing. The offline simulator applies the same normalization (`sim/core/simulator.ts`).
+
+This makes two naming conventions for the Live set hard rules (source: the 2026-07-12 decision plus the audio-ableton-reviewer re-sign-off, `docs/agent-notes/wow-031-audio-ableton-reviewer-resignoff.md`, finding 3):
+
+1. **Distinct clips must differ by more than spaces/asterisks/whitespace.** Decoration-only variants (`Verse`, `Verse *`, `Ve rse`) are the same clip to the backend; when several slots match, the earliest one silently wins.
+2. **Loop blocks must remain contiguous runs of same-normalized-name slots.** The loop finder takes everything between the first and last normalized match in its 20-slot window, so a different clip interleaved inside a block gets pulled into the block and would be wrongly transposed under key lock.
+
+Decoration uniformity within a loop block — human decision (2026-07-14), answering the audio-ableton-reviewer re-sign-off's finding 2: samples are generated and named by hand; identical decoration across one clip's loop-block slots is the intention but is **not guaranteed** (human error is possible), so the backend must not assume it. Today two comparisons in the `playing_slot_index` listener (`backend/adapter/AbletonAdapter.ts:468`, `:492`) still compare raw names: a decoration mismatch between consecutive slots of one block would de-transpose the playing block under key lock and emit `clip_started` instead of `clip_playing`. A fast-follow ticket normalizes these two comparisons; until it lands, treat identical decoration within a block as a Live-set requirement and double-check it when adding samples.
 
 ## Musical constraints
 
@@ -26,7 +37,7 @@ Canonical (`ClipTypes`, confirmed by ADR-002): `Vox`, `Melody`, `Bass`, `Drums`.
 
 ## Mapping: RFID → object → clip
 
-`src/assets/Music Database.csv` columns: RFID (EPC), Asset ID, Ingredient Name/Description, tested flag, comments, Artist, Song Title, **Clip Name** (must match Ableton clip name exactly), Clip Type, Instrument, Key, Major/Minor, Key Numerical, BPM, Icon/Asset Name. Parsed at backend startup (`backend/util/CsvUtil.ts` → `MusicDatabaseService.rfidToClipMap`, `.clipNameToInfoMap`); also imported by the frontend. **Production data — never edit without approval.**
+`src/assets/Music Database.csv` columns: RFID (EPC), Asset ID, Ingredient Name/Description, tested flag, comments, Artist, Song Title, **Clip Name** (must match the Ableton clip name after normalization — spaces/asterisks/whitespace differences are ignored, see "Clip-name matching" above), Clip Type, Instrument, Key, Major/Minor, Key Numerical, BPM, Icon/Asset Name. Parsed at backend startup (`backend/util/CsvUtil.ts` → `MusicDatabaseService.rfidToClipMap`, `.clipNameToInfoMap`); also imported by the frontend. **Production data — never edit without approval.**
 
 ## Test / simulation approach
 

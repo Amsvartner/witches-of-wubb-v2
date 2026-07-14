@@ -51,10 +51,39 @@ describe('useAbletonContextProviderState reconnect behavior (WOW-019)', () => {
 
     // The real assertion is that rendering doesn't throw calling methods
     // that don't exist on the placeholder object - see
-    // useAbletonContextProviderState's `if (!socket.connected) return;` guard.
+    // useAbletonContextProviderState's guard, which checks for real `on`/
+    // `off` functions rather than `.connected` (WOW-035) precisely so it
+    // can still tell this true placeholder apart from a real socket that's
+    // merely disconnected, covered next.
     expect(() =>
       renderHook(() => useAbletonContextProviderState(), { wrapper: withSocket(placeholder) }),
     ).not.toThrow();
+  });
+
+  it('attaches listeners for a real-but-not-yet-connected socket, so a live connect is not missed (WOW-035 connect transition)', () => {
+    const fake = createFakeSocket(false);
+    renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    // The guard checks for real on/off functions, not `.connected` - a
+    // socket that's real but currently disconnected still gets every
+    // listener, including the 'connect' re-fetch listener, attached on
+    // mount. Pre-fix, `if (!socket.connected) return;` would have skipped
+    // all of this, and since the socket's object reference never changes on
+    // a live reconnect, the 'connect' trigger below would have been missed
+    // silently and permanently - a Copilot review caught the identical bug
+    // in DebugModalContainer.tsx (WOW-024).
+    expect(fake.handlerCount('connect')).toBe(1);
+    expect(fake.handlerCount('clip_started')).toBe(1);
+
+    const getCalls = (name: string) => fake.emit.mock.calls.filter(([event]) => event === name);
+    expect(getCalls('get_tempo')).toHaveLength(1); // fetched immediately on mount, same as the already-connected case below
+
+    act(() => {
+      fake.trigger('connect');
+    });
+    expect(getCalls('get_tempo')).toHaveLength(2);
   });
 
   it('fetches state and subscribes once rendered with an already-connected socket', () => {

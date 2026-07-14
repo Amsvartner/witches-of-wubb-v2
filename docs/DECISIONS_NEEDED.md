@@ -50,6 +50,8 @@ Decision needed:
 
 - Crash-restart supervision for the backend process (WOW-014). `nodemon`'s default behavior does not restart the process after a crash — it waits for a file change. WOW-014 adds process-level `unhandledRejection`/`uncaughtException` handlers that log via pino then `process.exit(1)`, so a crash now stops the process cleanly with a diagnostic log instead of hanging in a broken state — but nothing currently restarts it automatically afterward.
 
+**Scope note (WOW-034, 2026-07-12):** this entry is about _restart speed_ only — how quickly the backend comes back up after a crash. It's a separate question from _what Ableton does while the backend is down_, which the WOW-014 hardware-safety-reviewer sign-off flagged as a distinct gap: neither WOW-014's handlers nor any prior code path told Ableton to stop before the process died, so a crash left audio playing/looping on all four pillars indefinitely. WOW-034 addressed that narrower gap — both crash handlers now make a bounded (~1.5s), best-effort, parallel `stop_all_clips` attempt before `process.exit(1)`, guarded so it can't itself hang or delay the exit past the bound. This entry remains open for the broader restart-speed question below.
+
 Why this matters:
 
 - At the venue, a backend crash currently means silence until a human notices and manually restarts it. The installation runs unattended for stretches; automatic restart would shrink recovery time from "whenever someone notices" to seconds.

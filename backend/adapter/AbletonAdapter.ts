@@ -171,6 +171,31 @@ async function handleTimeout() {
   });
 }
 
+// Crash-exit only: unlike handleTimeout, this must never throw or hang past
+// its caller's own bound, so every track's command is caught individually
+// and dispatched in parallel rather than awaited one at a time.
+async function stopAllClipsBestEffort() {
+  if (!tracks?.length) {
+    Logger.warn('Skipping crash-exit stop_all_clips: Ableton tracks not yet loaded');
+    return;
+  }
+  try {
+    await Promise.all(
+      tracks
+        .slice(0, 4)
+        .map((track, pillar) =>
+          track
+            .sendCommand('stop_all_clips')
+            .catch((err) =>
+              Logger.error(err, `Error stopping clips on pillar ${pillar + 1} during crash exit`),
+            ),
+        ),
+    );
+  } catch (err) {
+    Logger.error(err, 'Error attempting best-effort stop_all_clips during crash exit');
+  }
+}
+
 function startTimeoutTimer() {
   Logger.info('Starting timeout timer');
   function shouldShowTimeout() {
@@ -725,6 +750,7 @@ export const AbletonAdapter = {
   setMasterKey,
   transposeClipToNewKey,
   handleTimeout,
+  stopAllClipsBestEffort,
   startTimeoutTimer,
   restartTimeoutTimer,
 };

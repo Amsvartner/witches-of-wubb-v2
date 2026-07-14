@@ -1,7 +1,9 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { vi } from 'vitest';
 import { AbletonAdapter } from '../AbletonAdapter';
+import { Logger } from '../../util/Logger';
 
 // This test imports AbletonAdapter (and transitively ableton-js) despite the
 // no-ableton-js-in-tests convention elsewhere in backend/**/test/**: the function under
@@ -134,5 +136,72 @@ describe('AbletonAdapter.calculateBpmFromWarpMarkers', () => {
       { beat_time: 4, sample_time: 2 },
     ];
     expect(AbletonAdapter.calculateBpmFromWarpMarkers(markers)).toBeCloseTo(120);
+  });
+});
+
+// PR #49: ensureServerPortFile auto-restores $TMPDIR/ableton-js-server.port at startup
+// when macOS's temp cleaner has purged it. Best-effort by contract: it must never throw,
+// so a failed restore still falls through to ableton.start's own bounded timeout.
+// portFilePath and exec are injected; the real script is never run here.
+describe('AbletonAdapter.ensureServerPortFile', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-port-file-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it('does not run the restore script when the port file exists', () => {
+    const portFile = path.join(tmpDir, 'ableton-js-server.port');
+    fs.writeFileSync(portFile, '49831');
+    const exec = vi.fn();
+
+    AbletonAdapter.ensureServerPortFile(portFile, exec);
+
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it('runs the restore script when the port file is missing and logs its output', () => {
+    const infoSpy = vi.spyOn(Logger, 'info');
+    const exec = vi.fn().mockReturnValue('Wrote port 49831 to /tmp/x\n');
+
+    AbletonAdapter.ensureServerPortFile(path.join(tmpDir, 'does-not-exist.port'), exec);
+
+    expect(exec).toHaveBeenCalledTimes(1);
+    expect(exec.mock.calls[0][0]).toMatch(/restore-ableton-port-file\.sh$/);
+    expect(infoSpy).toHaveBeenCalledWith('Port file restore: Wrote port 49831 to /tmp/x');
+  });
+
+  it('logs a warning naming the script stderr and does not throw when the script fails', () => {
+    const warnSpy = vi.spyOn(Logger, 'warn');
+    const scriptError = Object.assign(new Error('Command failed'), {
+      stderr: "ERROR: Ableton Live doesn't appear to be running.\n",
+    });
+    const exec = vi.fn(() => {
+      throw scriptError;
+    });
+
+    expect(() =>
+      AbletonAdapter.ensureServerPortFile(path.join(tmpDir, 'does-not-exist.port'), exec),
+    ).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("ERROR: Ableton Live doesn't appear to be running."),
+    );
+  });
+
+  it('falls back to the exec error message when there is no stderr (e.g. ENOENT/timeout)', () => {
+    const warnSpy = vi.spyOn(Logger, 'warn');
+    const exec = vi.fn(() => {
+      throw Object.assign(new Error('spawnSync ETIMEDOUT'), { stderr: undefined });
+    });
+
+    expect(() =>
+      AbletonAdapter.ensureServerPortFile(path.join(tmpDir, 'does-not-exist.port'), exec),
+    ).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('spawnSync ETIMEDOUT'));
   });
 });

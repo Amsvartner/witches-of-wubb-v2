@@ -45,7 +45,9 @@ if [[ -z "$port" ]]; then
   port="$ports"
 fi
 
-[[ "$port" =~ ^[0-9]+$ ]] && ((port > 0 && port < 65536)) || fail "Not a valid port: $port"
+[[ "$port" =~ ^[0-9]+$ ]] || fail "Not a valid port: $port"
+port=$((10#$port)) # force base 10: leading zeros would otherwise be read as octal
+((port > 0 && port < 65536)) || fail "Not a valid port: $port"
 
 if [[ -f "$PORT_FILE" && "$(cat "$PORT_FILE")" == "$port" ]]; then
   echo "$PORT_FILE already contains $port — nothing to do."

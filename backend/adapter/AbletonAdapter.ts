@@ -139,22 +139,29 @@ async function logConnectedRemoteScriptVersion() {
 // Best-effort, never throws: if the server port file is missing (macOS purges the temp
 // dir under long-running Live instances), try to restore it by running the same script
 // yarn fix-ableton-port runs. Failure is fine - ableton.start's timeout error covers it.
-function ensureServerPortFile() {
-  if (fs.existsSync(ABLETON_SERVER_PORT_FILE)) return;
+// portFilePath/exec are injectable for tests only; production callers pass nothing.
+function ensureServerPortFile(
+  portFilePath: string = ABLETON_SERVER_PORT_FILE,
+  exec: (file: string, options: { timeout: number; encoding: 'utf-8' }) => string = execFileSync,
+) {
+  if (fs.existsSync(portFilePath)) return;
   Logger.warn(
-    `AbletonJS server port file is missing ("${ABLETON_SERVER_PORT_FILE}") - ` +
+    `AbletonJS server port file is missing ("${portFilePath}") - ` +
       'attempting automatic restore (equivalent to running "yarn fix-ableton-port").',
   );
   try {
-    const output = execFileSync(RESTORE_PORT_FILE_SCRIPT, {
+    const output = exec(RESTORE_PORT_FILE_SCRIPT, {
       timeout: 10_000,
       encoding: 'utf-8',
     });
     Logger.info(`Port file restore: ${output.trim()}`);
   } catch (err) {
-    const stderr = (err as { stderr?: string }).stderr?.trim();
+    // Prefer the script's stderr; fall back to the exec error itself (ENOENT,
+    // EACCES, timeout kills), which produces no stderr.
+    const e = err as { stderr?: string; message?: string };
+    const reason = e.stderr?.trim() || e.message || String(err);
     Logger.warn(
-      `Automatic port file restore failed${stderr ? `: ${stderr}` : ''} - the connection ` +
+      `Automatic port file restore failed: ${reason} - the connection ` +
         `will hang until the file appears (up to ${ABLETON_START_TIMEOUT_MS}ms). ` +
         'If Live is NOT running, just start it (Live rewrites the file on startup). ' +
         'Otherwise see README "Troubleshooting: backend hangs or exits at startup".',
@@ -761,6 +768,7 @@ export const AbletonAdapter = {
   TRIGGER_ORDER,
   ABLETON_START_TIMEOUT_MS,
   parseRemoteScriptVersion,
+  ensureServerPortFile,
   ableton,
   sockets,
   playingClips,

@@ -53,4 +53,4 @@ if [[ -f "$PORT_FILE" && "$(cat "$PORT_FILE")" == "$port" ]]; then
 fi
 
 printf '%s' "$port" > "$PORT_FILE"
-echo "Wrote port $port to $PORT_FILE. Restart the backend (yarn start-backend) to reconnect."
+echo "Wrote port $port to $PORT_FILE. If the backend isn't running, start it again (yarn start-backend)."

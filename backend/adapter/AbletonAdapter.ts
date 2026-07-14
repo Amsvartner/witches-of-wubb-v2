@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { execFileSync } from 'child_process';
 import { Ableton } from 'ableton-js';
 import { Track } from 'ableton-js/ns/track';
 import { DeviceParameter } from 'ableton-js/ns/device-parameter';
@@ -39,6 +40,14 @@ const DEFAULT_REMOTE_SCRIPT_VERSION_PATH = path.join(
 // this file once at Live startup; macOS periodically purges the temp dir, so a Live
 // instance left running for days can lose it while the script itself stays alive.
 const ABLETON_SERVER_PORT_FILE = path.join(os.tmpdir(), 'ableton-js-server.port');
+// Same script yarn fix-ableton-port runs; the backend's cwd is backend/.
+const RESTORE_PORT_FILE_SCRIPT = path.join(
+  __dirname,
+  '..',
+  '..',
+  'scripts',
+  'restore-ableton-port-file.sh',
+);
 
 let timeoutId: NodeJS.Timeout;
 let timeoutWarningId: NodeJS.Timeout;
@@ -127,19 +136,36 @@ async function logConnectedRemoteScriptVersion() {
   }
 }
 
+// Best-effort, never throws: if the server port file is missing (macOS purges the temp
+// dir under long-running Live instances), try to restore it by running the same script
+// yarn fix-ableton-port runs. Failure is fine - ableton.start's timeout error covers it.
+function ensureServerPortFile() {
+  if (fs.existsSync(ABLETON_SERVER_PORT_FILE)) return;
+  Logger.warn(
+    `AbletonJS server port file is missing ("${ABLETON_SERVER_PORT_FILE}") - ` +
+      'attempting automatic restore (equivalent to running "yarn fix-ableton-port").',
+  );
+  try {
+    const output = execFileSync(RESTORE_PORT_FILE_SCRIPT, {
+      timeout: 10_000,
+      encoding: 'utf-8',
+    });
+    Logger.info(`Port file restore: ${output.trim()}`);
+  } catch (err) {
+    const stderr = (err as { stderr?: string }).stderr?.trim();
+    Logger.warn(
+      `Automatic port file restore failed${stderr ? `: ${stderr}` : ''} - the connection ` +
+        `will hang until the file appears (up to ${ABLETON_START_TIMEOUT_MS}ms). ` +
+        'If Live is NOT running, just start it (Live rewrites the file on startup). ' +
+        'Otherwise see README "Troubleshooting: backend hangs or exits at startup".',
+    );
+  }
+}
+
 async function startAbleton() {
   Logger.info('Starting AbletonJS');
   checkRemoteScriptVersionPreflight();
-  if (!fs.existsSync(ABLETON_SERVER_PORT_FILE)) {
-    Logger.warn(
-      `AbletonJS server port file is missing ("${ABLETON_SERVER_PORT_FILE}") - the ` +
-        `connection will hang until it appears (up to ${ABLETON_START_TIMEOUT_MS}ms). ` +
-        'If Live is NOT running, just start it (Live rewrites the file on startup). ' +
-        'If Live IS already running, macOS has likely purged the file from the temp dir: ' +
-        'run "yarn fix-ableton-port" to restore it without restarting Live (see README ' +
-        '"Troubleshooting: backend hangs or exits at startup").',
-    );
-  }
+  ensureServerPortFile();
   try {
     await ableton.start(ABLETON_START_TIMEOUT_MS);
   } catch (err) {
@@ -150,8 +176,9 @@ async function startAbleton() {
         'match this npm package (see the pre-flight version check above). Remediation for (3): ' +
         "copy backend/node_modules/ableton-js/midi-script/ into Live's Remote Scripts folder " +
         'as "AbletonJS" and restart Live. (4) macOS purged the ableton-js server port file ' +
-        'while Live kept running (a warning above names the missing file if so) - run ' +
-        '"yarn fix-ableton-port" to restore it without restarting Live.',
+        'while Live kept running - the backend attempts an automatic restore at startup ' +
+        '(logged above if it ran); if that failed, see its warning or run ' +
+        '"yarn fix-ableton-port" manually.',
       { cause: err instanceof Error ? err : new Error(String(err)) },
     );
   }

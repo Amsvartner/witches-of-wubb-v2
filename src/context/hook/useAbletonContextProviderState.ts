@@ -103,15 +103,34 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
   );
 
   useEffect(() => {
-    // socket starts out as an unconnected placeholder (see useSocketContextProviderState),
-    // which has no `.on`/`.off` methods; only subscribe (and therefore only clean up) once
-    // it's the real, connected socket.io client.
-    if (!socket.connected) {
+    // socket starts out as an unconnected placeholder ({} as Socket, see
+    // useSocketContextProviderState) with no .on/.off at all - gate on their
+    // presence, not on `.connected`, so a real-but-currently-disconnected
+    // socket (e.g. this effect happens to (re)run mid-reconnect) still gets
+    // every listener - including the 'connect' re-fetch listener below -
+    // attached immediately, rather than getting treated the same as the
+    // placeholder and permanently missing the future 'connect' that would
+    // otherwise trigger the resync (Copilot review, PR #24 - `.connected`
+    // alone can't distinguish "not a real socket yet" from "a real socket
+    // that's momentarily down"; WOW-035, mirroring WOW-024's identical fix
+    // in DebugModalContainer.tsx).
+    if (typeof socket.on !== 'function' || typeof socket.off !== 'function') {
       // TODO: Show in UI
       return;
     }
 
     getTracksAndClips();
+
+    // Re-fetch on every future reconnect too, not just this first connection.
+    // socket.io fires 'connect' again on the same persistent Socket instance
+    // after a disconnect/reconnect cycle (see useSocketContextProviderState,
+    // which no longer tears the connection down when that happens) - this
+    // listener catches it without needing this effect to re-run or the
+    // socket's object identity to change. getTracksAndClips is stable across
+    // reconnects (memoized on `socket`, which doesn't change reference), so
+    // the same function reference is used for both `on` and the matching
+    // `off` below - registered once, never duplicated (WOW-019).
+    socket.on('connect', getTracksAndClips);
 
     socket.on('ingredient_detected', (data: BrowserClipInfo) => {
       setQueuedClips((current) => updateIndex(data.pillar, data, current));
@@ -129,10 +148,10 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     socket.on('clip_playing', onUpdatePlayState);
 
     socket.on('ingredient_removed', (data: BrowserClipInfo) => {
-      if (playingClipsRef.current.some((item) => item?.clipName === data.clipName)) {
+      if (playingClipsRef.current[data.pillar]?.clipName === data.clipName) {
         setPlayingClips((current) => updateIndex(data.pillar, null, current));
         setStoppingClips((current) => updateIndex(data.pillar, data, current));
-      } else if (queuedClipsRef.current.some((item) => item?.clipName === data.clipName)) {
+      } else if (queuedClipsRef.current[data.pillar]?.clipName === data.clipName) {
         setQueuedClips((current) => updateIndex(data.pillar, null, current));
       }
     });
@@ -158,6 +177,7 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     });
 
     return () => {
+      socket.off('connect', getTracksAndClips);
       socket.off('ingredient_detected');
       socket.off('clip_queued');
       socket.off('clip_unqueued');

@@ -1,0 +1,39 @@
+# WOW-027 PR #28 (throttle slider emissions) — audio-ableton-reviewer sign-off
+
+- Reviewer: audio-ableton-reviewer (Claude Sonnet 5, specialist sign-off phase of the WOW pipeline — **required** per this ticket's own safety notes: "audio-ableton-reviewer sign-off (tempo is musical).")
+- Date: 2026-07-12
+- Fork/repo reviewed: `Amsvartner/witches-of-wubb-v2` (`origin` remote in this checkout)
+- Review target: PR #28, `fix(wow-027): throttle tempo/volume slider emissions`. Not stacked — base `main`, head `feat/wow-027-throttle-slider-emissions`.
+- Method: read-only, no edits made, no live hardware, no live Ableton. Traced the full echo path through `backend/event/IncomingEvents.ts`, `backend/adapter/AbletonAdapter.ts`, and `backend/event/OutgoingEvents.ts` rather than reasoning about timing abstractly.
+
+## Verdict: **APPROVE-WITH-NITS**
+
+Scope, payload/event contracts, and every hard musical non-negotiable (trigger order, key-leader order, transposition, phrase-leader, warp/loop, category enums, CSV mapping) are untouched and unaffected. Found one genuine, code-traceable, bounded/self-correcting UI-and-tempo "flicker" risk, and a minor test-suite fragility unrelated to production code. Neither blocked merge; both were documented for the human record.
+
+## Findings
+
+**1. Scope — allowed files only, zero backend touch.** Confirmed via `gh pr diff 28`: `src/util/throttle.ts` (new), `src/util/test/throttle.test.ts` (new), `TempoSliderContainer.tsx`, `VolumeSliderContainer.tsx`, both new container test files, and the standard agent-note. Nothing under `backend/`, `Arduino/`, or `src/assets/Music Database.csv`. Exactly the ticket's allowed-file list.
+
+**2. Payload shape / event names unchanged.** `changeTempo(newTempo)` and `changeTrackVolume({ pillar, volume: newVolume })` calls are byte-identical in argument shape to pre-PR code — the only change is that the call now passes through `throttle()` first. The `set_tempo`/`set_track_volume` socket emissions themselves are untouched.
+
+**3. No fallback/synthetic/interpolated values.** Every value reaching `fn(...)` inside `throttle.ts` is either the literal `args` of an immediate call or `pendingArgs`, assigned only by direct passthrough — never computed, averaged, or defaulted. Confirmed the "single tap" guard means no redundant/synthetic second call for a simple click. No value the user's slider didn't actually produce is ever sent to Ableton — consistent with the WOW-020 spirit (no invented fallback tempo), even though this is a different mechanism.
+
+**4. Worst-case release-to-Ableton delay.** Traced the full path: throttle trailing-edge fire (at most ~100ms) → `backend/event/IncomingEvents.ts`'s `set_tempo` handler (synchronous, fires the ack immediately) → `AbletonAdapter.setTempo` (`ableton.song.set('tempo', ...)` is fire-and-forget, broadcast immediately after) → for volume, the path does `await trackVolume?.set('value', volume)` before broadcasting, a real but bounded Ableton API round trip. Total worst case ≈ 100ms throttle + single-digit-to-low-double-digit ms LAN round trip — well within normal tolerance for a communal installation tempo control, not precision DJ beatmatching.
+
+**5. Display/state divergence — real finding, not permanent, but worth flagging precisely.** Traced `useEffect(() => setDisplayTempo(tempo), [tempo])` against the full echo path in `useAbletonContextProviderState.ts`: both `changeTempo`'s ack callback and the `tempo_changed` broadcast listener call `setTempo(tempo)`, and `OutgoingEvents.emit` broadcasts to every socket including the sender's own (no `socket.broadcast` exclusion) — the sender receives its own echo. Because the throttle sends only 2 values per fast drag (leading, then final) while the local display updates unthrottled to the true final position, there's a real window — specifically a drag+release completing faster than one network round trip — where the leading-edge echo arrives _after_ the release and the unconditional sync effect overwrites the display back to the leading value, until the trailing call's own echo corrects it forward again (up to ~100-200ms later). For tempo specifically this isn't purely cosmetic: the backend genuinely calls `ableton.song.set('tempo', <leading value>)` before correcting — the display bug is an accurate reflection of a real, brief tempo blip inherent to leading+trailing throttling of a live musical parameter. Not a permanent divergence — always self-heals once the trailing echo lands. Not new in kind (cross-client "another user's tempo_changed stomps my slider" was already possible pre-PR) — what's new is the same-client stale-self-echo case, since pre-PR there was no separate local-ahead-of-context value to flicker away from.
+
+**6. Live-verification claim (21 events → 2 emissions) sanity-checked against code.** Given the implementer's all-synchronous-in-one-JS-tick dispatch methodology, `throttle.ts`'s logic deterministically produces exactly 2 calls (leading + trailing/last). Matches the claimed sim log exactly. Independently reproduced via the equivalent rapid-drag unit tests, which pass with the same 1-then-2 call pattern.
+
+**7. Ticket stop condition (on-device touch feel) — correctly flagged as unverifiable from code.** The implementer already surfaced this in the PR's "Decisions / questions for the human" section. Concur this cannot be determined from the diff alone. Suggested the eventual on-device check specifically try a fast flick-and-release gesture, not just slow deliberate drags, since that's the scenario most likely to surface both the "feel" question and the display-flicker finding above.
+
+## Independent verification run
+
+`yarn test`: 84/84 passing at time of review, matching the PR's claim exactly, CI green on the same commit. `yarn lint`/`npx tsc --noEmit` both clean. One process note (not a code defect): cherry-picking exactly 3 test files directly in a single `vitest run` invocation produced 2 spurious Tempo-test failures (10 calls instead of 1) in one specific manual file-subset combination; every other combination, and critically the canonical `yarn test` full-suite command actually used in CI and the PR checklist, passed cleanly across repeated runs. Traced to `changeTempo`/`changeTrackVolume` being genuinely `useCallback`-stable in production, confirming this was a narrow vitest worker/module-sharing artifact of that specific manual invocation, not a defect in `throttle.ts` or the containers.
+
+## Summary
+
+Safe to proceed per this ticket's specific safety notes. Two items carried forward for the human record: (a) the same-client stale-leading-edge-echo display/tempo-blip flicker on fast flick-release gestures — disclosed as a bounded, non-blocking residual risk; (b) the on-device touch-feel check the implementer already flagged, specifically including a fast-flick gesture.
+
+---
+
+**Orchestrator's note (post general-reviewer fix round):** Finding 5 (the display/tempo-blip flicker) was independently also caught by the general reviewer and by GitHub Copilot — three independent sources converging on the same bug. Rather than leaving it as a disclosed residual risk, it was fixed in the same PR: both sliders now track an `isDraggingRef`, suppressing the context-sync effect while a drag is actively in progress, so a stale leading-edge echo can no longer land mid-drag at all (not just self-heal afterward). This audio-ableton-reviewer pass was not re-run against the fix, since the fix strictly removes the exact risk this sign-off already reviewed and approved-with-nits — it doesn't touch any musical-mapping/timing assumption within this reviewer's remit, only when the display sync is allowed to run. See `docs/agent-notes/wow-027-frontend-implementer-throttle-slider-emissions.md`'s "Fix round" section for the fix details and the general reviewer's updated verdict for the fresh-SHA re-review.

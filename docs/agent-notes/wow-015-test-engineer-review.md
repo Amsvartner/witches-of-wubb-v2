@@ -1,0 +1,49 @@
+# WOW-015 — Test-engineer review
+
+PR: https://github.com/Amsvartner/witches-of-wubb-v2/pull/20 (`feat/wow-015-backend-tests` → `main`)
+Reviewed at: `1829612` (branch tip at review time; test content unchanged since `7bae65a`)
+Reviewer: test-engineer (read-only)
+
+## Verdict: APPROVE-WITH-NITS
+
+## Required
+
+None.
+
+## Nits
+
+1. **Ticket says "trigger-order promotion incl. empty list (returns `undefined`)"; the test uses a 4-slot all-null `ClipList` (`[null, null, null, null]`), not a literal `[]`.** `ClipList` is `(ClipInfo | null)[]` (not a fixed-length tuple — `backend/type/ClipList.ts:3`), so a literal `[]` would also type-check and, given `findNextPhraseLeader`'s `.filter((clip) => clip)` step, is behaviorally identical post-filter — there's no code path that distinguishes the two. The chosen form is arguably more representative of production (pillars are always a fixed 4-slot array; a truly empty array never occurs at runtime). Not a functional gap, just a literal-wording mismatch against the ticket text. No action needed.
+2. `docs/agent-notes/wow-015-test-engineer-backend-bootstrap.md`'s TS2554 writeup says "two assertions" needed fixing but only narrates what happened to "the one case" (the `if (backward === undefined) throw ...` in the symmetry test, `KeyTranspositionService.test.ts:31-33`). What happened to the second 2-arg call site (presumably the message was simply dropped, leaving the plain `expect(backward).toBeDefined()` at `:57`) isn't spelled out. The outcome is independently verified correct either way (see below) — this is a note-clarity nit, not a code issue.
+
+## What I verified
+
+| Check                                                                                                                                  | Result                                                                                                                                                  |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `yarn test`                                                                                                                            | 111/111 passed, 16 files, including all 43 new tests (28 + 6 + 9) actually executing with real assertions — not skipped, not vacuous.                   |
+| `git diff main...feat/wow-015-backend-tests --stat`                                                                                    | Exactly the PR's claimed 4 files (5 counting the reviewer-verdict doc added after this branch was opened — see note below), all additions, 0 deletions. |
+| `git diff main...HEAD -- backend/service/KeyTranspositionService.ts backend/service/PhraseLeaderService.ts backend/util/CsvUtil.ts`    | Empty — zero production code changes, confirmed byte-for-byte.                                                                                          |
+| `git diff main...HEAD -- vite.config.ts docs/CODING_GUIDELINES.md`                                                                     | Empty on both — no config or doc changes were made, consistent with the PR's claim that neither was needed.                                             |
+| `grep -nE "ableton-js\|node-osc\|socket\.io\|Math\.random\|Date\.now\|new Date(\|setTimeout\|setInterval"` across the 3 new test files | No matches — no forbidden imports, no wall-clock/random dependencies.                                                                                   |
+| `npx tsc --noEmit -p backend/tsconfig.json`, `npx tsc --noEmit` (root)                                                                 | Both clean.                                                                                                                                             |
+| `yarn lint`                                                                                                                            | Clean.                                                                                                                                                  |
+| `yarn build`                                                                                                                           | Clean, 160 modules.                                                                                                                                     |
+
+## Focus-area notes
+
+**Tautology risk (`KeyTranspositionService.test.ts`).** Not circular. `expectedTargets` in both the per-key test and the symmetry test is derived independently of what's stored under each key (filtered from `ALL_KEYS` by letter suffix, or walked pairwise with a dedup `Set`), then compared against the table's actual contents — a table with a missing, extra, or self-referencing entry would fail. The symmetry test walks all 132 unique pairs (24 keys × 11 same-letter partners ÷ 2), not a sample. The `±12` tolerance at the tritone is the ticket's own specified invariant, not an invention of the test; I spot-checked several tritone pairs (`6B↔12B`, `9B↔3B`, `6A↔12A`) and all use the `+12` branch consistently, so the `-12` allowance is defensive slack, not a sign the test is hiding an inconsistency. What this suite deliberately does _not_ verify — and correctly so, per the ticket's own scope — is that `6B` really is "Bb Major" etc.; that requires an external ground truth and is explicitly deferred to a human/artist.
+
+**Coverage gaps.** `enrichRecommendations`'s "excludes same clip name" behavior is tested (`CsvUtil.test.ts:156-169`) with two rows sharing a clip name but different RFIDs (`r1`/`r2`, both `Key Numerical: '5'`) — this specifically defeats an implementation that excluded by RFID or object identity instead of by name, since the exclusion is literally `compRow[clipNameHeader] !== row[clipNameHeader]`. `PhraseLeaderService`'s `TRIGGER_ORDER` fallback is exercised beyond first/last: test 2 promotes the _second_-priority type when the first is absent, and the "ignores null slots" test independently exercises the _third_-priority type winning — so all four `TRIGGER_ORDER` positions appear as the winner across the suite, not just the endpoints.
+
+**Fixture realism (`CsvUtil.test.ts`).** `makeRow()`'s field names (`RFID`, `Clip Name`, `Clip Type (e.g. Vocals)`, `Icon / Asset Name`, `Artist`, `Song Title`, `Ingredient Name / Description`, `Key`, `Key Numerical`) match the real header row of `src/assets/Music Database.csv` verbatim. The spaced-name test uses `'"Doink U" Vox 122'`, which is exactly the decoded value of the real CSV's escaped field (`"""Doink U"" Vox 122"` at row 112, RFID `e280f3372000f00003effc43`) — I hand-traced the space-strip character-by-character and confirmed the expected key `'"DoinkU"Vox122'` is correct, and that the negative assertion (`clipNameToInfoMap['"Doink U" Vox 122']` is `undefined`) is a real complement, not a freebie: a partial-strip regex bug (e.g. missing the global flag) would produce a third, different key and fail the _positive_ assertion rather than silently passing.
+
+**Determinism.** No `Date`/`Math.random`/timers in the new tests or the code under test; confirmed by grep (table above) and by reading all three files.
+
+**Stop condition / untouched table.** All 28 `KeyTranspositionService` assertions — including the two `(verify pattern)`-flagged entries `9B` and `6A` — pass as committed, and the table's production diff against `main` is empty. No evidence of a table edit to make tests pass.
+
+**Agent note sanity check.** `docs/agent-notes/wow-015-test-engineer-backend-bootstrap.md`'s claims all check out: 111/111 (43 new), zero production changes, no `vite.config.ts` change needed (root `yarn test` already discovers `backend/**/test/**`, confirmed by the run above), zero forbidden imports, `yarn lint`/`tsc`(×2)/`yarn build` all clean, and the `MusicDatabaseService` ENOENT stderr noise during `PhraseLeaderService.test.ts` (via its `AbletonAdapter` import chain) is reproduced exactly as described — logged at pino `error` level, not thrown, doesn't fail the test. The one claim I can't independently verify is the `task_48341bc3` follow-up-ticket reference (external tracking ID, not resolvable from the repo); the underlying technical description of the bug it refers to is accurate. See the two nits above for the only inaccuracy-adjacent items found, both cosmetic.
+
+**Process note.** A general-reviewer verdict (`docs/agent-notes/wow-015-reviewer-verdict.md`) already exists on this branch (committed after the test-bootstrap commit, before this review) and independently reaches APPROVE with no findings. My pass here goes deeper on test-specific concerns (tautology risk, fixture-vs-real-CSV cross-check, TRIGGER_ORDER position coverage) that a general diff review wouldn't typically probe, and corroborates rather than contradicts it.
+
+## Summary
+
+This is a clean, well-scoped test-only PR: 43 new tests across three colocated files, zero production code changes (verified via diff, not just claimed), all 111 repo tests green, and no forbidden imports, network, wall-clock, or random dependencies. The `KeyTranspositionService` suite is a genuine internal-consistency check rather than a tautology — it derives its expectations independently of the table under test and exhaustively walks all 132 key pairs rather than sampling. Coverage matches the ticket's ask, including the two specific behaviors flagged for scrutiny (same-clip-name exclusion in `enrichRecommendations`, and TRIGGER_ORDER fallback beyond the first/last positions). The two nits above are wording/documentation-clarity items only, not functional gaps, and neither blocks merge.

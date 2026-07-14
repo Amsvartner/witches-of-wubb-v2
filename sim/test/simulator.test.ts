@@ -336,7 +336,7 @@ describe('Simulator', () => {
   });
 
   describe('idle timeout', () => {
-    it('emits timeout_warning 30s before the 3-minute timeout, then stops all clips', () => {
+    it('emits timeout_warning 30s before the 3-minute timeout, then stops all clips and announces the cleared master key', () => {
       simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
       events = [];
 
@@ -345,12 +345,42 @@ describe('Simulator', () => {
       expect(lastEvent('timeout_warning')?.data).toBeUndefined();
 
       vi.advanceTimersByTime(TIMEOUT_WARNING_IN_MILISECONDS);
-      expect(eventNames()).toEqual(['timeout_warning', 'clip_stopped']);
+      expect(eventNames()).toEqual(['timeout_warning', 'clip_stopped', 'master-key_changed']);
       expect(lastEvent('clip_stopped')?.data).toEqual({ pillar: drums.pillar });
       expect(simulator.getPlayingClips()).toEqual([null, null, null, null]);
-      // The real handleTimeout clears the master key without emitting
+      // WOW-018: handleTimeout now announces the cleared key instead of
+      // silently resetting it, so the UI doesn't keep showing a stale key.
       expect(simulator.getMasterKey()).toBe('');
-      expect(eventNames()).not.toContain('master-key_changed');
+      expect(lastEvent('master-key_changed')?.data).toEqual({ key: '' });
+    });
+
+    it('drops any still-queued clip at timeout, emitting clip_unqueued per occupied pillar (WOW-018)', () => {
+      // A short timeoutMs (comfortably under the default 1000ms phraseLengthMs)
+      // fires the idle timeout before the phrase-boundary timer would otherwise
+      // auto-trigger the queued clip, so the "still queued at timeout" state is
+      // actually observable.
+      const shortTimeoutSim = new Simulator({
+        database,
+        phraseLengthMs: PHRASE_LENGTH_MS,
+        timeoutMs: 500,
+        timeoutWarningMs: 100,
+        logger: silentLogger,
+      });
+      const shortEvents: SimEmittedEvent[] = [];
+      shortTimeoutSim.onEvent((event) => shortEvents.push(event));
+
+      shortTimeoutSim.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar }); // starts playing
+      shortTimeoutSim.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar }); // queued behind it
+      expect(shortTimeoutSim.getQueuedClips()[melody.pillar]).not.toBeNull();
+      shortEvents.length = 0;
+
+      vi.advanceTimersByTime(500);
+
+      const unqueued = shortEvents.find((e) => e.eventName === 'clip_unqueued');
+      expect(unqueued?.data).toMatchObject({ pillar: melody.pillar, clip: undefined });
+      expect(shortTimeoutSim.getQueuedClips()).toEqual([null, null, null, null]);
+
+      shortTimeoutSim.dispose();
     });
 
     it('does not fire the timeout while nothing is playing', () => {

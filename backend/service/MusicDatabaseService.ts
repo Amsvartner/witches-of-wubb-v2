@@ -13,15 +13,15 @@ const clipNameToInfoMap: ClipNameToInfoMapType = {};
 
 try {
   Logger.info('Trying to read RFID CSV file');
-  csv = fs.readFileSync(path.join(process.cwd(), '../src/assets/', 'Music Database.csv'), 'utf-8');
+  csv = fs.readFileSync(path.join(__dirname, '../../src/assets/', 'Music Database.csv'), 'utf-8');
   const results = Papa.parse<CsvRow>(csv, {
     header: true,
     transformHeader: (header) => header.replace(':', ''),
   });
   results.data.forEach((row) => CsvUtil.parseCsv(rfidToClipMap, clipNameToInfoMap, row));
-  // results.data.forEach(
-  //   CsvUtil.enrichRecommendations.bind(this, rfidToClipMap, clipNameToInfoMap, results.data),
-  // );
+  // Deliberately does not call CsvUtil.enrichRecommendations here, unlike the frontend's
+  // ClipDatabaseUtil.ts (which does) - the backend has no consumer for recommendedClips
+  // today. sim/test/music-database.test.ts asserts this divergence explicitly.
   Logger.trace('RFID CSV parsed');
 } catch (err) {
   Logger.error(err);

@@ -326,6 +326,7 @@ Tickets touching the Ableton/hardware path (WOW-014, WOW-017, WOW-018, WOW-020, 
 - Risk: low (small, additive, mirrors an existing pattern in the same file) — mandatory sign-off regardless, since it changes live musical/transposition state.
 - Stop conditions: If populating `stoppingClips[pillar] = playingClips[pillar]` in `handleTimeout` is found to interact unexpectedly with phrase-leader promotion or other state read elsewhere during timeout → stop and ask.
 
+
 ---
 
 - ID: WOW-035

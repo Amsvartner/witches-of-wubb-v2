@@ -43,10 +43,11 @@ describe('Music Database.csv data integrity (real CSV, read-only)', () => {
       byStrippedName.set(key, rfids);
     });
     const duplicates = [...byStrippedName.entries()].filter(([, rfids]) => rfids.length > 1);
-    expect(
-      duplicates,
-      `Duplicate space-stripped Clip Name keys: ${JSON.stringify(duplicates, null, 2)}`,
-    ).toEqual([]);
+    if (duplicates.length > 0) {
+      throw new Error(
+        `Duplicate space-stripped Clip Name keys: ${JSON.stringify(duplicates, null, 2)}`,
+      );
+    }
   });
 
   it('has a Key present in KeyTranspositionService.TRANSPOSITIONS whenever Key is non-empty (empty allowed for keyless clips)', () => {

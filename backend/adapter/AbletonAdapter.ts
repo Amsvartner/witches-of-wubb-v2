@@ -35,6 +35,10 @@ const DEFAULT_REMOTE_SCRIPT_VERSION_PATH = path.join(
   os.homedir(),
   'Music/Ableton/User Library/Remote Scripts/AbletonJS/version.py',
 );
+// Where ableton-js discovers the remote script's UDP port. The remote script writes
+// this file once at Live startup; macOS periodically purges the temp dir, so a Live
+// instance left running for days can lose it while the script itself stays alive.
+const ABLETON_SERVER_PORT_FILE = path.join(os.tmpdir(), 'ableton-js-server.port');
 
 let timeoutId: NodeJS.Timeout;
 let timeoutWarningId: NodeJS.Timeout;
@@ -126,6 +130,16 @@ async function logConnectedRemoteScriptVersion() {
 async function startAbleton() {
   Logger.info('Starting AbletonJS');
   checkRemoteScriptVersionPreflight();
+  if (!fs.existsSync(ABLETON_SERVER_PORT_FILE)) {
+    Logger.warn(
+      `AbletonJS server port file is missing ("${ABLETON_SERVER_PORT_FILE}") - the ` +
+        `connection will hang until it appears (up to ${ABLETON_START_TIMEOUT_MS}ms). ` +
+        'If Live is NOT running, just start it (Live rewrites the file on startup). ' +
+        'If Live IS already running, macOS has likely purged the file from the temp dir: ' +
+        'run "yarn fix-ableton-port" to restore it without restarting Live (see README ' +
+        '"Troubleshooting: backend hangs or exits at startup").',
+    );
+  }
   try {
     await ableton.start(ABLETON_START_TIMEOUT_MS);
   } catch (err) {
@@ -135,7 +149,9 @@ async function startAbleton() {
         "Preferences → Link/Tempo/MIDI; (3) the installed remote-script version doesn't " +
         'match this npm package (see the pre-flight version check above). Remediation for (3): ' +
         "copy backend/node_modules/ableton-js/midi-script/ into Live's Remote Scripts folder " +
-        'as "AbletonJS" and restart Live.',
+        'as "AbletonJS" and restart Live. (4) macOS purged the ableton-js server port file ' +
+        'while Live kept running (a warning above names the missing file if so) - run ' +
+        '"yarn fix-ableton-port" to restore it without restarting Live.',
       { cause: err instanceof Error ? err : new Error(String(err)) },
     );
   }

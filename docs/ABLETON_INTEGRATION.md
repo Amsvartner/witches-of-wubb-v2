@@ -21,6 +21,8 @@ This makes two naming conventions for the Live set hard rules (source: the 2026-
 1. **Distinct clips must differ by more than spaces/asterisks/whitespace.** Decoration-only variants (`Verse`, `Verse *`, `Ve rse`) are the same clip to the backend; when several slots match, the earliest one silently wins.
 2. **Loop blocks must remain contiguous runs of same-normalized-name slots.** The loop finder takes everything between the first and last normalized match in its 20-slot window, so a different clip interleaved inside a block gets pulled into the block and would be wrongly transposed under key lock.
 
+Decoration uniformity within a loop block — human decision (2026-07-14), answering the audio-ableton-reviewer re-sign-off's finding 2: samples are generated and named by hand; identical decoration across one clip's loop-block slots is the intention but is **not guaranteed** (human error is possible), so the backend must not assume it. Today two comparisons in the `playing_slot_index` listener (`backend/adapter/AbletonAdapter.ts:468`, `:492`) still compare raw names: a decoration mismatch between consecutive slots of one block would de-transpose the playing block under key lock and emit `clip_started` instead of `clip_playing`. A fast-follow ticket normalizes these two comparisons; until it lands, treat identical decoration within a block as a Live-set requirement and double-check it when adding samples.
+
 ## Musical constraints
 
 - **Trigger order:** `Drums → Melody → Bass → Vox` (`TRIGGER_ORDER`). Also governs phrase-leader selection: `PhraseLeaderService.findNextPhraseLeader` sorts playing clips by this same order and picks the first, determining the timing/key reference clip.

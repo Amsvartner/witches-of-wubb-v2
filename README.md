@@ -62,6 +62,13 @@ At which point you will have:
 1. **Live isn't running.** Start Live with your set open.
 2. **The AbletonJS control surface isn't enabled.** In Live: Preferences → Link/Tempo/MIDI → Control Surface, select AbletonJS.
 3. **The installed remote-script version doesn't match this npm package.** The backend logs a warning naming both versions at startup if they differ (or if it can't find the installed one — see `ABLETON_REMOTE_SCRIPT_VERSION_PATH` below). To fix: copy `backend/node_modules/ableton-js/midi-script/` into Live's Remote Scripts folder as `AbletonJS`, then restart Live.
+4. **macOS purged the port file while Live kept running.** The remote script writes `$TMPDIR/ableton-js-server.port` once, at Live startup; macOS periodically cleans old files out of the per-user temp dir, so a Live instance left running for days loses it while the script itself stays alive. Without the file the backend would hang at `Client is bound and listening` until the timeout — so at startup, if the file is missing, the backend automatically runs `scripts/restore-ableton-port-file.sh`, which finds the remote script's UDP socket in the running Live process and rewrites the file (logged as `Port file restore: ...`). If the automatic restore fails (e.g. Live isn't running yet), the backend logs a warning and falls back to waiting; you can also run it manually:
+
+   ```bash
+   yarn fix-ableton-port
+   ```
+
+   Restarting Live also fixes it, since Live rewrites the file on startup.
 
 Two optional `.env` overrides (both have working defaults — see `.env`):
 

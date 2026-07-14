@@ -6,7 +6,7 @@ Status: observed from `backend/adapter/AbletonAdapter.ts`, `backend/type/`, `bac
 
 ## How samples are triggered
 
-- `ableton-js` 3.1.5 bridges to a running Ableton Live set (requires the ableton-js MIDI remote script installed in Live — see README link).
+- `ableton-js` 3.1.5 bridges to a running Ableton Live set (requires the ableton-js MIDI remote script installed in Live — see README link). Discovery happens via `$TMPDIR/ableton-js-*.port` files; if macOS purged the server port file, the backend restores it automatically at startup (falling back to `yarn fix-ableton-port` manually — see README "Troubleshooting: backend hangs or exits at startup").
 - On startup the backend loads all tracks and clips (`GetTracksAndClips`) and track volume parameters.
 - An RFID `/new/tag` event → CSV lookup → `QueueClip(clipMetadata, pillar)`; clips are found by **normalized clip-name match** within the pillar's track (see "Clip-name matching" below — spaces and asterisks are ignored on both sides). Looped clips: the code finds all clips sharing a normalized name within a 20-slot window ("clips in loop").
 - `/departed/tag` → `StopOrRemoveClipFromQueue`.

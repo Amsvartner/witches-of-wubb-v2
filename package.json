@@ -20,6 +20,7 @@
     "prepare": "husky install",
     "postinstall": "cd backend && yarn install",
     "start-backend": "cd backend && yarn start",
+    "fix-ableton-port": "scripts/restore-ableton-port-file.sh",
     "start-frontend": "vite"
   },
   "dependencies": {

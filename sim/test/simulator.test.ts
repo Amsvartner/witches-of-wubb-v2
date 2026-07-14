@@ -487,3 +487,61 @@ describe('Simulator key adoption (synthetic database)', () => {
     expect(simulator.getMasterKey()).toBe('7B');
   });
 });
+
+// WOW-031 backend parity: every backend clip-name comparison strips asterisks
+// and ALL whitespace (backend/util/ClipNameUtil.ts), so names differing only
+// by that decoration are the same clip. The tab in the fixture pins the \s
+// band (tab/NBSP/BOM) that a space-only strip would miss.
+describe('Simulator clip-name normalization (synthetic database)', () => {
+  const syntheticCsv = [
+    'RFID,Clip Name,Clip Type (e.g. Vocals),Icon / Asset Name,Artist,Song Title,Ingredient Name / Description,Key,BPM',
+    'rfid-drums,Synth Drums 100,Drums,drums.png,Artist A,Song A,Toad Legs,4A,100',
+    'rfid-plain,Synth Melody 90,Melody,melody.png,Artist B,Song B,Newt Eyes,7B,90',
+    'rfid-decorated,Synth\tMelody *90,Melody,melody.png,Artist B,Song B,Newt Eyes,7B,90',
+  ].join('\n');
+  const syntheticDatabase = buildMusicDatabase(syntheticCsv);
+
+  let simulator: Simulator;
+  let events: SimEmittedEvent[];
+  const eventNames = () => events.map((event) => event.eventName);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    simulator = new Simulator({
+      database: syntheticDatabase,
+      phraseLengthMs: PHRASE_LENGTH_MS,
+      logger: silentLogger,
+    });
+    events = [];
+    simulator.onEvent((event) => events.push(event));
+  });
+
+  afterEach(() => {
+    simulator.dispose();
+    vi.useRealTimers();
+  });
+
+  it('treats a queued decoration-only name variant as already queued', () => {
+    simulator.handleNewTag({ rfid: 'rfid-drums', pillar: 0 });
+    simulator.handleNewTag({ rfid: 'rfid-plain', pillar: 1 });
+    events = [];
+
+    // Same normalized name on the same pillar → the "already queued" early
+    // return, as in the real backend's queueClip.
+    simulator.handleNewTag({ rfid: 'rfid-decorated', pillar: 1 });
+    expect(eventNames()).toEqual(['ingredient_detected']);
+    expect(simulator.getQueuedClips()[1]).toMatchObject({ rfid: 'rfid-plain' });
+  });
+
+  it('stops a playing clip via a departing decoration-only name variant', () => {
+    simulator.handleNewTag({ rfid: 'rfid-decorated', pillar: 1 });
+    events = [];
+
+    // In the real backend the playing name is Ableton's raw clip name while
+    // the departing tag resolves to the CSV name; normalization is what lets
+    // a decorated pair still match on the stop path.
+    simulator.handleDepartedTag({ rfid: 'rfid-plain', pillar: 1 });
+    expect(eventNames()).toEqual(['ingredient_removed', 'clip_stopping', 'clip_stopped']);
+    expect(simulator.getPlayingClips()[1]).toBeNull();
+  });
+});

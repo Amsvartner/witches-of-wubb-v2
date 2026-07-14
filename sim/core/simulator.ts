@@ -1,6 +1,6 @@
 /**
  * Fake backend state machine mirroring the browser-observable behavior of the
- * real backend (backend/events/incoming-events.ts + backend/ableton-api.ts).
+ * real backend (backend/event/IncomingEvents.ts + backend/adapter/AbletonAdapter.ts).
  * Transport-free per ADR-001: no socket.io imports; `sim/server.ts` binds this
  * to a socket, and vitest exercises it directly.
  *
@@ -11,8 +11,8 @@
  * - Queued clips trigger on a fixed timer (`phraseLengthMs`) instead of the
  *   phrase leader's loop end, which is only knowable from the live set.
  * - `clip_started` bpm comes from the CSV BPM column instead of Ableton warp
- *   markers (backend/ableton-api.ts:434).
- * - The real backend's missing-clip branch (backend/ableton-api.ts:185-191:
+ *   markers (backend/adapter/AbletonAdapter.ts:405).
+ * - The real backend's missing-clip branch (backend/adapter/AbletonAdapter.ts:172-178:
  *   `clip_unqueued` when a CSV clip has no matching clip in the live Ableton
  *   set) is not modeled — the sim has no live set, so every database clip
  *   "exists". Shapes and acks are unaffected.
@@ -28,7 +28,7 @@ import {
 } from './types';
 
 // Mirror TIMEOUT_IN_MILISECONDS / TIMEOUT_WARNING_IN_MILISECONDS
-// (backend/ableton-api.ts:19-20)
+// (backend/adapter/AbletonAdapter.ts:24-25)
 export const TIMEOUT_IN_MILISECONDS = 60 * 3 * 1000;
 export const TIMEOUT_WARNING_IN_MILISECONDS = 30 * 1000;
 
@@ -77,8 +77,8 @@ export class Simulator {
 
   private tempo: number;
   private trackVolumes: TrackVolumesType;
-  private keyLockEnabled = true; // mirrors backend/ableton-api.ts:31
-  private masterKey = ''; // mirrors backend/ableton-api.ts:32
+  private keyLockEnabled = true; // mirrors backend/adapter/AbletonAdapter.ts:36
+  private masterKey = ''; // mirrors backend/adapter/AbletonAdapter.ts:37
   private playingClips: ClipSlot[] = new Array(PILLAR_COUNT).fill(null);
   private queuedClips: ClipSlot[] = new Array(PILLAR_COUNT).fill(null);
   private stoppingClips: ClipSlot[] = new Array(PILLAR_COUNT).fill(null);
@@ -124,10 +124,10 @@ export class Simulator {
     this.timeoutWarningId = null;
   }
 
-  // --- Outgoing events (mirrors backend/events/outgoing-events.ts) ---------
+  // --- Outgoing events (mirrors backend/event/OutgoingEvents.ts) ---------
 
-  // EmitEvent restarts the idle timeout; EmitEventWithoutResetingTimout does
-  // not (backend/events/outgoing-events.ts:34-41). Browser sockets receive the
+  // emitEvent restarts the idle timeout; emitEventWithoutResetingTimout does
+  // not (backend/event/OutgoingEvents.ts:19-26). Browser sockets receive the
   // bare event name — the /<pillar>/ prefix is OSC-only.
   private emit(eventName: string, data?: Record<string, unknown>, resetTimeout = true) {
     if (resetTimeout) this.restartTimeoutTimer();
@@ -135,7 +135,7 @@ export class Simulator {
     this.listeners.forEach((listener) => listener({ eventName, data }));
   }
 
-  // --- Idle timeout (mirrors backend/ableton-api.ts:49-83) -----------------
+  // --- Idle timeout (mirrors backend/adapter/AbletonAdapter.ts:54-88) -----------------
 
   private shouldShowTimeout() {
     return (
@@ -161,10 +161,12 @@ export class Simulator {
     }, this.timeoutMs);
   }
 
-  // Mirrors handleTimeout (backend/ableton-api.ts:49): every track is stopped
+  // Mirrors handleTimeout (backend/adapter/AbletonAdapter.ts:147): every track is stopped
   // (the browser sees a bare clip_stopped per pillar, since stoppingClips is
-  // empty on this path) and the master key resets silently — the real backend
-  // assigns masterKey directly without emitting master-key_changed.
+  // empty on this path), the master key resets and emits master-key_changed,
+  // and any still-queued clips are dropped with clip_unqueued per occupied
+  // pillar — all via the without-reset emit variant so the timeout's own
+  // cleanup doesn't re-arm the timer it just fired (WOW-018).
   private handleTimeout() {
     this.playingClips.forEach((clip, pillar) => {
       if (clip) {
@@ -173,9 +175,16 @@ export class Simulator {
       }
     });
     this.masterKey = '';
+    this.emit('master-key_changed', { key: this.masterKey }, false);
+
+    this.queuedClips.forEach((queued, pillar) => {
+      if (!queued) return;
+      this.queuedClips[pillar] = null;
+      this.emit('clip_unqueued', { ...queued, clip: undefined }, false);
+    });
   }
 
-  // --- Tag events (mirrors backend/events/incoming-events.ts:42-101) -------
+  // --- Tag events (mirrors backend/event/IncomingEvents.ts:33-97) -------
 
   handleNewTag(data: TagDetectionData) {
     if (!isValidPillar(data.pillar)) {
@@ -214,7 +223,7 @@ export class Simulator {
       return;
     }
     // Note: unlike ingredient_detected, the real payload carries no rfid
-    // (backend/events/incoming-events.ts:93).
+    // (backend/event/IncomingEvents.ts:89).
     this.emit('ingredient_removed', {
       ...clipMetadata,
       pillar: data.pillar,
@@ -223,9 +232,9 @@ export class Simulator {
     this.stopOrRemoveClipFromQueue(clipMetadata.clipName, data.pillar);
   }
 
-  // --- Clip lifecycle (mirrors QueueClip / TriggerQueuedClips /
-  // StopOrRemoveClipFromQueue and the playing_slot_index listener in
-  // backend/ableton-api.ts) -------------------------------------------------
+  // --- Clip lifecycle (mirrors queueClip / triggerQueuedClips /
+  // stopOrRemoveClipFromQueue and the playing_slot_index listener in
+  // backend/adapter/AbletonAdapter.ts) -------------------------------------------------
 
   private queueClip(clipMetadata: Omit<BrowserClipInfo, 'pillar'>, pillar: number) {
     const { clipName, key } = clipMetadata;
@@ -238,7 +247,7 @@ export class Simulator {
     const silence = this.playingClips.every((clip) => !clip);
     if (silence || this.masterKey === '') {
       // Coming from silence or an undefined key state: adopt this clip's key
-      // (backend/ableton-api.ts:160-163)
+      // (backend/adapter/AbletonAdapter.ts:147-150)
       if (key) this.setMasterKey(key);
     }
 
@@ -254,7 +263,7 @@ export class Simulator {
   }
 
   // Stand-in for the phrase leader's loop-end listener
-  // (backend/ableton-api.ts:262-287): queued clips fire at the next phrase
+  // (backend/adapter/AbletonAdapter.ts:249-274): queued clips fire at the next phrase
   // boundary, approximated with a fixed-length timer.
   private schedulePhraseTrigger() {
     if (this.phraseTimerId) return;
@@ -273,7 +282,7 @@ export class Simulator {
   }
 
   // Mirrors the browser-observable effects of the playing_slot_index listener
-  // (backend/ableton-api.ts:299-347).
+  // (backend/adapter/AbletonAdapter.ts:286-335).
   private startClip(clipInfo: BrowserClipInfo) {
     const { pillar, clipName } = clipInfo;
     const bpm = this.database.bpmByRfid[clipInfo.rfid] ?? this.tempo;
@@ -287,7 +296,7 @@ export class Simulator {
     }
     if (wasSilence) {
       // Coming from silence: adopt the clip's bpm and key
-      // (backend/ableton-api.ts:336-340)
+      // (backend/adapter/AbletonAdapter.ts:324-328)
       this.setTempo(bpm);
       if (clipInfo.key) this.setMasterKey(clipInfo.key);
     }
@@ -305,12 +314,12 @@ export class Simulator {
       this.stoppingClips[pillar] = playingClip;
       this.emit('clip_stopping', { ...playingClip, clip: undefined });
       // Track stop → playing_slot_index -1 → clip_stopped with the stopping
-      // clip's info (backend/ableton-api.ts:350-356), synchronous in the sim.
+      // clip's info (backend/adapter/AbletonAdapter.ts:338-344), synchronous in the sim.
       this.emit('clip_stopped', { ...playingClip, pillar, clip: undefined }, false);
       this.stoppingClips[pillar] = null;
       this.playingClips[pillar] = null;
       // Phrase-leader hand-off: with no clip left to promote, queued clips
-      // fire immediately (backend/ableton-api.ts:223-232).
+      // fire immediately (backend/adapter/AbletonAdapter.ts:210-219).
       if (this.playingClips.every((clip) => !clip) && this.queuedClips.some((clip) => clip)) {
         this.triggerQueuedClips();
       }
@@ -331,11 +340,11 @@ export class Simulator {
     }
   }
 
-  // --- Ack-style request handlers (mirrors AddSocketEventsHandlers,
-  // backend/events/incoming-events.ts:103-181) ------------------------------
+  // --- Ack-style request handlers (mirrors addSocketEventsHandlers,
+  // backend/event/IncomingEvents.ts:99-177) ------------------------------
 
   // The acks project a fixed subset of fields — ingredientName/key/etc. are
-  // not included (backend/events/incoming-events.ts:110-147).
+  // not included (backend/event/IncomingEvents.ts:106-143).
   private toBrowserClipInfoList(slots: ClipSlot[]): BrowserClipInfoList {
     return slots.map((data) => {
       if (data) {
@@ -370,7 +379,7 @@ export class Simulator {
   }
 
   // Fire-and-forget in the real contract — no ack callback
-  // (backend/events/incoming-events.ts:164).
+  // (backend/event/IncomingEvents.ts:160).
   setTrackVolume({ pillar, volume }: SetTrackVolumeInputType) {
     if (!isValidPillar(pillar)) {
       this.logger.warn(`Ignoring set_track_volume with invalid pillar index: ${pillar}`);
@@ -386,7 +395,7 @@ export class Simulator {
   }
 
   // Toggling key lock only re-transposes clips inside Ableton — the real
-  // backend emits no browser event here (backend/ableton-api.ts:445).
+  // backend emits no browser event here (backend/adapter/AbletonAdapter.ts:416).
   setKeyLockState(state: boolean): boolean {
     this.keyLockEnabled = state;
     this.logger.info(`Key lock: ${state}`);
@@ -398,7 +407,7 @@ export class Simulator {
   }
 
   // Fire-and-forget in the real contract — no ack callback
-  // (backend/events/incoming-events.ts:177).
+  // (backend/event/IncomingEvents.ts:173).
   setMasterKey(newKey: string) {
     this.masterKey = newKey;
     this.emit('master-key_changed', { key: newKey });

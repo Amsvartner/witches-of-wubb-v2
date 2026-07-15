@@ -30,9 +30,9 @@ The mockups below are drawn in **Palette Option A ("Obsidian & Gilt")** purely s
 
 ### One tension to surface up front — category hue source
 
-`src/util/ColorUtil.ts` is the **single source of truth** for category colour (PRD F4): **Vox = red-700 `#b91c1c`, Bass = green-700 `#15803d`, Drums = blue-700 `#1d4ed8`, Melody = yellow-700 `#a16207`.** The concept art instead paints Vocals pink/magenta and Melody amber. **Requirements win: this proposal uses the ColorUtil `-700` hues** (they also match the LED colours the visitor sees around them, PROJECT_BRIEF). PRD F4 explicitly permits _restyling the values inside that function_ — so _whether_ to nudge those hues toward the concept art's pink/amber is a legitimate part of the palette sign-off (§8.3), but it stays a single-source-of-truth change, not per-component divergence.
+`src/util/ColorUtil.ts` is the **single source of truth** for category colour (PRD F4). Note it currently returns **Tailwind class names**, not hex — `getBackgroundColorFromType` maps **Vox → `bg-red-700`, Bass → `bg-green-700`, Drums → `bg-blue-700`, Melody → `bg-yellow-700`**. The hex values quoted throughout this doc (**Vox `#b91c1c`, Bass `#15803d`, Drums `#1d4ed8`, Melody `#a16207`**) are those Tailwind `-700` tokens **resolved against the default palette**, used here so the mockups render — if the Tailwind theme is ever customised, the tokens (the class names) remain the contract and the hex follows. The concept art instead paints Vocals pink/magenta and Melody amber. **Requirements win: this proposal uses the ColorUtil `-700` tokens** (they also match the LED colours the visitor sees around them, PROJECT*BRIEF). PRD F4 explicitly permits \_restyling the values inside that function* — so _whether_ to nudge those hues toward the concept art's pink/amber is a legitimate part of the palette sign-off (§8.3), but it stays a single-source-of-truth change, not per-component divergence.
 
-**Critical a11y consequence, carried into §3 and §7:** the raw `-700` hues on a near-black page mostly **fail WCAG AA for text** (e.g. blue-700 on `#0b0a0d` ≈ 2.5:1). So this system uses each category hue in **two roles**: the **`-700` fill** for medallions/LED-matching accents (recognition), and a **lightened `-300` tint** for any category _text_ (legibility). See §3.3 and §7.2.
+**Critical a11y consequence, carried into §3 and §7:** the raw `-700` hues on a near-black page **fail WCAG AA for text** (e.g. blue-700 on the `#0e0b12` page ≈ 2.9:1 — see §7.2 for all four). So this system uses each category hue in **two roles**: the **`-700` fill** for medallions/LED-matching accents (recognition), and a **lightened `-300` tint** for any category _text_ (legibility). See §3.3 and §7.2.
 
 ---
 
@@ -239,15 +239,15 @@ A token layer so the interface is built as a **coherent design system, not one i
 
 ### 3.1 Background surfaces
 
-| Token                 | Role                                                      | Ref value (Option A)                |
-| --------------------- | --------------------------------------------------------- | ----------------------------------- |
-| `surface/page`        | The grimoire spread; whole-screen backdrop                | `#0e0b12` → `#080609` radial        |
-| `surface/binding`     | Left/right binding margins that extend the book           | `#1a1410` → `#0b0906`               |
-| `surface/panel`       | Pillar card / settings-band fill                          | `#140f1a`                           |
-| `surface/panel-inset` | Currently-playing / queued rows inside a card             | `#1b1016` (hue-tinted per category) |
-| `surface/overlay`     | dj/debug scrims (opaque, never see-through — fixes UI-05) | `#0b0910` @ 96%                     |
-| `motif/gold-line`     | Hairline decorative borders & rules                       | `#c9a24b` @ 25–50%                  |
-| `motif/gold-bright`   | Focal ornaments, active tick marks                        | `#e6c877`                           |
+| Token                 | Role                                                           | Ref value (Option A)                |
+| --------------------- | -------------------------------------------------------------- | ----------------------------------- |
+| `surface/page`        | The grimoire spread; whole-screen backdrop                     | `#0e0b12` → `#080609` radial        |
+| `surface/binding`     | Left/right binding margins that extend the book                | `#1a1410` → `#0b0906`               |
+| `surface/panel`       | Pillar card / settings-band fill                               | `#140f1a`                           |
+| `surface/panel-inset` | Currently-playing / queued rows inside a card                  | `#1b1016` (hue-tinted per category) |
+| `surface/overlay`     | dj/debug scrims (near-opaque, never see-through — fixes UI-05) | `#0b0910` @ 98–100%                 |
+| `motif/gold-line`     | Hairline decorative borders & rules                            | `#c9a24b` @ 25–50%                  |
+| `motif/gold-bright`   | Focal ornaments, active tick marks                             | `#e6c877`                           |
 
 ### 3.2 Pillar borders & geometry
 
@@ -270,6 +270,8 @@ A token layer so the interface is built as a **coherent design system, not one i
 | **Drums**        | `#1d4ed8`                                   | `#93c5fd`                                 | Drum kit / dotted circle        |
 
 > **Rule:** never render category _text_ in the raw `-700` hue on the dark page — it fails AA (§7.2). Use the `-300` tint for text; reserve `-700` for fills/borders/LED-matching. Icons must be **distinguishable by shape alone** (PRD accessibility — colour-independent identification).
+>
+> **Tint note:** the Melody text tint `#fcd34d` is Tailwind **amber-300**, deliberately chosen over true yellow-300 (`#fde047`) for a warmer, on-brand cast that still clears AA (≈ 13.5:1). The other three are the straight `-300` of their category hue.
 
 ### 3.4 Typography (reference; family choice = HALT §8.2)
 
@@ -325,7 +327,7 @@ Principle: decorative font is _thematic only_; every piece of **operator-critica
 | Queued            | category hue @ 55%, dashed             | pillar queued                              |
 | Paused            | `#9a9080`                              | pillar paused                              |
 | Muted             | `#6b6472` + slash overlay              | pillar muted                               |
-| Disabled/offline  | `#3a3540` desaturated + diagonal hatch | pillar unavailable, reader offline         |
+| Disabled/offline  | `#3a3540` desaturated + diagonal hatch | pillar unavailable / disconnected          |
 | Connected (debug) | `#22c55e`                              | debug connection state                     |
 | Warning           | `#b45309`                              | idle timeout warning (T-30s), reconnecting |
 | Error/disconnect  | `#b91c1c`                              | WS/Ableton disconnect banner               |
@@ -411,7 +413,7 @@ One component, four instances. This is the single most reused unit in the UI, so
     <text x="16" y="26" class="lbl" fill="#6b6472">Pillar 4</text>
     <circle cx="115" cy="110" r="40" fill="#141319" stroke="#3a3540" stroke-width="3"/>
     <text x="115" y="176" text-anchor="middle" class="nm" fill="#6b6472">DRUMS</text>
-    <text x="115" y="208" text-anchor="middle" class="st" fill="#b91c1c">reader offline</text>
+    <text x="115" y="208" text-anchor="middle" class="st" fill="#b91c1c">disconnected</text>
     <text x="115" y="250" text-anchor="middle" class="lbl" fill="#e6c877">DISABLED (hatch + reason)</text>
   </g>
   <!-- FOCUS -->
@@ -429,17 +431,19 @@ One component, four instances. This is the single most reused unit in the UI, so
 
 ### State model (how a pillar moves between states)
 
-| State        | Trigger / source                                    | Distinguished by (non-colour cue too)                  |
-| ------------ | --------------------------------------------------- | ------------------------------------------------------ |
-| **empty**    | no tag detected on pillar                           | dim ring, "awaiting ingredient", desaturated name      |
-| **queued**   | `ingredient_detected` / `clip_queued`               | **dashed** medallion ring + calm pulse + "next phrase" |
-| **active**   | `clip_started` / `clip_playing`                     | filled glow + green ● + waveform motion                |
-| **paused**   | operator pause (dj)                                 | **pause glyph**, static, name dimmed                   |
-| **muted**    | volume at 0 / mute toggle                           | **slash overlay** across medallion, greyed name        |
-| **disabled** | reader offline / WS or Ableton down for that pillar | **diagonal hatch** + explicit reason text              |
-| **focus**    | touch/keyboard focus (operator)                     | 3px gilt ring outside the card                         |
+| State        | Trigger / source                                        | Distinguished by (non-colour cue too)                  |
+| ------------ | ------------------------------------------------------- | ------------------------------------------------------ |
+| **empty**    | no tag detected on pillar                               | dim ring, "awaiting ingredient", desaturated name      |
+| **queued**   | `ingredient_detected` / `clip_queued`                   | **dashed** medallion ring + calm pulse + "next phrase" |
+| **active**   | `clip_started` / `clip_playing`                         | filled glow + green ● + waveform motion                |
+| **paused**   | operator pause (dj)                                     | **pause glyph**, static, name dimmed                   |
+| **muted**    | volume at 0 / mute toggle                               | **slash overlay** across medallion, greyed name        |
+| **disabled** | WS/backend/Ableton unavailable (general "disconnected") | **diagonal hatch** + explicit reason text              |
+| **focus**    | touch/keyboard focus (operator)                         | 3px gilt ring outside the card                         |
 
 Every state has a **shape/text cue in addition to colour** so it survives colour-blindness and the dim installation lighting (PRD accessibility). This is the reusable contract WOW-007 builds against.
+
+> **Contract note (disabled state):** the current socket contract has **no distinct per-pillar "reader offline" signal** — the frontend can only observe a general WS/backend/Ableton disconnect. So the disabled state is specified against that **general "disconnected"** condition. If a per-pillar reader-status signal is wanted, it is a **contract addition** to be raised (and approved) as part of WOW-007, not something this design assumes exists.
 
 ---
 
@@ -552,7 +556,7 @@ Adds, **beside each pillar**, an extended controls drawer. This is where the old
 Adds a **small panel docked to the bottom** with diagnostics **only** — no clip/performance controls (those are dj mode). This is the confirmed baseline (ADR-003, PRD FR3); extras are HALT §8.4.
 
 - **Shows (confirmed baseline):** rolling **log of API calls + socket events**; **connection state** (WS connected/disconnected, last event timestamp, reconnect status — closes audit UI-01); **versions** (app build, backend/contract if available); the **SIMULATED badge** when running against `sim/` (UX_UI_PRINCIPLES 10 — currently absent, audit finding). An **idle-timeout indicator** reflecting `timeout_warning` (closes audit UI-17) belongs here too.
-- **Never shows:** volume/tempo/key/clip controls.
+- **The debug panel itself adds no performance controls** — no clip controls, and it contributes no volume/tempo/key controls of its own. (The normal-mode base tempo/volume/key controls remain visible above the ≤ 30% dock, per the §6.4 matrix; debug is an additive diagnostics layer, not a replacement surface.)
 - **Entry:** hidden gesture #2 (§8.1) — a _different_ element/duration from dj, so the two are unambiguous.
 - **Exit:** explicit **"Close debug"** control on the panel; the panel is a bottom dock that does not obscure the pillar grid.
 - **Presentation:** monospaced, dense but readable log; newest at bottom, auto-scroll with a pause-on-touch; the panel occupies ≤ 30% of screen height so the visitor grid remains legible above it.
@@ -603,7 +607,8 @@ Installation context: a public, unattended touch kiosk in a **dim** room, embedd
 ### 7.2 Contrast (WCAG AA for operator-critical text)
 
 - **Operator-critical text** (tempo/BPM, key, connection state, log, any status) must meet **AA: 4.5:1** normal, **3:1** large (≥ 24 px or ≥ 19 px bold). Verify with a checker on the final palette.
-- **The category-hue caution (from §0/§3.3):** raw `-700` category colours on the near-black page **fail AA as text** — measured/estimated on `#0e0b12`: Vox `#b91c1c` ≈ 3.3:1, Melody `#a16207` ≈ 3.6:1, Bass `#15803d` ≈ 2.9:1, Drums `#1d4ed8` ≈ 2.5:1. **Therefore category text uses the `-300` tints** (`#fca5a5`/`#fcd34d`/`#86efac`/`#93c5fd`, all ≥ 4.5:1 on the page); the `-700` hues are used only for **fills/borders/LED-match**, where 3:1 non-text contrast (WCAG 1.4.11) is sufficient.
+- **The category-hue caution (from §0/§3.3):** raw `-700` category colours on the near-black page **fail AA as text**. Rough estimates on `#0e0b12` (verify with a checker before quoting downstream): Vox `#b91c1c` ≈ 3.0:1, Bass `#15803d` ≈ 3.9:1, Melody `#a16207` ≈ 4.0:1, Drums `#1d4ed8` ≈ 2.9:1 — **all four fall short of the 4.5:1 body-text bar, with Drums the lowest**. **Therefore category text uses the `-300` tints** (`#fca5a5`/`#fcd34d`/`#86efac`/`#93c5fd`, all ≥ 4.5:1 on the page); the `-700` hues are used only for **fills/borders/LED-match**, where 3:1 non-text contrast (WCAG 1.4.11) is sufficient.
+- **Non-text caveat — Drums ring:** at ≈ 2.9:1, the Drums `-700` (`#1d4ed8`) is marginally **under** the 3:1 threshold for a category/state-encoding border or medallion ring (1.4.11). WOW-007's automated contrast pass must verify the Drums ring/border specifically and, if it fails, lighten it (e.g. an inner `-300` stroke) so the category indicator clears 3:1.
 - **Decorative type is exempt** from the data-contrast rule but the wordmark still clears 3:1.
 - **Do not rely on colour alone** — every category and every pillar state carries an icon/shape/text cue (§4; PRD accessibility).
 - Fold an automated contrast pass (axe-core / Lighthouse) into WOW-007 acceptance, since the current baseline had unverified low-contrast labels (audit UI-16).

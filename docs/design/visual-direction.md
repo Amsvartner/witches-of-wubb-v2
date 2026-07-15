@@ -21,7 +21,7 @@ It is the portrait graphic-occult concept (derived from image 2 of the original 
 - a large ceremonial **HEXOLOGY** wordmark
 - a central cauldron
 - four symmetrical pillar panels
-- magenta vocals, amber melody, green bass, blue drums
+- four colour-differentiated categories (the image renders Vocals magenta, but **implementation uses red for Vocals per spec** — see "Sample-type colours" below)
 - a polished, adult, otherworldly appearance
 - strong hierarchy with generous negative space
 
@@ -51,10 +51,10 @@ The following are **rejected** and must never be produced or accepted as the des
 
 ## Sample-type colours
 
-The reference direction (ColorUtil remains the implementation's single source of truth — see the design proposal for the reconciliation):
+Category colour follows the **original spec / `ColorUtil`** (the single source of truth), **not** the reference image's palette (a [Requirements over reference] case, human 2026-07-15):
 
-- **Vocals:** magenta / pink
-- **Melody:** amber / orange
+- **Vocals:** **red** (original spec — the reference's pink does **not** apply)
+- **Melody:** yellow today; amber/orange is an open sign-off question (see design proposal §8.3)
 - **Bass:** green
 - **Drums:** blue
 
@@ -80,6 +80,7 @@ The target display is **1024 × 1280 effective resolution (portrait)** — a 128
 - Key controls are exactly **Raise key / Lower key / Reset key**; Auto-adjust-key already has a toggle — do not add a separate toggle-key button.
 - The legend shows the four sample-type colours only.
 - All four pillar cards share the same component structure and border geometry.
+- The **pillar border/frame in the reference image is only an example** — the actual frame style is an open choice with several options (design proposal §8.5); whichever is chosen, all four pillars use the same frame.
 - An **empty pillar (no tag/sample present) has no category** — no category icon, name, or colour until a sample is loaded.
 
 ## Design priorities

@@ -147,11 +147,36 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 
 ---
 
+- ID: WOW-007A
+- Title: Primary-screen visual fidelity spike
+- Summary: A deliberately limited, frontend-only **visual spike** that builds a browser-rendered **normal-mode** screen demonstrating the approved visual direction (`docs/design/hexology-grimoire-concept-2.png`) before the full interface is implemented. This is the **first** UI implementation ticket; it exists to earn human visual approval, not to ship the product.
+- Goal: Prove the visual direction in a real browser render (not a documentation SVG) so the human/artists can approve the look before broader implementation begins.
+- Context files (read all before starting): `docs/DESIGN_PROPOSAL_001.md` (esp. the visual-fidelity gate, §2 primary reference, §3 tokens, §3.11 icon strategy + asset inventory, §7 touch/contrast/typography), `docs/design/visual-direction.md`, `docs/design/hexology-grimoire-concept-2.png` (primary visual reference — quality bar), `docs/design/Hex_layout_concept.svg` (layout authority), `docs/design/typography-specimens.html`, `src/util/ColorUtil.ts`, `docs/CODING_GUIDELINES.md`.
+- Source-of-truth hierarchy: (1) product requirements + socket contract; (2) the wireframe for layout/placement/controls/hierarchy; (3) the primary concept image for visual style + quality; (4) written implementation constraints.
+- Scope:
+  - **Frontend only**; **static/mock data only** (no live socket wiring).
+  - No changes to backend, Ableton, RFID, LEDs, socket **event names**, or musical behaviour.
+  - **No DJ-mode** implementation; **no debug-mode** implementation; **no production cutover**.
+  - One representative state per pillar; **empty pillars show no category**.
+  - **Exact 1024 × 1280 portrait** viewport first; the primary concept image is the visual quality reference; the wireframe is the layout authority.
+- Must include: the approved/proposed Hexology **wordmark** treatment; **four symmetrical pillar components**; a **coherent category-icon** treatment (licensed family or clearly-labelled neutral placeholders per §3.11 — never placeholders presented as final); **category colours** (magenta/amber/green/blue direction, `ColorUtil` remaining the single source of truth); **central cauldron**; the **settings/control band** (tempo, auto-adjust-key toggle, current key + key difference, Raise/Lower/Reset); **visible Help + Settings** controls; the **legend**; realistic spacing; **typography at intended size** (one of the §8.2 directions, chosen with the human — **not Fondamento**); **real CSS and browser rendering**; a **screenshot at exactly 1024 × 1280**; a **safe local demo command**; **no hardware or Ableton access**.
+- Acceptance criteria: clearly recognisable as the **same visual family** as the primary reference; **no** generic rounded-card dashboard appearance; **no** placeholder iconography presented as final; **no Fondamento**; no element collisions; cauldron retains its natural aspect ratio; all category medallions remain circular; pillar frames symmetrical and consistent; controls remain easier to identify than decoration; touch targets and text sizes comply with the proposal (§7); the human reviews the **browser-rendered** result at the checkpoint; **no further UI implementation ticket begins until the human explicitly approves the visual spike** (visual-fidelity gate, DESIGN_PROPOSAL_001 §"Visual-fidelity gate").
+- Required tests/checks: `yarn lint`, `yarn test`, `yarn build` green; component render/smoke test for the normal-mode screen with mock data; screenshot at 1024×1280 attached to the PR.
+- Hardware/Ableton/LED/RFID safety notes: none — frontend-only, mock data, no hardware/Ableton access; never run `yarn start-backend`.
+- Dependencies: WOW-006 **design proposal** merged; **WOW-011** conventions migration coordinated (avoid rewriting code about to move). Does **not** require the four §8 HALT items all resolved, but the typography direction (§8.2) and category-colour direction (§8.3) must be picked with the human before the spike so the render is representative.
+- Suggested agent(s): frontend-ui-designer (direction), frontend-implementer (build), test-engineer, reviewer, plus **human/artist visual sign-off (mandatory, non-delegable)**.
+- Risk: low-medium (visual-quality bar is subjective and human-gated).
+- Out of scope: dj/debug modes; live socket data; backend/Ableton/hardware; the full samples modal; production cutover; deciding the remaining §8 HALT items beyond typography + category-colour direction.
+- Stop conditions: Any need to touch backend/Ableton/hardware or socket event names → stop. Visual result cannot reach the reference quality bar with available assets → stop and request the bespoke icon/illustration assets (§3.11) rather than shipping primitive artwork.
+- Run with: `/ship-feature WOW-007A checkpoint`.
+
+---
+
 - ID: WOW-007 (placeholder)
 - Title: [Placeholder] UI rework foundation tickets
-- Summary: Sliced by project-manager after WOW-006 approval (three-mode main screen: normal/dj/debug per ADR-003 amended, theming foundation, recipe removal, contract layer).
-- Dependencies: WOW-006 approved; gesture-pair decision (ADR-006 amended).
-- Stop conditions: No approved design direction.
+- Summary: Sliced by project-manager **after human visual approval of the WOW-007A spike** (three-mode main screen: normal/dj/debug per ADR-003 amended, theming foundation, recipe removal, contract layer). **Blocked** by the DESIGN_PROPOSAL_001 visual-fidelity gate.
+- Dependencies: WOW-006 design proposal merged; **WOW-007A visual spike approved by the human/artists (visual-fidelity gate)**; ADR-006 amendment for the visible Settings-modal mode-access model; the §8 HALT items (mode-access, typography, palette, debug extras) resolved.
+- Stop conditions: No **human-approved** visual direction (documentation completeness is not visual approval).
 
 ---
 

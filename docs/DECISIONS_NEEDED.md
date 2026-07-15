@@ -4,8 +4,10 @@ Open questions for the human. Answered decisions live in ADRs (`docs/adr/`) and 
 
 ## Product / UX
 
-- Which themed elements host the dj-mode and debug-mode gestures (wax seal, sigil, bookmark…) and what distinguishes the two gestures — designer proposes the pair, human picks (part of WOW-006 review; ADR-006 amended).
-- Debug panel content beyond the confirmed baseline (API/socket-event log, versions, connection state) — e.g. log filtering, copy/export — designer proposes (part of WOW-006 review).
+- **Visual art direction (WOW-006, REQUEST-CHANGES 2026-07-15):** the primary visual reference is `docs/design/hexology-grimoire-concept-2.png`. Human/artist sign-off still required on: **typography** (3 directions in `DESIGN_PROPOSAL_001.md` §8.2 + `docs/design/typography-specimens.html` — Fondamento rejected), **palette / category-colour restyle** (§8.3 — align to magenta/amber, re-verify vs LEDs), **mode-access model** (§8.1), and **debug-panel extras** (§8.4). **A human-approved visual-fidelity spike (WOW-007A) gates all further UI implementation.**
+- **ADR-006 amendment needed:** the approved reference + wireframe use a **visible Settings modal** for mode switching, superseding the earlier "hidden gesture, no visible affordance" model (`DESIGN_PROPOSAL_001.md` §6/§8.1). Write up the amendment before WOW-007 slicing.
+- **Currently-playing vs PRD F3:** the wireframe shows per-pillar "Currently playing"; F3 bars song/sample **names** from the visitor display. This proposal shows currently-playing **state only** in normal mode and the **name only in dj mode** — confirm, or amend F3 to allow names in normal.
+- Debug panel content beyond the confirmed baseline (API/socket-event log, versions, connection state) — e.g. log filtering, copy/export — designer proposes (`DESIGN_PROPOSAL_001.md` §8.4).
 
 ## Hardware / firmware
 

@@ -1,8 +1,10 @@
 # Hexology Visual Design Direction
 
-Use the attached Hexology concept image as **inspiration for the visual language only**.
+Use the attached Hexology concept images — `docs/design/hexology-grimoire-concept.png` and `docs/design/hexology-grimoire-concept-2.png` — as **inspiration for the visual language only**.
 
-It is not a pixel-perfect target and should not be reproduced literally. The final interface must be designed from the actual product requirements, wireframe, screen dimensions, and reusable UI components.
+They are not pixel-perfect targets and must not be reproduced literally. The final interface must be designed from the actual product requirements, the rough wireframe (`docs/design/Hex_layout_concept.svg`), the confirmed screen dimensions, and reusable UI components.
+
+> **The concept images are AI-generated and internally inconsistent** — for example, the two supplied images disagree on orientation (one landscape, one portrait), and they contain AI-generated text, icon, ornament, and control artefacts. Treat these inconsistencies as noise, not intent: take the mood/colour/atmosphere, and never reproduce an AI artefact just because it appears in an image. The **canonical viewport is portrait 1024 × 1280** (see below), regardless of any image's orientation.
 
 ## Take inspiration from
 
@@ -44,7 +46,7 @@ The rough UI wireframe and current functional requirements are the source of tru
 - Responsive behaviour
 - Interaction states
 
-The target display is **1280 × 1024 effective resolution**. Design for this exact viewport first, but keep in mind to make the layout responsive.
+The target display is **1024 × 1280 effective resolution (portrait)** — a 1280 × 1024 panel rotated to portrait (ADR-003). Design for this exact viewport first, but the layout must also scale gracefully / responsively to other sizes (confirmed 2026-07-15).
 
 ## Design priorities
 
@@ -91,7 +93,7 @@ Use decoration as a subtle layer around a clean, conventional interface structur
 
 Before implementation, produce:
 
-1. A low-fidelity layout at 1280 × 1024
+1. A low-fidelity full-screen layout at 1024 × 1280 (portrait)
 2. A visual direction mockup
 3. A reusable token proposal
 4. One finished pillar component showing all important states

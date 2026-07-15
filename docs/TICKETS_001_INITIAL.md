@@ -64,15 +64,39 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 - ID: WOW-006
 - Title: Grimoire design proposal (visitor display + operator surface)
 - Summary: Design direction doc for the overhaul — no implementation.
-- Description: For 1024×1280 portrait touch: visitor display with **category icon + category name per pillar** (no song/picture names — PRD F3), **category legend** (F4, colors from `src/util/ColorUtil.ts`: Vox red-700, Bass green-700, Drums blue-700, Melody yellow-700), grimoire-extension background, no recipes/spell names (F5). **Main-screen modes** (ADR-003/006 amended 2026-07-11, supersedes the earlier page-vs-overlay exploration): design all three modes — **normal** (visitor experience; tempo/volume/key controls stay visible), **dj** (extended controls beside each pillar incl. per-pillar clip selection, moved out of the old debug panel), **debug** (small bottom panel: API/socket-event log, versions, connection state — no performance controls). Propose the **gesture pair** (one hidden gesture per elevated mode — themed elements, hold durations, hold feedback) and the mode-active/close affordance. 2–3 palette/typography options for the artists.
-- Acceptance criteria: `docs/DESIGN_PROPOSAL_001.md` with all three modes designed and clearly marked options for human choice (gesture pair, palette, debug-panel presentation); consistent with UX_UI_PRINCIPLES; no code.
+- Canonical viewport: **1024 × 1280 portrait touch** (a 1280×1024 panel rotated to portrait, ADR-003). This is the single design-first target. The layout must also **scale gracefully / responsively** to other sizes (ADR-003 amended 2026-07-15). This is the only viewport agents design against — ignore any older `1280×1024` landscape phrasing.
+- Context files (read all before proposing):
+  - `docs/UX_UI_PRINCIPLES.md`, `docs/PRD.md`, `docs/PROJECT_BRIEF.md`, `docs/DECISIONS_NEEDED.md`
+  - `docs/UI_AUDIT.md` — the pre-rework baseline audit (WOW-004); the "before" state every proposal must improve on
+  - `docs/design/visual-direction.md` — the Hexology visual language + canonical viewport
+  - `docs/design/Hex_layout_concept.svg` — the rough layout wireframe
+  - `docs/design/hexology-grimoire-concept.png` **and** `docs/design/hexology-grimoire-concept-2.png` — the two grimoire concept images
+- Design authority & inputs:
+  - **The rough layout wireframe (`Hex_layout_concept.svg`) and the current functional requirements are the source of truth** for component placement, information hierarchy, controls, and the three modes. When an image and the requirements disagree, the requirements win.
+  - **The generated concept images are visual-language inspiration only** — mood, colour, atmosphere, ceremonial identity. They are not layout specs or pixel targets.
+  - The concept images are **AI-generated and internally inconsistent** (they even disagree on orientation — one landscape, one portrait — and contain AI-generated text/icon/ornament/control artefacts). **Agents must not reproduce these AI-generated inconsistencies literally.** Take the language, discard the artefacts.
+- Description: For the canonical 1024×1280 portrait viewport: visitor display with **category icon + category name per pillar** (no song/picture names — PRD F3), **category legend** (F4, colors from `src/util/ColorUtil.ts`: Vox red-700, Bass green-700, Drums blue-700, Melody yellow-700), grimoire-extension background, no recipes/spell names (F5). **Main-screen modes** (ADR-003/006 amended 2026-07-11, supersedes the earlier page-vs-overlay exploration): design all three modes — **normal** (visitor experience; tempo/volume/key controls stay visible), **dj** (extended controls beside each pillar incl. per-pillar clip selection, moved out of the old debug panel), **debug** (small bottom panel: API/socket-event log, versions, connection state — no performance controls).
+- Required design outputs (all required before any implementation ticket starts):
+  1. A **low-fidelity full-screen layout** at the confirmed 1024×1280 portrait viewport.
+  2. A **visual-direction mockup** (applying `docs/design/visual-direction.md`).
+  3. **Design tokens** (background surfaces, pillar borders, sample-type accents, typography, buttons, sliders, queue rows, icon medallions, state colours, decorative motifs).
+  4. **One completed reusable pillar component** showing its important states (e.g. focus, active, muted, paused, disabled, queued, empty).
+  5. A **full-screen composition** built from that reusable pillar component.
+  6. **Normal, DJ, and debug mode specifications** (what each mode adds/reveals, entry/close affordances).
+  7. **Touch, contrast, typography, motion, and viewing-distance guidance** (WCAG AA for operator-critical text; touch-target sizing; reduced-motion; legibility at installation viewing distance).
+- Open approval questions (do **not** decide these — present as clearly-marked options and halt for human/artist sign-off):
+  - The **dj-mode and debug-mode gestures** (which themed element hosts each, hold duration/feedback, what distinguishes the two) — propose a pair, human picks.
+  - **Typography** (Fondamento kept? decorative + legible pairing) — propose options, do not settle.
+  - **Palette details** within the witchy/occult direction — propose 2–3 options, do not settle.
+  - **Additional debug-panel features** beyond the confirmed baseline (log filtering, copy/export, etc.) — propose, do not decide.
+- Acceptance criteria: `docs/DESIGN_PROPOSAL_001.md` containing all seven required design outputs above, all three modes designed, and every open approval question presented as clearly-marked options for human choice (never pre-decided); consistent with UX_UI_PRINCIPLES and `docs/design/visual-direction.md`; no code.
 - Required tests/checks: none.
 - Hardware/Ableton/LED/RFID safety notes: none (docs).
 - Dependencies: WOW-004.
-- Out of scope: implementation; any router dependency (routing is hand-rolled, ADR-005).
+- Out of scope: implementation; any router dependency (routing is hand-rolled, ADR-005); deciding any of the open approval questions above.
 - Suggested agent(s): frontend-ui-designer
 - Risk: low
-- Stop conditions: Needs visual-identity decisions only the artists can make → present options, halt.
+- Stop conditions: Needs visual-identity decisions only the artists can make (typography, palette, gestures, debug extras) → present options, halt.
 
 ---
 

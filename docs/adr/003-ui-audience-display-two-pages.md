@@ -1,7 +1,7 @@
 # 003. UI audience, display, and operator surface
 
 Date: 2026-07-09
-Status: accepted (amended 2026-07-11 — operator surface resolved: mode-based main screen)
+Status: accepted (amended 2026-07-11 — operator surface resolved: mode-based main screen; amended 2026-07-15 — responsive/graceful scaling required, see Consequences)
 
 ## Context
 
@@ -22,5 +22,5 @@ The UI's audience and display hardware were unknown. Confirmed: a single touch s
 
 - Mode state is **hand-rolled** (ADR-005) — plain React state, no router dependency.
 - There is no separate operator page/overlay to design or route to; dj/debug are additive layers on the main screen. The old full-screen debug modal (`DebugModalContainer`) is dissolved: clip selection moves to dj mode's per-pillar controls, diagnostics move to debug mode's bottom panel.
-- Design proposals target one fixed viewport; no responsive-breakpoint work needed.
+- Design proposals are **designed-first** for the fixed 1024×1280 portrait viewport, but the layout must also **scale gracefully / responsively** to other sizes. **Amendment 2026-07-15 (human decision):** supersedes the original "no responsive-breakpoint work needed" wording — responsive behaviour is now a requirement, not out of scope. The canonical dimensions and portrait orientation are unchanged.
 - `use-grimoire` (recipes + spell names) is removed wholesale in the rework.

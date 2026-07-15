@@ -70,7 +70,7 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
   - `docs/UI_AUDIT.md` — the pre-rework baseline audit (WOW-004); the "before" state every proposal must improve on
   - `docs/design/visual-direction.md` — the Hexology visual language + canonical viewport
   - `docs/design/Hex_layout_concept.svg` — the rough layout wireframe
-  - `docs/design/hexology-grimoire-concept.png` **and** `docs/design/hexology-grimoire-concept-2.png` — the two grimoire concept images
+  - `docs/design/hexology-grimoire-concept.png` **and** `docs/design/hexology-grimoire-concept-3.png` — the two grimoire concept images
 - Design authority & inputs:
   - **The rough layout wireframe (`Hex_layout_concept.svg`) and the current functional requirements are the source of truth** for component placement, information hierarchy, controls, and the three modes. When an image and the requirements disagree, the requirements win.
   - **The generated concept images are visual-language inspiration only** — mood, colour, atmosphere, ceremonial identity. They are not layout specs or pixel targets.
@@ -149,9 +149,9 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 
 - ID: WOW-007A
 - Title: Primary-screen visual fidelity spike
-- Summary: A deliberately limited, frontend-only **visual spike** that builds a browser-rendered **normal-mode** screen demonstrating the approved visual direction (`docs/design/hexology-grimoire-concept-2.png`) before the full interface is implemented. This is the **first** UI implementation ticket; it exists to earn human visual approval, not to ship the product.
+- Summary: A deliberately limited, frontend-only **visual spike** that builds a browser-rendered **normal-mode** screen demonstrating the approved visual direction (`docs/design/hexology-grimoire-concept-3.png`) before the full interface is implemented. This is the **first** UI implementation ticket; it exists to earn human visual approval, not to ship the product.
 - Goal: Prove the visual direction in a real browser render (not a documentation SVG) so the human/artists can approve the look before broader implementation begins.
-- Context files (read all before starting): `docs/DESIGN_PROPOSAL_001.md` (esp. the visual-fidelity gate, §2 primary reference, §3 tokens, §3.11 icon strategy + asset inventory, §7 touch/contrast/typography), `docs/design/visual-direction.md`, `docs/design/hexology-grimoire-concept-2.png` (primary visual reference — quality bar), `docs/design/Hex_layout_concept.svg` (layout authority), `docs/design/typography-specimens.html`, `src/util/ColorUtil.ts`, `docs/CODING_GUIDELINES.md`.
+- Context files (read all before starting): `docs/DESIGN_PROPOSAL_001.md` (esp. the visual-fidelity gate, §2 primary reference, §3 tokens, §3.11 icon strategy + asset inventory, §7 touch/contrast/typography), `docs/design/visual-direction.md`, `docs/design/hexology-grimoire-concept-3.png` (primary visual reference — quality bar), `docs/design/Hex_layout_concept.svg` (layout authority), `docs/design/typography-specimens.html`, `src/util/ColorUtil.ts`, `docs/CODING_GUIDELINES.md`.
 - Source-of-truth hierarchy: (1) product requirements + socket contract; (2) the wireframe for layout/placement/controls/hierarchy; (3) the primary concept image for visual style + quality; (4) written implementation constraints.
 - Scope:
   - **Frontend only**; **static/mock data only** (no live socket wiring).

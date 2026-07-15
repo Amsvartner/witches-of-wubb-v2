@@ -11,7 +11,7 @@ Neither authority overrides the other within its own domain. The reference image
 
 ## Primary visual reference — approved direction and quality bar
 
-**`docs/design/hexology-grimoire-concept-2.png`** is the **Primary visual reference — approved direction and quality bar.**
+**`docs/design/hexology-grimoire-concept-3.png`** is the **Primary visual reference — approved direction and quality bar.**
 
 It is the portrait graphic-occult concept (derived from image 2 of the original concept set), characterised by:
 

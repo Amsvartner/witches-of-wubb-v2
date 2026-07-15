@@ -16,7 +16,7 @@ The first-round **high-fidelity visual mockup was rejected** by the human/artist
 - **Visual mockup (old §2 inline SVG):** **rejected and removed.** No inline SVG in this document is a visual design; the remaining SVGs are **structural diagrams only** (see the diagram disclaimer below).
 - **Typography:** old Fondamento recommendation **withdrawn**; three new directions proposed with rendered specimens — **awaiting human choice** (§3.4 / §8.2).
 - **Iconography:** improvised SVG icons **rejected**; a coherent icon strategy is proposed — **awaiting human choice** (§3.3 / asset inventory §3.11).
-- **Primary visual direction:** the human-selected graphic-occult concept **`docs/design/hexology-grimoire-concept-2.png`** (§2).
+- **Primary visual direction:** the human-selected graphic-occult concept **`docs/design/hexology-grimoire-concept-3.png`** (§2).
 - **WOW-007 implementation:** **blocked** pending human visual approval; the first UI ticket is a limited **visual-fidelity spike (WOW-007A)**.
 
 ### 🔒 Visual-fidelity gate
@@ -42,7 +42,7 @@ This is a **design-direction proposal**, not an implementation spec and not code
 
 1. **Product requirements and the existing socket contract** (PRD F1–F6 / FR1–FR7, UX_UI_PRINCIPLES, ADR-003/005/006).
 2. **The wireframe `docs/design/Hex_layout_concept.svg`** — for layout, placement, controls, information hierarchy, and modes.
-3. **The primary visual reference `docs/design/hexology-grimoire-concept-2.png`** (§2) — the human-approved authority for **visual style and quality**. No longer "mood only": it is the art-direction target and quality bar. Its AI-generated text, exact spacing, invented controls, and distorted proportions are **non-literal** (see §2).
+3. **The primary visual reference `docs/design/hexology-grimoire-concept-3.png`** (§2) — the human-approved authority for **visual style and quality**. No longer "mood only": it is the art-direction target and quality bar. Its AI-generated text, exact spacing, invented controls, and distorted proportions are **non-literal** (see §2).
 4. **Written implementation constraints** (this document; `docs/design/visual-direction.md`).
 
 The landscape concept `hexology-grimoire-concept.png` is **secondary mood reference only** and not a layout or quality target.
@@ -134,11 +134,11 @@ Structure and hierarchy only — no colour, texture, or type styling. This is th
 
 ## 2. Primary visual reference (approved direction and quality bar)
 
-The first-round hand-drawn "visual-direction mockup" has been **removed**. The approved visual direction is the human-selected concept image below — it is the **quality bar and art-direction target**, not loose mood inspiration.
+The first-round hand-drawn "visual-direction mockup" has been **removed**. The approved visual direction is the human-selected concept image below — it is the **quality bar and art-direction target**, not loose mood inspiration. _(Updated 2026-07-15: the reference image was replaced by the human with a higher-fidelity render, `hexology-grimoire-concept-3.png`, superseding the earlier `-concept-2`.)_
 
-![Hexology — Primary visual reference (approved direction and quality bar): portrait graphic-occult concept, near-black ground, antique-gold engraved linework, ceremonial HEXOLOGY wordmark, central cauldron with magenta plume, four symmetrical pillar panels in magenta/amber/green/blue.](design/hexology-grimoire-concept-2.png)
+![Hexology — Primary visual reference (approved direction and quality bar): portrait graphic-occult concept, near-black ground, antique-gold engraved linework, ceremonial HEXOLOGY wordmark, central cauldron with magenta plume, four symmetrical pillar panels in magenta/amber/green/blue.](design/hexology-grimoire-concept-3.png)
 
-**`docs/design/hexology-grimoire-concept-2.png` — Primary visual reference — approved direction and quality bar.**
+**`docs/design/hexology-grimoire-concept-3.png` — Primary visual reference — approved direction and quality bar.**
 
 > **Two authorities (see `docs/design/visual-direction.md`):** this image is the authority for **visual style and quality**. The **wireframe (`Hex_layout_concept.svg`) + product requirements** remain the authority for **placement, controls, text, hierarchy, and proportions**. Where they disagree on layout, the wireframe/requirements win; where the question is "how should it look and how polished must it be," this image wins.
 
@@ -155,11 +155,17 @@ The first-round hand-drawn "visual-direction mockup" has been **removed**. The a
 
 ### Aspects that are NOT literal requirements (do not copy)
 
-- Any **AI-generated text / track names** (e.g. "ICE ICE VOCALS") — placeholder only; real content obeys PRD F3/F5.
+- Any **AI-generated text / values** (e.g. the `79%`, `Db MAJOR +7A`, "2 waiting" strings) — placeholder only; real content obeys the contract and PRD F3/F5.
 - **Exact spacing and proportions** — the wireframe governs placement.
 - **Fake or extra controls** invented by the image generator.
 - **Exact ornamental details** — match the _family_ and quality, not every filigree.
 - Any **distorted proportions** (squashed cauldron, uneven frames, colliding logo).
+
+### What this reference now depicts (new in `-concept-3`)
+
+The updated reference is a fuller render and usefully concretises several elements: **potion-tube vertical volume sliders** with gem/diamond thumbs (a stronger treatment than a plain rail); a **"Current status" field** per pillar (PLAYING / QUEUED); a **queued indicator** shown as **colour pips + "N waiting"** with **no track titles** (this is F3-friendly — it conveys state without song identity); a **per-pillar waveform**; the **current key with transpose amount** (`Db MAJOR +7A`); and the visible **Help / Settings**, tempo, auto-adjust-key toggle, key controls, and legend. These are consistent with the spec and can be treated as the intended _normal-mode_ visual.
+
+> **⚠️ Icon discrepancy to resolve (do not silently reconcile):** this reference draws **Melody as a sine-wave squiggle** and **Bass as a hexagram (six-pointed star)** — **not** the **treble clef / bass clef** specified in §3.3 and in the human's earlier remediation spec, and the hexagram is exactly the kind of "arbitrary occult symbol standing in for a music category" the rejection list bars. **Open question for the human:** should the icon set follow the new reference's symbols (mic / sine-wave / hexagram / drum-circle), or keep the conventional, immediately-recognisable **mic / treble-clef / bass-clef / drum-kit** set (§3.3)? Vocals (microphone) and Drums (drum-circle) are consistent either way. Logged in `DECISIONS_NEEDED.md`.
 
 ---
 

@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hexology — Typography specimens (WOW-006 §8.2)</title>
+    <!--
+      Rendered comparison specimens for the three typography directions in
+      docs/DESIGN_PROPOSAL_001.md §8.2. Open this file in a browser to compare.
+      All faces are SIL OFL / open-licensed and self-hostable for production
+      (this preview loads them from Google Fonts for review convenience only —
+      the implementation must self-host, not hotlink). NONE is chosen: the
+      artists pick after viewing. Fondamento is intentionally NOT shown here.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:wght@500;600;700&family=Marcellus&family=Inter:wght@400;500;600&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --page: #0e0b12;
+        --panel: #140f1a;
+        --gold: #c9a24b;
+        --gold-bright: #e6c877;
+        --ink: #ece3d0;
+        --muted: #9a9080;
+        /* category direction from the approved reference (§2): magenta / amber / green / blue.
+           Text tints are lightened so they clear WCAG AA on the near-black ground. */
+        --vox: #f0a6c8;
+        --melody: #fcd34d;
+        --bass: #86efac;
+        --drums: #93c5fd;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(120% 80% at 50% 30%, #181320, var(--page) 60%, #080609);
+        color: var(--ink);
+        font-family: "Inter", system-ui, sans-serif;
+        padding: 40px clamp(16px, 4vw, 56px) 80px;
+      }
+      header {
+        max-width: 1100px;
+        margin: 0 auto 32px;
+        border-bottom: 1px solid rgba(201, 162, 75, 0.3);
+        padding-bottom: 20px;
+      }
+      header h1 {
+        /* neutral UI face for page chrome, so only the specimen blocks below reflect a candidate direction */
+        font-family: "Inter", system-ui, sans-serif;
+        color: var(--gold-bright);
+        letter-spacing: 1px;
+        font-weight: 600;
+        margin: 0 0 6px;
+        font-size: 24px;
+      }
+      header p {
+        color: var(--muted);
+        margin: 4px 0;
+        font-size: 14px;
+        max-width: 70ch;
+      }
+      .grid {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        gap: 28px;
+        grid-template-columns: 1fr;
+      }
+      @media (min-width: 860px) {
+        .grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid rgba(201, 162, 75, 0.35);
+        border-radius: 10px;
+        padding: 22px 22px 26px;
+      }
+      .card h2 {
+        font-family: "Inter", sans-serif;
+        font-size: 12px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin: 0 0 2px;
+      }
+      .faces {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 20px;
+      }
+      .wordmark {
+        color: var(--gold-bright);
+        font-size: 52px;
+        line-height: 1;
+        letter-spacing: 4px;
+        margin: 6px 0 2px;
+      }
+      .rule {
+        height: 1px;
+        background: rgba(201, 162, 75, 0.3);
+        margin: 16px 0;
+      }
+      .pillar {
+        font-size: 22px;
+        letter-spacing: 2px;
+        color: var(--ink);
+      }
+      .cats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 18px;
+        margin: 10px 0 4px;
+      }
+      .cats span {
+        font-size: 26px;
+        letter-spacing: 2px;
+      }
+      .vox {
+        color: var(--vox);
+      }
+      .melody {
+        color: var(--melody);
+      }
+      .bass {
+        color: var(--bass);
+      }
+      .drums {
+        color: var(--drums);
+      }
+      .data {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .label {
+        font-size: 12px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .bpm {
+        font-size: 18px;
+        color: var(--ink);
+      }
+      .toggle {
+        font-size: 15px;
+        color: var(--ink);
+      }
+      .log {
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 12px;
+        color: var(--bass);
+        background: #0f0d15;
+        border: 1px solid rgba(201, 162, 75, 0.2);
+        border-radius: 5px;
+        padding: 8px 10px;
+        margin-top: 6px;
+      }
+      /* ---- Direction A: Inscriptional — Cinzel + Inter ---- */
+      .A .wordmark,
+      .A .pillar,
+      .A .cats span {
+        font-family: "Cinzel", serif;
+        font-weight: 700;
+      }
+      .A .data,
+      .A .toggle,
+      .A .bpm {
+        font-family: "Inter", sans-serif;
+      }
+      /* ---- Direction B: Editorial Garamond — Cormorant + Source Sans 3 ---- */
+      .B .wordmark,
+      .B .pillar,
+      .B .cats span {
+        font-family: "Cormorant Garamond", serif;
+        font-weight: 700;
+      }
+      .B .wordmark {
+        letter-spacing: 6px;
+      }
+      .B .data,
+      .B .toggle,
+      .B .bpm {
+        font-family: "Source Sans 3", sans-serif;
+      }
+      /* ---- Direction C: Ceremonial small-caps — Marcellus + IBM Plex Sans ---- */
+      .C .wordmark,
+      .C .pillar,
+      .C .cats span {
+        font-family: "Marcellus", serif;
+      }
+      .C .data,
+      .C .toggle,
+      .C .bpm {
+        font-family: "IBM Plex Sans", sans-serif;
+      }
+      footer {
+        max-width: 1100px;
+        margin: 40px auto 0;
+        color: var(--muted);
+        font-size: 12px;
+        border-top: 1px solid rgba(201, 162, 75, 0.2);
+        padding-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Hexology — Typography specimens</h1>
+      <p>
+        Three candidate directions for WOW-006 §8.2, rendered at their intended sizes on the near-black
+        ground. Category words use the approved reference direction (magenta / amber / green / blue).
+        <strong>None is chosen</strong> — the artists pick after viewing. Fondamento is deliberately not shown
+        (rejected). All faces are SIL OFL / open-licensed; production must self-host them.
+        <br /><em
+          >Note: this preview page hotlinks the fonts from Google Fonts, so it needs an internet connection to
+          render as intended — opened offline it will fall back to system fonts. Production must self-host, not
+          hotlink.</em
+        >
+      </p>
+    </header>
+
+    <div class="grid">
+      <!-- Direction A -->
+      <section class="card A">
+        <h2>A — Inscriptional (engraved caps)</h2>
+        <div class="faces">Display: Cinzel · UI/data: Inter</div>
+        <div class="wordmark">HEXOLOGY</div>
+        <div class="rule"></div>
+        <div class="pillar">PILLAR 1</div>
+        <div class="cats">
+          <span class="vox">VOCALS</span><span class="melody">MELODY</span><span class="bass">BASS</span
+          ><span class="drums">DRUMS</span>
+        </div>
+        <div class="data">
+          <div><span class="label">Tempo</span> &nbsp;<span class="bpm">130 BPM</span></div>
+          <div class="toggle">Auto-adjust key</div>
+          <div class="label">Queued samples</div>
+          <div class="log">12:04:07 ← clip_started {pillar:0, bpm:130}</div>
+        </div>
+      </section>
+
+      <!-- Direction B -->
+      <section class="card B">
+        <h2>B — Editorial Garamond</h2>
+        <div class="faces">Display: Cormorant Garamond · UI/data: Source Sans 3</div>
+        <div class="wordmark">HEXOLOGY</div>
+        <div class="rule"></div>
+        <div class="pillar">PILLAR 1</div>
+        <div class="cats">
+          <span class="vox">VOCALS</span><span class="melody">MELODY</span><span class="bass">BASS</span
+          ><span class="drums">DRUMS</span>
+        </div>
+        <div class="data">
+          <div><span class="label">Tempo</span> &nbsp;<span class="bpm">130 BPM</span></div>
+          <div class="toggle">Auto-adjust key</div>
+          <div class="label">Queued samples</div>
+          <div class="log">12:04:07 ← clip_started {pillar:0, bpm:130}</div>
+        </div>
+      </section>
+
+      <!-- Direction C -->
+      <section class="card C">
+        <h2>C — Ceremonial small-caps</h2>
+        <div class="faces">Display: Marcellus · UI/data: IBM Plex Sans</div>
+        <div class="wordmark">HEXOLOGY</div>
+        <div class="rule"></div>
+        <div class="pillar">PILLAR 1</div>
+        <div class="cats">
+          <span class="vox">VOCALS</span><span class="melody">MELODY</span><span class="bass">BASS</span
+          ><span class="drums">DRUMS</span>
+        </div>
+        <div class="data">
+          <div><span class="label">Tempo</span> &nbsp;<span class="bpm">130 BPM</span></div>
+          <div class="toggle">Auto-adjust key</div>
+          <div class="label">Queued samples</div>
+          <div class="log">12:04:07 ← clip_started {pillar:0, bpm:130}</div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      Excluded by direction (do not propose): novelty blackletter, handwritten, faux-medieval, whimsical
+      calligraphic faces, and Fondamento. Operator-critical text (tempo, key, connection, log) must always use
+      the legible UI face, never the display face.
+    </footer>
+  </body>
+</html>

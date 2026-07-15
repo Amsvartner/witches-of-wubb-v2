@@ -614,7 +614,7 @@ The four items below are visual-identity / access decisions reserved for the hum
 
 ### 8.1 ⚠️ HUMAN/ARTIST SIGN-OFF REQUIRED — mode-access model (NOT decided)
 
-The approved reference (§2) and the wireframe both show **visible Help + Settings** controls, with **Settings** hosting mode switching. This **reverses the earlier "hidden gesture, no visible affordance" model** and requires an **ADR-006 amendment**. The layout now uses the visible Settings modal as the primary mode-access path. Open question: should access be **only** the visible Settings modal, or should a **covert gesture also** be retained (e.g. to reach debug without a visitor noticing)?
+The approved reference (§2) and the wireframe both show **visible Help + Settings** controls, with **Settings** hosting mode switching. This **reverses the earlier "hidden gesture, no visible affordance" model** (**ADR-006 amended 2026-07-15**). The layout now uses the visible Settings modal as the primary mode-access path. Open question: should access be **only** the visible Settings modal, or should a **covert gesture also** be retained (e.g. to reach debug without a visitor noticing)?
 
 | Option                                                                | Access to dj / debug                                                                                               | Trade-offs                                                                                               |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |

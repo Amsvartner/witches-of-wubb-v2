@@ -24,7 +24,7 @@ Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list).
 
 **F5 — Recipe & spell-name removal.** Recipe suggestions AND the random spell-name display are removed entirely (`RecipeBoxContainer`, `useGrimoire`).
 
-**F6 — Operator surface as main-screen modes.** The separate operator page/overlay is dropped (decided 2026-07-11, ADR-003 amended). The main screen has three modes: **normal** (visitor experience; tempo/volume/key controls stay visible), **dj** (adds extended controls beside each pillar, incl. per-pillar clip selection moved out of the old debug panel), and **debug** (adds a small bottom panel with diagnostics only: API/socket-event log, versions, connection state). Each elevated mode is entered via its own hidden gesture (ADR-006 amended); mode state is hand-rolled — no router dependency (ADR-005).
+**F6 — Operator surface as main-screen modes.** The separate operator page/overlay is dropped (decided 2026-07-11, ADR-003 amended). The main screen has three modes: **normal** (visitor experience; tempo/volume/key controls stay visible), **dj** (adds extended controls beside each pillar, incl. per-pillar clip selection moved out of the old debug panel), and **debug** (adds a small bottom panel with diagnostics only: API/socket-event log, versions, connection state). Each elevated mode is reached via a **visible Settings modal** (ADR-006 amended 2026-07-15, superseding hidden-gesture-only; whether a covert gesture is also kept is open — WOW-006 §8.1); mode state is hand-rolled — no router dependency (ADR-005).
 
 ## Non-goals
 
@@ -36,12 +36,12 @@ Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list).
 ## Users and user stories
 
 - As a **visitor**, I see a grimoire-styled display showing which categories are active on which pillars (icon + category name), matching the LED colors around me.
-- As the **guide**, I use a hidden gesture to enter **dj mode**, revealing extended controls beside each pillar (clip selection / simulated tag placement) alongside the always-visible volume, tempo, and key controls; a second, different gesture opens **debug mode**'s diagnostic panel when something needs investigating.
+- As the **guide**, I open the visible **Settings** modal to switch to **dj mode**, revealing extended controls beside each pillar (clip selection / simulated tag placement) alongside the always-visible volume, tempo, and key controls; the same Settings modal opens **debug mode**'s diagnostic panel when something needs investigating.
 - As a **developer/agent**, I run `yarn dev` against the `sim/` mock backend with scripted scenarios; no hardware.
 
 ## Functional requirements
 
-- FR1: Main-screen modes (normal / dj / debug per ADR-003 amended): each elevated mode entered by its own hidden gesture (ADR-006 amended), explicit close control while active; mode state hand-rolled (ADR-005).
+- FR1: Main-screen modes (normal / dj / debug per ADR-003 amended): elevated modes reached via a visible Settings modal (ADR-006 amended 2026-07-15; covert-gesture variant open — WOW-006 §8.1), explicit close control while active; mode state hand-rolled (ADR-005).
 - FR2: Visitor display shows per-pillar state as **category icon + category name** (not song/picture names); artist/song metadata may move to operator surface (designer's call).
 - FR3: All current debug-modal functionality survives the split: per-pillar volume sliders, tempo, and key lock/master key remain in normal mode; simulate tag place/remove (per-pillar clip selection) moves to dj mode's per-pillar extended controls; the debug bottom panel carries diagnostics only (API/socket-event log, versions, connection state).
 - FR4: Category legend visible on visitor display.

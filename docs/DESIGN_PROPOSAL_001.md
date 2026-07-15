@@ -63,7 +63,7 @@ The diagrams below are drawn in **Palette Option A ("Obsidian & Gilt")** purely 
 
 Structure and hierarchy only — no colour, texture, or type styling. This is the skeleton every later artefact inherits. It follows the wireframe: wordmark on top, a **2×2 pillar grid around a central cauldron focal point**, and a bottom status/settings band carrying tempo, key, and the legend.
 
-**Visible Help + Settings (corrected 2026-07-15).** The approved reference (§2) **and** the wireframe both place visible **Help** and **Settings** controls top-right, and the wireframe annotates Settings as "toggle a modal with more settings, such as which mode is visible." The earlier revision omitted these on an ADR-006 reading ("hidden gestures, no visible affordance"); the human review reversed that — **Help and Settings are present.** Mode access is therefore via the **visible Settings modal** (wireframe-authoritative), which **supersedes the hidden-gesture-only reading of ADR-006** and requires an ADR-006 amendment. Whether a hidden gesture is _also_ retained as a secondary/again-covert path is an open access-model question (§8.1). See "remaining human choices" in the PR.
+**Visible Help + Settings (corrected 2026-07-15).** The approved reference (§2) **and** the wireframe both place visible **Help** and **Settings** controls top-right, and the wireframe annotates Settings as "toggle a modal with more settings, such as which mode is visible." The earlier revision omitted these on an ADR-006 reading ("hidden gestures, no visible affordance"); the human review reversed that — **Help and Settings are present.** Mode access is therefore via the **visible Settings modal** (wireframe-authoritative), which **supersedes the hidden-gesture-only reading of ADR-006** (now **ADR-006 amended 2026-07-15**). Whether a hidden gesture is _also_ retained as a secondary/again-covert path is an open access-model question (§8.1). See "remaining human choices" in the PR.
 
 <svg viewBox="0 0 1024 1280" width="100%" style="max-width:520px;background:#fbfbfd;border:1px solid #ccc" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif,system-ui" role="img" aria-label="Low fidelity wireframe of the 1024 by 1280 portrait layout">
   <rect x="0" y="0" width="1024" height="1280" fill="#ffffff"/>
@@ -480,7 +480,7 @@ The same pillar component, instantiated four times, composed into the full norma
 
 ## 6. Normal / DJ / Debug mode specifications
 
-Three modes on **one screen** (ADR-003 amended; no separate page/overlay, ADR-005 hand-rolled state). dj and debug are **additive layers** over normal — normal is always the base. **Mode is selected from the visible Settings modal** (the wireframe annotates the Settings button as "toggle a modal with more settings, such as which mode is visible"). This **supersedes the earlier hidden-gesture-only access model of ADR-006** and needs an ADR-006 amendment; whether a covert gesture is _also_ retained is the open access-model question in §8.1. Each elevated mode keeps an **explicit close/exit control visible only while active**.
+Three modes on **one screen** (ADR-003 amended; no separate page/overlay, ADR-005 hand-rolled state). dj and debug are **additive layers** over normal — normal is always the base. **Mode is selected from the visible Settings modal** (the wireframe annotates the Settings button as "toggle a modal with more settings, such as which mode is visible"). This **supersedes the earlier hidden-gesture-only access model of ADR-006** (**ADR-006 amended 2026-07-15**); whether a covert gesture is _also_ retained is the open access-model question in §8.1. Each elevated mode keeps an **explicit close/exit control visible only while active**.
 
 ### 6.1 Normal mode (visitor experience — the default)
 
@@ -614,7 +614,7 @@ The four items below are visual-identity / access decisions reserved for the hum
 
 ### 8.1 ⚠️ HUMAN/ARTIST SIGN-OFF REQUIRED — mode-access model (NOT decided)
 
-The approved reference (§2) and the wireframe both show **visible Help + Settings** controls, with **Settings** hosting mode switching. This **reverses the earlier "hidden gesture, no visible affordance" model** and requires an **ADR-006 amendment**. The layout now uses the visible Settings modal as the primary mode-access path. Open question: should access be **only** the visible Settings modal, or should a **covert gesture also** be retained (e.g. to reach debug without a visitor noticing)?
+The approved reference (§2) and the wireframe both show **visible Help + Settings** controls, with **Settings** hosting mode switching. This **reverses the earlier "hidden gesture, no visible affordance" model** (**ADR-006 amended 2026-07-15**). The layout now uses the visible Settings modal as the primary mode-access path. Open question: should access be **only** the visible Settings modal, or should a **covert gesture also** be retained (e.g. to reach debug without a visitor noticing)?
 
 | Option                                                                | Access to dj / debug                                                                                               | Trade-offs                                                                                               |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
@@ -622,7 +622,7 @@ The approved reference (§2) and the wireframe both show **visible Help + Settin
 | **B — visible Settings + a covert gesture**                           | Settings modal for normal operation **plus** one press-and-hold gesture on a themed element for quick/covert debug | Keeps an operator "back door"; but reintroduces the ADR-006 hidden-affordance complexity for one path    |
 | **C — Settings modal, gated**                                         | Settings opens, but switching to dj/debug requires a confirm / long-press inside the modal                         | Prevents accidental visitor mode-switches while staying visible; slightly slower for the operator        |
 
-**If any covert gesture is retained (B):** press-and-hold ~3 s on a themed element with a gold progress ring; release-to-cancel. Recommendation to consider: **Option C** (visible per the approved reference, but guarded against casual visitor switching) — **this is the human/artists' call, and it needs an ADR-006 amendment either way.**
+**If any covert gesture is retained (B):** press-and-hold ~3 s on a themed element with a gold progress ring; release-to-cancel. Recommendation to consider: **Option C** (visible per the approved reference, but guarded against casual visitor switching) — **this is the human/artists' call.** (The move to visible Settings-modal access is already recorded in **ADR-006, amended 2026-07-15**; only the A/B/C variant remains open.)
 
 ### 8.2 ⚠️ HUMAN/ARTIST SIGN-OFF REQUIRED — typography (NOT decided; **Fondamento rejected**)
 

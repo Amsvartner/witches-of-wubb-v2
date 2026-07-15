@@ -9,7 +9,7 @@ ADR-003 defines three main-screen modes (normal / dj / debug) rendered on the sa
 
 ## Decision
 
-**Hand-roll it.** All three modes live on the same screen; there are no separate views to route between. Mode state is plain React state — no router dependency needed. Elevated modes (dj / debug) are entered via hidden gestures (access model: ADR-006).
+**Hand-roll it.** All three modes live on the same screen; there are no separate views to route between. Mode state is plain React state — no router dependency needed. Elevated modes (dj / debug) are reached via a visible Settings modal (access model: ADR-006, amended 2026-07-15).
 
 ## Consequences
 

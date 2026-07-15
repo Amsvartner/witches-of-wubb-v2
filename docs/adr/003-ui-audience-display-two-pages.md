@@ -16,7 +16,7 @@ The UI's audience and display hardware were unknown. Confirmed: a single touch s
   - **normal** — the visitor experience. Tempo/volume/key controls remain visible here (human-confirmed 2026-07-11).
   - **dj** — normal plus **extended controls beside each pillar**, including per-pillar clip selection (moved out of the old debug panel).
   - **debug** — normal plus a **small panel at the bottom** with diagnostic info only: a log of API calls and socket events, versions, connection state. No clip/performance controls — those require dj mode.
-- Mode switching is gated by **separate hidden gestures per mode** — see ADR-006 (amended). Exact gestures/elements proposed in WOW-006; human picks from mockups.
+- Mode switching is reached via a **visible Settings modal** — see ADR-006 (amended 2026-07-15, superseding hidden-gesture-only). Whether a covert gesture is also retained is an open WOW-006 sign-off (§8.1).
 
 ## Consequences
 

@@ -12,7 +12,7 @@ Principles for the UI rework. These are working principles, not visual identity 
 6. **No hidden destructive controls.** The current hidden debug-modal trigger is acceptable for a debug tool but must not become the pattern for real operator controls.
 7. **Accessible contrast and typography.** The decorative font (Fondamento) is thematic; pair it with a highly legible face for status/data. Meet WCAG AA contrast for operator-critical text. Respect reduced-motion preferences.
 8. **Touch/display (confirmed, ADR-003; responsive amended 2026-07-15).** Primary viewport: **1024×1280 portrait touch** (a 1280×1024 panel rotated to portrait). Design-first for this exact viewport, but the layout must also **scale gracefully / responsively** to other sizes (supersedes the earlier "no responsive breakpoints needed"). Design for touch only — no hover states, generous hit areas. The screen sits inside a large physical grimoire; the background must visually extend the book (page texture, binding, margins).
-9. **Main-screen modes (ADR-003/006 amended 2026-07-11, ADR-005).** No separate operator page/overlay — the main screen has three modes: normal (visitor; tempo/volume/key stay visible), dj (extended per-pillar controls incl. clip selection), debug (bottom diagnostic panel only). Each elevated mode has its own hidden gesture; explicit close control while active; mode state hand-rolled.
+9. **Main-screen modes (ADR-003/006 amended 2026-07-11, ADR-005).** No separate operator page/overlay — the main screen has three modes: normal (visitor; tempo/volume/key stay visible), dj (extended per-pillar controls incl. clip selection), debug (bottom diagnostic panel only). Elevated modes are reached via a visible Settings modal (ADR-006 amended 2026-07-15, superseding hidden-gesture-only; covert-gesture variant open — WOW-006 §8.1); explicit close control while active; mode state hand-rolled.
 10. **Simulator/development mode (confirmed, ADR-001).** When running against the simulator, the UI should clearly label simulated state so nobody mistakes it for the live rig.
 
 ## Confirmed design direction (2026-07-09)
@@ -21,7 +21,7 @@ Principles for the UI rework. These are working principles, not visual identity 
 - Recipe suggestions AND random spell names removed entirely (`useGrimoire` goes).
 - Visitor display is **category-centric**: per-pillar category icon + category name (no song/picture names), plus a category legend. Category colors come from `src/util/ColorUtil.ts`: Vox red, Bass green, Drums blue, Melody yellow (Tailwind -700 shades).
 - Volume stays a plain slider (hardware enforces max volume).
-- Operator access: three main-screen modes (normal / dj / debug), one hidden gesture per elevated mode (ADR-003/006 amended 2026-07-11); hand-rolled mode state (ADR-005).
+- Operator access: three main-screen modes (normal / dj / debug), reached via a visible Settings modal (ADR-003/006 amended; ADR-006 amended 2026-07-15 supersedes hidden-gesture-only, covert-gesture variant open — WOW-006 §8.1); hand-rolled mode state (ADR-005).
 - Tempo/volume/key controls remain visitor-visible in normal mode (confirmed 2026-07-11).
 
 ## Needs human design direction

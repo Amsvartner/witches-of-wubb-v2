@@ -50,12 +50,13 @@
         padding-bottom: 20px;
       }
       header h1 {
-        font-family: "Cinzel", serif;
+        /* neutral UI face for page chrome, so only the specimen blocks below reflect a candidate direction */
+        font-family: "Inter", system-ui, sans-serif;
         color: var(--gold-bright);
-        letter-spacing: 3px;
-        font-weight: 700;
+        letter-spacing: 1px;
+        font-weight: 600;
         margin: 0 0 6px;
-        font-size: 26px;
+        font-size: 24px;
       }
       header p {
         color: var(--muted);
@@ -219,6 +220,11 @@
         ground. Category words use the approved reference direction (magenta / amber / green / blue).
         <strong>None is chosen</strong> — the artists pick after viewing. Fondamento is deliberately not shown
         (rejected). All faces are SIL OFL / open-licensed; production must self-host them.
+        <br /><em
+          >Note: this preview page hotlinks the fonts from Google Fonts, so it needs an internet connection to
+          render as intended — opened offline it will fall back to system fonts. Production must self-host, not
+          hotlink.</em
+        >
       </p>
     </header>
 

@@ -31,6 +31,10 @@ const statusDotHex = (status: PillarStatus, tintHex: string): string => {
   }
 };
 
+// Muted overrides the playback status as a text cue (§3.9 muted token), so the
+// state never relies on the speaker icon alone.
+const MUTED_DOT_HEX = '#6b6472';
+
 /**
  * One pillar card — the single most-reused unit of the play-mode screen. All
  * four instances share this structure; only `category` + live state differ
@@ -42,7 +46,8 @@ export const PillarCard = ({ pillar }: Props): JSX.Element => {
   const tokens = category ? CategoryTheme.forType(category) : undefined;
 
   const headerStyle = tokens ? { color: tokens.tintHex } : undefined;
-  const dotHex = statusDotHex(status, tokens?.tintHex ?? '#9a9080');
+  const dotHex = muted ? MUTED_DOT_HEX : statusDotHex(status, tokens?.tintHex ?? '#9a9080');
+  const statusLabel = muted ? 'MUTED' : STATUS_LABEL[status];
   const visibleQueued = queued.slice(0, MAX_QUEUED_ROWS);
 
   return (
@@ -80,7 +85,7 @@ export const PillarCard = ({ pillar }: Props): JSX.Element => {
                   {tokens.label}
                 </p>
               ) : (
-                <p className='font-data text-sm uppercase tracking-[0.14em] text-parchment/40'>
+                <p className='font-data text-[15px] uppercase tracking-[0.14em] text-parchment/60'>
                   awaiting ingredient
                 </p>
               )}
@@ -92,8 +97,8 @@ export const PillarCard = ({ pillar }: Props): JSX.Element => {
                 className='h-2.5 w-2.5 rounded-full'
                 aria-hidden='true'
               />
-              <span className='font-data text-sm tracking-wide text-parchment/90'>
-                {STATUS_LABEL[status]}
+              <span className='font-data text-[15px] tracking-wide text-parchment/90'>
+                {statusLabel}
               </span>
             </div>
 
@@ -111,7 +116,7 @@ export const PillarCard = ({ pillar }: Props): JSX.Element => {
                     ))}
                   </ul>
                 ) : (
-                  <p className='font-data text-sm text-parchment/40'>Queue empty</p>
+                  <p className='font-data text-[15px] text-parchment/60'>Queue empty</p>
                 )}
               </div>
             )}

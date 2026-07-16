@@ -35,7 +35,11 @@ export const VolumeTube = ({ volumePercent, assetSlug }: Props): JSX.Element => 
 
   return (
     <div className='flex w-[72px] select-none flex-col items-center gap-1.5'>
-      <span className='font-number text-sm font-semibold tabular-nums text-parchment/90'>
+      {assetSlug && <span className='sr-only'>{`Volume ${clamped}%`}</span>}
+      <span
+        aria-hidden='true'
+        className='font-number text-[15px] font-semibold tabular-nums text-parchment/90'
+      >
         {assetSlug ? `${clamped}%` : ' '}
       </span>
       <div className='relative min-h-0 w-full flex-1'>

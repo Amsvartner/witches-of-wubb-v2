@@ -14,7 +14,8 @@ type Props = {
 const KeyControlButton = ({ glyph, label }: { glyph: JSX.Element; label: string }): JSX.Element => (
   <button
     type='button'
-    className='flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-gold-line/40 bg-ink-btn px-3 font-data text-[11px] uppercase tracking-[0.14em] text-parchment/80'
+    aria-label={`${label} key`}
+    className='flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-gold-line/40 bg-ink-btn px-3 font-data text-xs uppercase tracking-[0.14em] text-parchment/80'
   >
     <svg
       viewBox='0 0 24 24'
@@ -59,7 +60,7 @@ export const SettingsBand = ({
           <SectionLabel>Tempo</SectionLabel>
           <span className='font-number text-2xl font-semibold tabular-nums text-parchment'>
             {tempoBpm}
-            <span className='ml-1 font-data text-xs font-normal uppercase tracking-widest text-parchment/50'>
+            <span className='ml-1 font-data text-xs font-normal uppercase tracking-widest text-parchment/60'>
               bpm
             </span>
           </span>
@@ -71,7 +72,7 @@ export const SettingsBand = ({
             className='absolute top-1/2 h-[18px] w-[18px] -translate-y-1/2 rotate-45 rounded-[4px] border border-gold-bright/80 bg-gradient-to-br from-gold-bright to-[#b98f38]'
           />
         </div>
-        <div className='flex justify-between font-number text-[11px] tabular-nums text-parchment/40'>
+        <div className='flex justify-between font-number text-xs tabular-nums text-parchment/60'>
           <span>{tempoMin}</span>
           <span>{tempoMax}</span>
         </div>
@@ -81,23 +82,28 @@ export const SettingsBand = ({
       <div className='flex flex-col justify-center gap-2 bg-ink-panel px-5 py-4'>
         <SectionLabel>Auto-adjust key</SectionLabel>
         <div className='flex items-center gap-3'>
+          {/* 44px hit area wrapping the visually 56x28 pill (§7.1). */}
           <button
             type='button'
             aria-pressed={autoAdjustKey}
             aria-label='Auto-adjust key'
-            className={`relative h-7 w-14 rounded-full border transition-colors ${
-              autoAdjustKey
-                ? 'border-gold-bright/70 bg-gold-line/70'
-                : 'border-gold-line/30 bg-ink-btn'
-            }`}
+            className='-my-2 flex min-h-[44px] min-w-[56px] items-center justify-center'
           >
             <span
-              className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-parchment shadow ${
-                autoAdjustKey ? 'left-[calc(100%-22px)]' : 'left-1'
+              className={`relative block h-7 w-14 rounded-full border transition-colors ${
+                autoAdjustKey
+                  ? 'border-gold-bright/70 bg-gold-line/70'
+                  : 'border-gold-line/30 bg-ink-btn'
               }`}
-            />
+            >
+              <span
+                className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-parchment shadow ${
+                  autoAdjustKey ? 'left-[calc(100%-22px)]' : 'left-1'
+                }`}
+              />
+            </span>
           </button>
-          <span className='font-data text-sm tracking-widest text-parchment/80'>
+          <span className='font-data text-[15px] tracking-widest text-parchment/80'>
             {autoAdjustKey ? 'ON' : 'OFF'}
           </span>
         </div>
@@ -109,7 +115,7 @@ export const SettingsBand = ({
         <div className='flex items-baseline gap-2'>
           <span className='font-display text-3xl leading-none text-parchment'>{currentKey}</span>
         </div>
-        <div className='flex items-center gap-2 font-data text-xs uppercase tracking-widest'>
+        <div className='flex items-center gap-2 font-data text-[15px] uppercase tracking-widest'>
           <span className='text-parchment/60'>{keyQuality}</span>
           <span className='text-violet-300'>{keyDifference}</span>
         </div>

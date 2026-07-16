@@ -44,7 +44,7 @@ export const QueuedSampleRow = ({ name, tintHex }: Props): JSX.Element => {
   return (
     <li className='flex items-center gap-2 rounded-md border border-gold-line/20 bg-ink-deep/70 py-1 pl-2 pr-1'>
       <span style={pip} className='h-2 w-2 shrink-0 rounded-full' aria-hidden='true' />
-      <span className='flex-1 truncate font-data text-sm text-parchment/85'>{name}</span>
+      <span className='flex-1 truncate font-data text-[15px] text-parchment/85'>{name}</span>
       <IconButton label={`Play ${name}`} className='h-11 w-11 shrink-0'>
         <PlayGlyph />
       </IconButton>

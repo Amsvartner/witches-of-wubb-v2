@@ -10,7 +10,7 @@ const CATEGORIES: ClipTypes[] = [ClipTypes.Vox, ClipTypes.Melody, ClipTypes.Bass
  */
 export const Legend = (): JSX.Element => (
   <div className='flex items-center justify-center gap-6'>
-    <span className='font-data text-[11px] uppercase tracking-[0.3em] text-gold-line/70'>
+    <span className='font-data text-xs uppercase tracking-[0.3em] text-gold-line/70'>
       ◈ Sample Types ◈
     </span>
     <ul className='flex items-center gap-6'>

@@ -63,9 +63,14 @@ describe('PillarCard', () => {
     expect(queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
   });
 
-  it('shows an Unmute control when muted', () => {
+  it('shows MUTED status and an Unmute control when muted', () => {
     const muted: PillarView = { ...vocalsPillar, muted: true };
-    const { getByRole, queryByRole } = render(<PillarCard pillar={muted} />);
+    const { getByText, queryByText, getByRole, queryByRole } = render(
+      <PillarCard pillar={muted} />,
+    );
+    // Muted overrides the playback status as a text cue (never icon-only).
+    expect(getByText('MUTED')).toBeInTheDocument();
+    expect(queryByText('PLAYING')).not.toBeInTheDocument();
     expect(getByRole('button', { name: 'Unmute' })).toBeInTheDocument();
     expect(queryByRole('button', { name: 'Mute' })).not.toBeInTheDocument();
   });

@@ -94,6 +94,7 @@ yes
 - Melody hue (§8.3): **warm yellow** — `ColorUtil` `bg-yellow-700` → `bg-yellow-600`; physical-LED re-verification still pending → src/util/ColorUtil.ts
 - Pillar frame (§8.5): **amber double border, no corner embellishments, top-centre flourish** — iterated to approval in the WOW-007A spike → src/component/PillarFrame.tsx
 - Primary artwork: **human-supplied asset pack** (hexology-ui-assets: logo symbol, cauldron, per-category slider tubes + gem handles) replaces all interim SVG art → public/images/, wow-007a implementation note
+- Category icon set **revised in-session (human, 2026-07-16)**: **mic / beamed musical notes / hexagram / drum-head**, superseding the 2026-07-15 mic/treble-clef/bass-clef/drum-kit choice for the spike (the clef glyphs read poorly at medallion size; the hexagram matches the reference's bass glyph). Rendered as interim SVG line art; the bespoke engraved icon family (§3.11) remains the final-asset task → src/component/CategoryIcon.tsx
 - Mode taxonomy: **play / tutorial / DJ, debug demoted to a panel** — recorded above as open until doc propagation + tutorial design
 - Per-mode URL routes wanted — deferred to a follow-up ticket (ADR-005 amendment) — recorded above
 

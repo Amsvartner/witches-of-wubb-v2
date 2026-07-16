@@ -85,7 +85,12 @@ complete asset later if desired.
 - Wired-up queue **remove** must get a confirm-gate (UX_UI_PRINCIPLES 2).
 - Help/Settings are static affordances; the Settings modal is WOW-007 scope.
 - An automated contrast pass (axe-core) is WOW-007 acceptance scope; the
-  spike uses the §3.3 AA tint system by construction.
+  spike uses the §3.3 AA tint system by construction. The ui-designer review
+  flagged the Drums legend dot (≈2.8:1 non-text) for that pass.
+- The key-difference `violet-300` accent is deliberately off-token — it
+  matches the primary reference's violet "+7A" treatment.
+- Focus-ring styling and enlarged slider-thumb hit areas (§3.5/§3.6) are
+  wiring-phase tasks — the spike's controls are display-only affordances.
 
 ## Human demo steps
 

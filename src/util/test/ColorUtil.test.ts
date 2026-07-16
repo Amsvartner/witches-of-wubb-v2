@@ -6,7 +6,8 @@ describe('ColorUtil.getBackgroundColorFromType', () => {
     expect(ColorUtil.getBackgroundColorFromType(ClipTypes.Vox)).toBe('bg-red-700');
     expect(ColorUtil.getBackgroundColorFromType(ClipTypes.Bass)).toBe('bg-green-700');
     expect(ColorUtil.getBackgroundColorFromType(ClipTypes.Drums)).toBe('bg-blue-700');
-    expect(ColorUtil.getBackgroundColorFromType(ClipTypes.Melody)).toBe('bg-yellow-700');
+    // Melody warmed to yellow-600 (WOW-007A, human-approved 2026-07-15).
+    expect(ColorUtil.getBackgroundColorFromType(ClipTypes.Melody)).toBe('bg-yellow-600');
   });
 
   it('falls back to white for unknown or missing types', () => {

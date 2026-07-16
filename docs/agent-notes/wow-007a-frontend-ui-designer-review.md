@@ -1,10 +1,16 @@
 # WOW-007A — Play-mode visual-fidelity spike — frontend-ui-designer review
 
 - **Ticket:** WOW-007A (play-mode visual-fidelity spike)
-- **Date:** 2026-07-17
+- **Date:** 2026-07-17 (round 1 + re-review)
 - **Reviewer role:** frontend-ui-designer (structure / accessibility / spec-compliance only — **not** the visual-art-direction gate, which is human-owned and was granted in-session at iteration round 7)
-- **Reviewed SHA:** `313e90f4ff00aaacb9ea77023535173ad3155d50` (`feat/wow-007a-play-mode-visual-spike`, diff `main...HEAD`)
-- **Verdict:** **approve-with-nits** — the structural, semantic, motion, and layout acceptance criteria all pass; the Required items below are objective §7 floor violations that are mechanical one-line class fixes and do **not** alter the human-approved look. Fix them in this PR's fix round (preferred) or as explicit WOW-007 line items.
+- **Reviewed SHA:** `d375a9f3c70bb40e6f1764939788c9d5a518c901` (`feat/wow-007a-play-mode-visual-spike`; round 1 reviewed `313e90f`, fixes re-verified at `d375a9f` — see the re-review addendum at the end)
+- **Final verdict:** **approve** — all four Required findings and the actionable Recommended items from round 1 are fixed and re-verified live; the remaining Recommended items are recorded with rationales in the implementation note / DECISIONS_NEEDED and carry into WOW-007.
+
+---
+
+## Round 1 (SHA `313e90f`) — verdict then: approve-with-nits
+
+The sections below are the round-1 record. Every Required item is now **fixed** (see the addendum).
 
 ## How this was verified
 
@@ -40,7 +46,7 @@
 1. **Muted state is under-signalled vs the §4 state model** (`src/component/PillarCard.tsx:95` + `src/component/PillarMedallion.tsx:79`): mock pillar 3 is muted yet the status row reads "PLAYING"; mute is conveyed only by the small speaker-x icon and a medallion dim (no §4 slash overlay / greyed name). Not colour-only (icon carries it), so not a §7.2 violation — but "why is pillar 3 silent" (UX principle 4) deserves an explicit "MUTED" text cue in the status row when wired.
 2. **Volume value has no label** (`src/component/VolumeTube.tsx:38`): a bare "82%" — percent of what? Add a small "VOL" section label or an `aria-label`/`role="img"` name on the tube group for screen-reader and operator clarity.
 3. **Key-control accessible names**: buttons expose "Raise"/"Lower"/"Reset" (`src/component/SettingsBand.tsx:122–124`); the requirements name them exactly "Raise key / Lower key / Reset key" (visual-direction, Required layout corrections). The section label carries it visually; add `aria-label='Raise key'` etc. so the standalone names match the spec.
-4. **Bass icon meaning conflicts with the recorded icon decision**: `src/component/CategoryIcon.tsx:11–14` cites "human direction 2026-07-15" for a hexagram (Bass) + beamed notes (Melody), but DESIGN_PROPOSAL_001 §2/§3.3 and DECISIONS_NEEDED record the opposite 2026-07-15 decision — conventional mic / treble-clef / bass-clef / drum-kit, with "no arbitrary occult symbol" for a category. Icons are already flagged interim (no re-flag of that); the ask here is **reconcile the record**: either the human re-decided in-session (then update §3.3 / DECISIONS_NEEDED) or the interim glyphs' _meanings_ should converge on the decided set when the bespoke icon task runs.
+4. **Bass icon meaning conflicts with the recorded icon decision**: `src/component/CategoryIcon.tsx:11–14` cites "human direction 2026-07-15" for a hexagram (Bass) + beamed notes (Melody), but DESIGN*PROPOSAL_001 §2/§3.3 and DECISIONS_NEEDED record the opposite 2026-07-15 decision — conventional mic / treble-clef / bass-clef / drum-kit, with "no arbitrary occult symbol" for a category. Icons are already flagged interim (no re-flag of that); the ask here is **reconcile the record**: either the human re-decided in-session (then update §3.3 / DECISIONS_NEEDED) or the interim glyphs' \_meanings* should converge on the decided set when the bespoke icon task runs.
 5. **Legend dot for Drums** (`src/component/Legend.tsx:22`): blue-700 fill measures ≈2.8:1 non-text against the panel/page — the exact §7.2 Drums-ring caveat. Adjacent text carries the meaning, so no cue is lost; make sure the WOW-007 automated pass checks the legend dots too, not just the medallion rings.
 6. **`text-violet-300` for the key difference** (`src/component/SettingsBand.tsx:114`): an off-system hue — violet is neither a category hue nor a §3.9 semantic token. Contrast is fine (10.2:1); consider a named token (or parchment) so the palette stays closed. Also note "+7A" is mock data echoing the reference image's placeholder string (§2 non-literal); the real key-difference format comes from the contract when wired.
 7. **Focus indicators**: `src/component/IconButton.tsx:22` and the other buttons define no `focus-visible` treatment; §3.5 specifies a 3 px gilt ring, 2 px offset. Browser defaults currently apply (nothing is suppressed), so this is a wiring-phase task, not a defect.
@@ -62,3 +68,30 @@
 - **The visual-fidelity gate itself** — human-owned (DESIGN_PROPOSAL_001 §"Visual-fidelity gate"); the human approved this render through 7 in-session rounds. Nothing here grants or withholds visual approval.
 - **Human-directed visual choices** — asset selection/processing, amber double-border frame + top-centre flourish, inner ray-burst medallion treatment, header control placement, queued-row design, wordmark gilt gradient, two-row queue cap. Not relitigated.
 - **Items already flagged in the implementation note / DECISIONS_NEEDED** — queue-remove confirm-gate, interim icon _art_ (§3.11), unwired Help/Settings, deferred axe-core pass, the PRD F3 queued-names divergence, mode-taxonomy/route follow-ups, Melody-vs-LED re-verification.
+
+---
+
+## Re-review addendum (SHA `d375a9f`, 2026-07-17) — verdict: **approve**
+
+Re-verified the fix commit `d375a9f` ("fix(wow-007a): address frontend-ui-designer review") by reading its diff, re-running the suite (`yarn test`: 30 files / 229 tests green), and re-measuring the live DOM at exactly 1024×1280.
+
+**Required findings — all fixed and measured:**
+
+1. **Toggle touch target**: the auto-adjust pill is now wrapped in a `-my-2 min-h-[44px] min-w-[56px]` button (`src/component/SettingsBand.tsx:85–106`), visual pill unchanged. Measured live: **56×44**. A full-page sweep found **zero buttons under 44×44**. The negative margin extends the hit area over non-interactive space only (no adjacent target within 8 px).
+2. **Data/status floor**: pillar status, queued names, volume %, ON/OFF, key quality/difference, "awaiting ingredient", "Queue empty" all raised to `text-[15px]` — every one measured **15 px** live (awaiting-ingredient verified in the diff; no empty pillar in the hero mock).
+3. **Label floor**: SectionLabel, Raise/Lower/Reset labels, legend heading, tempo min/max, bpm unit raised to `text-xs` — all measured **12 px** live.
+4. **Contrast**: the failing `parchment/40`/`50` strings are now `parchment/60` — **≈5.86:1** on the panel per the round-1 calculation, comfortably over AA 4.5:1.
+
+**Recommended items — resolved or recorded:**
+
+- **MUTED cue**: muted now overrides the playback label with a "MUTED" text cue + §3.9 muted dot colour (`src/component/PillarCard.tsx:34–50`); verified live (pillar 3 shows MUTED, only two PLAYING remain) and unit-tested (`PillarCard.test.tsx` asserts MUTED present / PLAYING absent).
+- **Volume label**: `sr-only` "Volume N%" per pillar, visible percent `aria-hidden` (`src/component/VolumeTube.tsx:38–43`); all four present live.
+- **Key-control names**: `aria-label="Raise key"` etc. (`src/component/SettingsBand.tsx:17`); verified live.
+- **Icon-set record conflict**: reconciled — DECISIONS_NEEDED now records the in-session human revision (2026-07-16: mic / beamed notes / hexagram / drum-head supersedes the 2026-07-15 clef set for the spike; bespoke engraved family still the final-asset task).
+- **Recorded with rationale instead of change** (acceptable): Drums legend dot deferred to the WOW-007 axe pass; `violet-300` key difference kept as a deliberate reference-matching accent; focus-ring + slider-thumb hit areas are wiring-phase tasks — all now written into the implementation note's caveats.
+
+**Still standing (carry into WOW-007, no re-flag needed):** the deferred axe-core pass (including legend dots), confirm-gate on wired queue-remove, focus-ring tokens (§3.5), slider-thumb hit area (§3.6), and the MUTED/paused distinction once real state wiring exists.
+
+Layout still fits exactly (scrollWidth/Height 1024/1280, no scroll), no console errors, and none of the fixes materially alters the human-approved look (1 px text bumps, opacity 40→60 on secondary strings, invisible hit-area growth).
+
+**Final verdict: approve.**

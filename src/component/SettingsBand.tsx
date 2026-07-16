@@ -84,6 +84,7 @@ export const SettingsBand = ({
           <button
             type='button'
             aria-pressed={autoAdjustKey}
+            aria-label='Auto-adjust key'
             className={`relative h-7 w-14 rounded-full border transition-colors ${
               autoAdjustKey
                 ? 'border-gold-bright/70 bg-gold-line/70'

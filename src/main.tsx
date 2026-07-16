@@ -9,10 +9,11 @@ import { AbletonProvider } from '~/context/AbletonProvider';
 // WOW-007A: hash-based demo switch for the play-mode visual-fidelity spike.
 // This is a temporary DEV/demo entry only — NOT the mode-routing feature
 // (deferred to a follow-up; ADR-005) and NOT a production cutover: the default
-// entry below is unchanged. Open http://localhost:<port>/#play-spike to view
-// the static spike (it renders outside the socket/Ableton providers — no live
-// connection).
-const isPlaySpike = window.location.hash.replace(/^#\/?/, '') === 'play-spike';
+// entry below is unchanged, and the switch is dead in production builds.
+// Open http://localhost:<port>/#play-spike under `yarn dev` to view the static
+// spike (it renders outside the socket/Ableton providers — no live connection).
+const isPlaySpike =
+  import.meta.env.DEV && window.location.hash.replace(/^#\/?/, '') === 'play-spike';
 
 const app = isPlaySpike ? (
   <PlayScreen />

@@ -27,9 +27,10 @@ export const VolumeTube = ({ volumePercent, assetSlug }: Props): JSX.Element => 
   const gemSrc = `/images/slider-handle-${assetSlug}.png`;
 
   const litClip: CSSProperties = { clipPath: `inset(${100 - clamped}% 0 0 0)` };
+  // Clamp so the gem never leaves the tube at the volume extremes (0%/100%).
   const gemPos: CSSProperties = {
     width: GEM_WIDTH,
-    bottom: `calc(${clamped}% - ${GEM_WIDTH / 2}px)`,
+    bottom: `clamp(0px, calc(${clamped}% - ${GEM_WIDTH / 2}px), calc(100% - ${GEM_WIDTH}px))`,
   };
 
   return (

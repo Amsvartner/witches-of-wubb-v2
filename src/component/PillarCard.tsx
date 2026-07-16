@@ -1,4 +1,5 @@
-import { MAX_QUEUED_ROWS, PillarStatus, PillarView } from '~/type/PillarView';
+import { PillarStatus } from '~/type/PillarStatus';
+import { PillarView } from '~/type/PillarView';
 import { CategoryTheme } from '~/util/CategoryTheme';
 import { PillarFrame } from '~/component/PillarFrame';
 import { PillarMedallion } from '~/component/PillarMedallion';
@@ -34,6 +35,9 @@ const statusDotHex = (status: PillarStatus, tintHex: string): string => {
 // Muted overrides the playback status as a text cue (§3.9 muted token), so the
 // state never relies on the speaker icon alone.
 const MUTED_DOT_HEX = '#6b6472';
+
+/** Max queued sample rows rendered per pillar (human direction 2026-07-15). */
+const MAX_QUEUED_ROWS = 2;
 
 /**
  * One pillar card — the single most-reused unit of the play-mode screen. All

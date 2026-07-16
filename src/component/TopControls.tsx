@@ -11,15 +11,15 @@ export const TopControls = (): JSX.Element => (
     >
       <svg
         viewBox='0 0 24 24'
-        className='h-4 w-4'
+        className='h-4 w-4 text-gold-line'
         fill='none'
-        stroke='#c9a24b'
+        stroke='currentColor'
         strokeWidth={2}
         aria-hidden='true'
       >
         <circle cx={12} cy={12} r={9} />
         <path d='M9.2 9.2a2.8 2.8 0 1 1 4 2.5c-.9.5-1.2 1-1.2 1.8' strokeLinecap='round' />
-        <circle cx={12} cy={17} r={0.9} fill='#c9a24b' stroke='none' />
+        <circle cx={12} cy={17} r={0.9} fill='currentColor' stroke='none' />
       </svg>
       HELP
     </button>
@@ -29,9 +29,9 @@ export const TopControls = (): JSX.Element => (
     >
       <svg
         viewBox='0 0 24 24'
-        className='h-4 w-4'
+        className='h-4 w-4 text-gold-line'
         fill='none'
-        stroke='#c9a24b'
+        stroke='currentColor'
         strokeWidth={2}
         aria-hidden='true'
       >

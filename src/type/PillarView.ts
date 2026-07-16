@@ -1,11 +1,6 @@
 import { ClipTypes } from 'backend/type/ClipTypes';
+import { PillarStatus } from '~/type/PillarStatus';
 import { QueuedSample } from '~/type/QueuedSample';
-
-/** Playback state of a pillar in the play-mode spike (§4). */
-export type PillarStatus = 'playing' | 'queued' | 'paused' | 'empty';
-
-/** Max queued sample rows rendered per pillar (human direction 2026-07-15). */
-export const MAX_QUEUED_ROWS = 2;
 
 /**
  * View-model for one pillar card. Static/mock only in WOW-007A — no socket
@@ -21,6 +16,6 @@ export type PillarView = {
   muted: boolean;
   /** Display-only volume percentage (0–100). */
   volumePercent: number;
-  /** Queued samples; up to MAX_QUEUED_ROWS are rendered as rows. */
+  /** Queued samples; the pillar card renders at most its row cap. */
   queued: QueuedSample[];
 };

@@ -1,6 +1,6 @@
 import { type CSSProperties } from 'react';
 import { ClipTypes } from 'backend/type/ClipTypes';
-import { PillarStatus } from '~/type/PillarView';
+import { PillarStatus } from '~/type/PillarStatus';
 import { CategoryIcon } from '~/component/CategoryIcon';
 
 type Props = {

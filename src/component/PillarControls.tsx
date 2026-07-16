@@ -1,4 +1,4 @@
-import { PillarStatus } from '~/type/PillarView';
+import { PillarStatus } from '~/type/PillarStatus';
 import { IconButton } from '~/component/IconButton';
 
 type Props = {

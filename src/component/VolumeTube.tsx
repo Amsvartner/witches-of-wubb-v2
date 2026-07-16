@@ -24,7 +24,7 @@ const GEM_WIDTH = 54;
 export const VolumeTube = ({ volumePercent, assetSlug }: Props): JSX.Element => {
   const clamped = Math.max(0, Math.min(100, volumePercent));
   const tubeSrc = `/images/slider-background-${assetSlug ?? 'red'}.png`;
-  const gemSrc = `/images/slider-handle-${assetSlug}.png`;
+  const gemSrc = assetSlug ? `/images/slider-handle-${assetSlug}.png` : undefined;
 
   const litClip: CSSProperties = { clipPath: `inset(${100 - clamped}% 0 0 0)` };
   // Clamp so the gem never leaves the tube at the volume extremes (0%/100%).

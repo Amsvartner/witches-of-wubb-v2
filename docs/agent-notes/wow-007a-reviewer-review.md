@@ -3,8 +3,8 @@
 - Ticket: WOW-007A (play-mode visual-fidelity spike)
 - Date: 2026-07-17
 - Reviewer role: reviewer (strict general diff review, read-only)
-- Reviewed SHA: `d375a9f` (`feat/wow-007a-play-mode-visual-spike`, `git diff main...HEAD` + full commit series, PR #53)
-- Verdict: **approve-with-nits**
+- Reviewed SHA: `1f1134a` (`feat/wow-007a-play-mode-visual-spike`, `git diff main...HEAD` + full commit series, PR #53; initial review @ `d375a9f` — verdict then approve-with-nits, re-reviewed after fixes, see addendum)
+- Verdict: **approve**
 
 ## Verdict basis
 
@@ -134,3 +134,54 @@ None.
 - `yarn build` — green
 - `gh pr view 53` (read-only)
 - `yarn start-backend` never run
+
+## Re-review addendum (`1f1134a`, 2026-07-17) — final verdict: **approve**
+
+Re-reviewed the fix commit
+`1f1134a fix(wow-007a): address general review recommendations` by reading its
+full diff and re-running the validations locally (Node 22): `yarn lint` clean,
+`yarn test` 30 files / 229 tests green, `yarn build` green. Working tree clean
+at `1f1134a`; the fix touches only `src/component/`, `src/type/`, and this
+note — still zero backend/Arduino/CSV/`.env`/dependency/socket-contract
+surface.
+
+Recommended findings — disposition verified:
+
+1. **PR body counts/ticks** — deliberately deferred to the gate step
+   (immediately after this re-review); acceptable, verify at gate.
+2. **Resolved.** `PillarStatus` now lives in its own `src/type/PillarStatus.ts`
+   (one type per file); `MAX_QUEUED_ROWS` moved into
+   `src/component/PillarCard.tsx` as a module-private const next to its render
+   logic; `PillarView.ts` exports exactly one type. All importers updated.
+3. **Resolved.** `SettingsBand.tsx` and `TopControls.tsx` SVGs now use
+   `stroke='currentColor'`/`fill='currentColor'` with the `text-gold-line`
+   token class — `#c9a24b` no longer appears anywhere in `src/`
+   (grep-verified); the token is defined once in `tailwind.config.cjs`.
+4. **Deferred with rationale (accepted).** Status-hex tokenisation awaits the
+   §8.3 page-palette decision — consistent with this note's own suggestion.
+5. **Deferred with rationale (accepted).** The `PillarCard`
+   placement-vs-guideline question goes to WOW-007. Record note: both
+   deferrals are written in the `1f1134a` commit message and this note; the
+   implementation note itself was not amended — fine, no re-flag.
+6. **Resolved.** `VolumeTube.tsx` builds `gemSrc` only when `assetSlug` is
+   present (no `undefined` URL string).
+7. **Resolved.** `Legend.tsx` wraps the decorative `◈` glyphs in
+   `aria-hidden='true'` spans; the accessible name is now "Sample Types".
+
+Follow-up reviewers — status:
+
+- **frontend-ui-designer re-verification: complete** — final verdict
+  **approve @ `d375a9f`**, committed in `76f9787`
+  (`docs/agent-notes/wow-007a-frontend-ui-designer-review.md` addendum); the
+  `1f1134a` changes are outside its Required scope (type-file split, token
+  refactor with identical resolved colour, guarded URL, `aria-hidden` glyphs —
+  no geometry/size/contrast change).
+- **test-engineer: approve @ `4b32326`** stands; suite independently re-run
+  green at `d375a9f` and `1f1134a` by this reviewer.
+- **Human/artist visual sign-off on PR #53 remains the terminal,
+  non-delegable gate** (visual-fidelity gate, DESIGN_PROPOSAL_001).
+- No audio-ableton-reviewer / hardware-safety-reviewer sign-off required
+  (unchanged — no hardware/emission path).
+
+Final verdict: **approve** — no open findings for this reviewer; gate may
+proceed once the PR body is refreshed and the human grants visual sign-off.

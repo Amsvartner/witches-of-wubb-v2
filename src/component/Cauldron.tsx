@@ -5,7 +5,7 @@
  * rule (§7.4).
  */
 export const Cauldron = (): JSX.Element => (
-  <div className='flex items-end justify-center' data-testid='cauldron'>
+  <div className='flex items-end justify-center'>
     <img
       src='/images/hexology-cauldron.png'
       alt='Cauldron'

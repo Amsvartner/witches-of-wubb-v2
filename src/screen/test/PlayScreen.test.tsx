@@ -8,8 +8,8 @@ describe('PlayScreen (WOW-007A play-mode spike)', () => {
   });
 
   it('renders the cauldron centrepiece', () => {
-    const { getByTestId } = render(<PlayScreen />);
-    expect(getByTestId('cauldron')).toBeInTheDocument();
+    const { getByAltText } = render(<PlayScreen />);
+    expect(getByAltText('Cauldron')).toBeInTheDocument();
   });
 
   it('renders four pillars with the four categories', () => {

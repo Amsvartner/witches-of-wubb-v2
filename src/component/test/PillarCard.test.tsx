@@ -55,6 +55,21 @@ describe('PillarCard', () => {
     expect(queryByText('Gamma')).not.toBeInTheDocument();
   });
 
+  it('shows PAUSED with a Play control when paused', () => {
+    const paused: PillarView = { ...vocalsPillar, status: 'paused' };
+    const { getByText, getByRole, queryByRole } = render(<PillarCard pillar={paused} />);
+    expect(getByText('PAUSED')).toBeInTheDocument();
+    expect(getByRole('button', { name: 'Play' })).toBeInTheDocument();
+    expect(queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
+  });
+
+  it('shows an Unmute control when muted', () => {
+    const muted: PillarView = { ...vocalsPillar, muted: true };
+    const { getByRole, queryByRole } = render(<PillarCard pillar={muted} />);
+    expect(getByRole('button', { name: 'Unmute' })).toBeInTheDocument();
+    expect(queryByRole('button', { name: 'Mute' })).not.toBeInTheDocument();
+  });
+
   it('shows no category or controls for an empty pillar', () => {
     const { getByText, queryByText, queryByRole } = render(<PillarCard pillar={emptyPillar} />);
     expect(getByText('PILLAR 4')).toBeInTheDocument();

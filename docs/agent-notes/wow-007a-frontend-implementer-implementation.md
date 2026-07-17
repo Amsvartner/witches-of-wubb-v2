@@ -67,6 +67,38 @@ the earlier CSS-desaturated fallback. Slider files only — the cauldron in
 that folder is still being iterated by the human and was deliberately **not**
 copied.
 
+## Post-gate visual iteration round 2 (2026-07-17, human-directed)
+
+After the pipeline gate, a second in-session iteration round with the human
+reshaped the card and centre composition (all still static/mock, frontend-only):
+
+- **Category-coloured pillar frames** (+ discrete tinted gradient wash);
+  pillar names removed — the playing sample's category heads each card with
+  its status line; empty state restyled (— EMPTY — / AWAITING INGREDIENT,
+  `+` medallion).
+- **Colour token refinements** at the single source: `melody-yellow`
+  (`#dfa50a`) and desaturated `drums-blue` (`#3559c0`) — both flagged for
+  physical-LED re-verification.
+- **Layout**: cards stretch to fill the viewport height (taller tubes);
+  medallions +50% with equalizer bars beneath; volume readout moved below the
+  tube; logo raised + wordmark 30% smaller; queue rows: play left / remove
+  far right; **oversized cauldron** (405px) deliberately extends behind the
+  cards (out-of-flow over a 180px spacer column, cards layered above).
+- **Cauldron art**: `hex-cauldron-black-bg-2.png`, edge-feathered onto a
+  thick black radial glow (blends into any page ground).
+- **Interactivity + animation system** (all compositor-only
+  transform/opacity, `motion-safe`-gated): equalizer bars dance while a
+  sample plays (static when muted/paused, absent when empty); magic-cauldron
+  ambience — 5 desynced rising blobs, ±4px vessel float, one-shot expanding
+  click ring (centering baked into keyframes: an animated transform replaces
+  utility translates); **Settings modal** (Headless UI Dialog) with a global
+  **Animations kill-switch** that disables every animation on the fly
+  (kiosk-performance escape hatch) — verified live: blobs/float/ring/eq all
+  zero when off.
+
+Validation after the round: lint clean, 30 files / 230 tests, build green,
+exact 1024×1280 fit, ring centering measured at 0px delta.
+
 ## Decisions recorded (see DECISIONS_NEEDED.md)
 
 - **Mode taxonomy**: play / tutorial / DJ; debug becomes a panel. Doc
@@ -120,6 +152,16 @@ copied.
 - No hardware/Ableton access at any point; `yarn start-backend` never run
 
 ## Run record
+
+### Prompt 2 — run record
+
+- Date: 2026-07-17
+- Executor: frontend-implementer (human-directed post-gate iteration round 2)
+- PR: https://github.com/Amsvartner/witches-of-wubb-v2/pull/53
+- Outcome: visual iteration round described above; validations green;
+  reviewer + ui-designer re-verification requested at the new head (their
+  prior approvals pre-date this round)
+- Note: this file
 
 ### Prompt 1 — run record
 

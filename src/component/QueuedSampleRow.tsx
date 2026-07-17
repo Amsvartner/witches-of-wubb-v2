@@ -6,8 +6,13 @@ type Props = {
   name: string;
   /** Category tint hex — the leading pip + accents. */
   tintHex: string;
-  /** Removes the queued sample (emits the departed-tag event). */
-  onRemove: () => void;
+  /**
+   * Removes the queued sample (emits the departed-tag event). Absent =>
+   * display-only row with no remove button — the socket contract holds at
+   * most one queued clip per pillar, so only the contract-backed row gets
+   * the pillar-level remove action (Copilot review, PR #55).
+   */
+  onRemove?: () => void;
 };
 
 const RemoveGlyph = (): JSX.Element => (
@@ -35,28 +40,32 @@ const RemoveGlyph = (): JSX.Element => (
  */
 export const QueuedSampleRow = ({ name, tintHex, onRemove }: Props): JSX.Element => {
   const pip: CSSProperties = { backgroundColor: tintHex, boxShadow: `0 0 6px ${tintHex}aa` };
-  const { armed, onTap } = useConfirmTap(onRemove);
+  // Unconditional call (rules of hooks); the button below only renders when a
+  // remove action actually exists.
+  const { armed, onTap } = useConfirmTap(onRemove ?? (() => undefined));
 
   return (
     <li className='flex items-center gap-2 rounded-md border border-gold-line/20 bg-ink-deep/70 px-1 py-1'>
       <span style={pip} className='ml-2 h-2 w-2 shrink-0 rounded-full' aria-hidden='true' />
       <span className='flex-1 truncate font-data text-[15px] text-parchment/85'>{name}</span>
-      {armed && (
+      {onRemove && armed && (
         <span className='font-data text-xs uppercase tracking-wide text-red-300' aria-hidden='true'>
           Confirm?
         </span>
       )}
-      <IconButton
-        label={armed ? `Confirm remove ${name}` : `Remove ${name}`}
-        onClick={onTap}
-        className={`h-11 w-11 shrink-0 ${
-          armed
-            ? 'border-red-300/80 bg-red-900/40 text-red-200'
-            : 'border-red-300/30 text-red-300/80'
-        }`}
-      >
-        <RemoveGlyph />
-      </IconButton>
+      {onRemove && (
+        <IconButton
+          label={armed ? `Confirm remove ${name}` : `Remove ${name}`}
+          onClick={onTap}
+          className={`h-11 w-11 shrink-0 ${
+            armed
+              ? 'border-red-300/80 bg-red-900/40 text-red-200'
+              : 'border-red-300/30 text-red-300/80'
+          }`}
+        >
+          <RemoveGlyph />
+        </IconButton>
+      )}
     </li>
   );
 };

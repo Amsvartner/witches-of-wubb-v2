@@ -173,14 +173,19 @@ export const PillarCard = ({
             {tokens && dj && (
               <div className='mt-auto flex flex-col gap-1.5'>
                 <SectionLabel>Queued</SectionLabel>
-                {visibleQueued.length > 0 && onRemoveQueued ? (
+                {visibleQueued.length > 0 ? (
                   <ul className='flex flex-col gap-1.5'>
-                    {visibleQueued.map((sample) => (
+                    {/* The socket contract holds at most one queued clip per
+                        pillar, and `dj.onRemoveQueued` removes exactly that
+                        clip — so only the first row gets the remove action;
+                        any further rows (mock/legacy data) are display-only
+                        (Copilot review, PR #55). */}
+                    {visibleQueued.map((sample, sampleIndex) => (
                       <QueuedSampleRow
                         key={sample.id}
                         name={sample.name}
                         tintHex={tokens.tintHex}
-                        onRemove={onRemoveQueued}
+                        onRemove={sampleIndex === 0 ? onRemoveQueued : undefined}
                       />
                     ))}
                   </ul>

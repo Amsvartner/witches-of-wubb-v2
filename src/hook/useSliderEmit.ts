@@ -51,6 +51,12 @@ export const useSliderEmit = (
 
   const throttledEmit = useMemo(() => throttle(emit, EMIT_THROTTLE_MS), [emit]);
 
+  // A trailing throttled call can still be pending when the component
+  // unmounts; cancel it so no stale tempo/volume emission fires afterwards
+  // (Copilot review, PR #55). `emit` is referentially stable per this hook's
+  // contract, so this cleanup only runs at unmount in practice.
+  useEffect(() => () => throttledEmit.cancel(), [throttledEmit]);
+
   return useMemo(
     () => ({
       value,

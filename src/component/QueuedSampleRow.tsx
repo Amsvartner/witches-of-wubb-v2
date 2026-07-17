@@ -1,17 +1,14 @@
 import { type CSSProperties } from 'react';
 import { IconButton } from '~/component/IconButton';
+import { useConfirmTap } from '~/hook/useConfirmTap';
 
 type Props = {
   name: string;
   /** Category tint hex — the leading pip + accents. */
   tintHex: string;
+  /** Removes the queued sample (emits the departed-tag event). */
+  onRemove: () => void;
 };
-
-const PlayGlyph = (): JSX.Element => (
-  <svg viewBox='0 0 20 20' className='h-4 w-4' fill='currentColor' aria-hidden='true'>
-    <path d='M6 4l10 6-10 6z' />
-  </svg>
-);
 
 const RemoveGlyph = (): JSX.Element => (
   <svg
@@ -28,35 +25,35 @@ const RemoveGlyph = (): JSX.Element => (
 );
 
 /**
- * One queued sample row (human direction 2026-07-15): sample name with a
- * play/stop and a remove control. Buttons are full 44px touch targets with
- * ≥12px separation, and remove is visually distinct (red tint), so a sample
- * isn't removed by a mis-tap aimed at play (§7.1; human concern 2026-07-16).
- * The wired-up remove action must additionally get a confirm-gate
- * (UX_UI_PRINCIPLES 2 — destructive control). Static/display only in this spike:
- * both controls are rendered `disabled` (real disabled buttons, still accessibly
- * named) because no handlers are wired; they will be enabled in a follow-up
- * wiring ticket.
- *
- * NOTE: showing sample NAMES on the pillar diverges from PRD F3 ("no clip/song
- * names on the visitor display") — flagged for confirmation with the mode-model
- * change (play/tutorial/DJ). Recorded in the WOW-007A implementation note.
+ * One queued sample row — DJ mode only (human decision 2026-07-17: play mode
+ * shows no queue and no sample names; queue management is a DJ surface).
+ * Remove is confirm-gated (UX_UI_PRINCIPLES 2 — destructive control): first
+ * tap arms it visibly, second tap within 3s removes, then it auto-disarms.
+ * The 44px touch target and red tint are kept from the spike (§7.1 mis-tap
+ * concern); the spike's per-row play button is gone — the contract has no
+ * "play queued now" event.
  */
-export const QueuedSampleRow = ({ name, tintHex }: Props): JSX.Element => {
+export const QueuedSampleRow = ({ name, tintHex, onRemove }: Props): JSX.Element => {
   const pip: CSSProperties = { backgroundColor: tintHex, boxShadow: `0 0 6px ${tintHex}aa` };
+  const { armed, onTap } = useConfirmTap(onRemove);
+
   return (
     <li className='flex items-center gap-2 rounded-md border border-gold-line/20 bg-ink-deep/70 px-1 py-1'>
-      {/* Play left, remove far right (human, 2026-07-17) — the separation also
-          guards against mis-taps between the two actions. */}
-      <IconButton label={`Play ${name}`} className='h-11 w-11 shrink-0' disabled>
-        <PlayGlyph />
-      </IconButton>
-      <span style={pip} className='h-2 w-2 shrink-0 rounded-full' aria-hidden='true' />
+      <span style={pip} className='ml-2 h-2 w-2 shrink-0 rounded-full' aria-hidden='true' />
       <span className='flex-1 truncate font-data text-[15px] text-parchment/85'>{name}</span>
+      {armed && (
+        <span className='font-data text-xs uppercase tracking-wide text-red-300' aria-hidden='true'>
+          Confirm?
+        </span>
+      )}
       <IconButton
-        label={`Remove ${name}`}
-        className='h-11 w-11 shrink-0 border-red-300/30 text-red-300/80'
-        disabled
+        label={armed ? `Confirm remove ${name}` : `Remove ${name}`}
+        onClick={onTap}
+        className={`h-11 w-11 shrink-0 ${
+          armed
+            ? 'border-red-300/80 bg-red-900/40 text-red-200'
+            : 'border-red-300/30 text-red-300/80'
+        }`}
       >
         <RemoveGlyph />
       </IconButton>

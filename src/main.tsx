@@ -6,22 +6,15 @@ import { PlayScreen } from '~/screen/PlayScreen';
 import { SocketProvider } from '~/context/SocketProvider';
 import { AbletonProvider } from '~/context/AbletonProvider';
 
-// WOW-007A: hash-based demo switch for the play-mode visual-fidelity spike.
-// This is a temporary DEV/demo entry only — NOT the mode-routing feature
-// (deferred to a follow-up; ADR-005) and NOT a production cutover: the default
-// entry below is unchanged, and the switch is dead in production builds.
-// Open http://localhost:<port>/#play-spike under `yarn dev` to view the static
-// spike (it renders outside the socket/Ableton providers — no live connection).
-const isPlaySpike =
-  import.meta.env.DEV && window.location.hash.replace(/^#\/?/, '') === 'play-spike';
+// WOW-007B production cutover: the live-wired play-mode screen is now the
+// default entry. The legacy MainScreen UI is kept as an emergency show-day
+// fallback behind the `#legacy` hash (not gated on DEV — it must work in the
+// production build too) and should be removed once the new UI has run a show.
+const isLegacy = window.location.hash.replace(/^#\/?/, '') === 'legacy';
 
-const app = isPlaySpike ? (
-  <PlayScreen />
-) : (
+const app = (
   <SocketProvider>
-    <AbletonProvider>
-      <MainScreen />
-    </AbletonProvider>
+    <AbletonProvider>{isLegacy ? <MainScreen /> : <PlayScreen />}</AbletonProvider>
   </SocketProvider>
 );
 

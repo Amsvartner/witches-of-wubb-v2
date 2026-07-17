@@ -9,12 +9,13 @@ type Props = {
   className?: string;
   style?: CSSProperties;
   /**
-   * Renders a real disabled button (no focus, no activation). The WOW-007A
-   * spike is display-only, so these controls are disabled until their handlers
-   * are wired in a follow-up ticket — an enabled no-op would mislead keyboard
-   * and screen-reader users.
+   * Renders a real disabled button (no focus, no activation). Used for
+   * affordances whose backend event doesn't exist yet — an enabled no-op
+   * would mislead keyboard and screen-reader users.
    */
   disabled?: boolean;
+  /** Click handler (WOW-007B — live controls). */
+  onClick?: () => void;
 };
 
 /**
@@ -28,11 +29,13 @@ export const IconButton = ({
   className,
   style,
   disabled,
+  onClick,
 }: Props): JSX.Element => (
   <button
     type='button'
     aria-label={label}
     disabled={disabled}
+    onClick={onClick}
     style={style}
     className={`flex items-center justify-center gap-1.5 rounded-lg border border-gold-line/40 bg-ink-btn text-parchment/85 disabled:cursor-default disabled:opacity-75 ${
       className ?? ''

@@ -4,7 +4,7 @@ import { CategoryTheme } from '~/util/CategoryTheme';
 import { PillarFrame } from '~/component/PillarFrame';
 import { PillarMedallion } from '~/component/PillarMedallion';
 import { VolumeTube } from '~/component/VolumeTube';
-import { PillarControls } from '~/component/PillarControls';
+import { DjPillarControls } from '~/component/DjPillarControls';
 import { QueuedSampleRow } from '~/component/QueuedSampleRow';
 import { SectionLabel } from '~/component/SectionLabel';
 import { StatusBars } from '~/component/StatusBars';
@@ -13,6 +13,21 @@ type Props = {
   pillar: PillarView;
   /** Global animations switch (Settings modal kill-switch). */
   animationsEnabled?: boolean;
+  /**
+   * DJ-mode extras. Absent = play mode: no queue display, no per-pillar
+   * controls (human decision 2026-07-17).
+   */
+  dj?: {
+    /** Present while a clip is playing/stopping. */
+    onStop?: () => void;
+    onSelectSample: () => void;
+    /** Present when a queued clip exists. */
+    onRemoveQueued?: () => void;
+  };
+  /** Live volume interaction (both modes). Absent = display-only (tests/mock). */
+  onVolumePercentChange?: (percent: number) => void;
+  onVolumeDragStart?: () => void;
+  onVolumeDragEnd?: () => void;
 };
 
 const STATUS_LABEL: Record<PillarStatus, string> = {
@@ -46,15 +61,26 @@ const MAX_QUEUED_ROWS = 2;
  * One pillar card — the single most-reused unit of the play-mode screen. All
  * four instances share this structure; only `category` + live state differ
  * (DESIGN_PROPOSAL_001 §5). Composes the shared frame, medallion, volume tube,
- * status, per-pillar controls, and queued sample rows.
+ * and status. Volume is visitor-operable in both modes; the per-pillar DJ
+ * controls (stop/select-sample) and the queue display only render when `dj`
+ * is supplied (WOW-007B human decision 2026-07-17: play mode has no queue
+ * display, no sample names, and no per-pillar control buttons).
  */
-export const PillarCard = ({ pillar, animationsEnabled = true }: Props): JSX.Element => {
+export const PillarCard = ({
+  pillar,
+  animationsEnabled = true,
+  dj,
+  onVolumePercentChange,
+  onVolumeDragStart,
+  onVolumeDragEnd,
+}: Props): JSX.Element => {
   const { category, status, muted, volumePercent, queued } = pillar;
   const tokens = category ? CategoryTheme.forType(category) : undefined;
 
   const dotHex = muted ? MUTED_DOT_HEX : statusDotHex(status, tokens?.tintHex ?? '#9a9080');
   const statusLabel = muted ? 'MUTED' : STATUS_LABEL[status];
   const visibleQueued = queued.slice(0, MAX_QUEUED_ROWS);
+  const onRemoveQueued = dj?.onRemoveQueued;
 
   // PillarMedallion's props are a discriminated union: a categorised medallion
   // requires the tint + fill trio together. Branch here so `tokens` is narrowed
@@ -114,11 +140,21 @@ export const PillarCard = ({ pillar, animationsEnabled = true }: Props): JSX.Ele
               </>
             )}
           </div>
-          {tokens && <PillarControls status={status} muted={muted} />}
+          {/* DJ controls render regardless of category: an EMPTY pillar is
+              exactly where the DJ needs Select-sample (the legacy debug modal
+              allowed placing clips on any pillar). Stop only appears when a
+              clip is actually active (onStop present). */}
+          {dj && <DjPillarControls onStop={dj.onStop} onSelectSample={dj.onSelectSample} />}
         </div>
 
         <div className='flex min-h-0 flex-1 gap-3'>
-          <VolumeTube volumePercent={volumePercent} assetSlug={tokens?.assetSlug} />
+          <VolumeTube
+            volumePercent={volumePercent}
+            assetSlug={tokens?.assetSlug}
+            onPercentChange={onVolumePercentChange}
+            onDragStart={onVolumeDragStart}
+            onDragEnd={onVolumeDragEnd}
+          />
 
           <div className='flex min-w-0 flex-1 flex-col gap-2'>
             <div className='flex flex-col items-center gap-4 py-1'>
@@ -132,16 +168,19 @@ export const PillarCard = ({ pillar, animationsEnabled = true }: Props): JSX.Ele
               )}
             </div>
 
-            {tokens && (
+            {/* Queue display is a DJ-mode surface only (human decision
+                2026-07-17): play mode shows no queue, no sample names. */}
+            {tokens && dj && (
               <div className='mt-auto flex flex-col gap-1.5'>
                 <SectionLabel>Queued</SectionLabel>
-                {visibleQueued.length > 0 ? (
+                {visibleQueued.length > 0 && onRemoveQueued ? (
                   <ul className='flex flex-col gap-1.5'>
                     {visibleQueued.map((sample) => (
                       <QueuedSampleRow
                         key={sample.id}
                         name={sample.name}
                         tintHex={tokens.tintHex}
+                        onRemove={onRemoveQueued}
                       />
                     ))}
                   </ul>

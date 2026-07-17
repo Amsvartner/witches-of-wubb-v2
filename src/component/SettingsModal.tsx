@@ -3,21 +3,26 @@ import { Dialog } from '@headlessui/react';
 type Props = {
   open: boolean;
   onClose: () => void;
+  mode: 'play' | 'dj';
+  onModeChange: (mode: 'play' | 'dj') => void;
   animationsEnabled: boolean;
   onAnimationsEnabledChange: (value: boolean) => void;
 };
 
 /**
- * Settings modal (first wired control of the spike, human direction
- * 2026-07-17): hosts the global animations kill-switch so all ambient motion
- * (equalizer bars, medallion pulses, future animations) can be disabled on
- * the fly if kiosk GPU headroom demands it.
- * Mode switching and further settings arrive with WOW-007 (ADR-006 amended).
+ * Settings modal, reached via the visible top-right Settings control (ADR-006
+ * amended 2026-07-15). Hosts the play/DJ mode switch (WOW-007B: DJ mode
+ * reveals per-pillar sample selection, stop, and the queue display on every
+ * pillar card) and the global animations kill-switch (human direction
+ * 2026-07-17), so all ambient motion (equalizer bars, medallion pulses) can
+ * be disabled on the fly if kiosk GPU headroom demands it.
  * Near-opaque overlay per DESIGN_PROPOSAL_001 §3.1 (surface/overlay).
  */
 export const SettingsModal = ({
   open,
   onClose,
+  mode,
+  onModeChange,
   animationsEnabled,
   onAnimationsEnabledChange,
 }: Props): JSX.Element => (
@@ -28,6 +33,35 @@ export const SettingsModal = ({
         <Dialog.Title className='font-display text-2xl tracking-[0.14em] text-gold-bright'>
           Settings
         </Dialog.Title>
+
+        <div className='mt-5'>
+          <span className='font-data text-[15px] text-parchment/90'>Mode</span>
+          <div className='mt-2 flex overflow-hidden rounded-lg border border-gold-line/40'>
+            <button
+              type='button'
+              aria-pressed={mode === 'play'}
+              onClick={() => onModeChange('play')}
+              className={`min-h-[44px] flex-1 font-data text-sm tracking-wide ${
+                mode === 'play' ? 'bg-gold-line/70 text-ink-deep' : 'bg-ink-btn text-parchment/90'
+              }`}
+            >
+              Play
+            </button>
+            <button
+              type='button'
+              aria-pressed={mode === 'dj'}
+              onClick={() => onModeChange('dj')}
+              className={`min-h-[44px] flex-1 font-data text-sm tracking-wide ${
+                mode === 'dj' ? 'bg-gold-line/70 text-ink-deep' : 'bg-ink-btn text-parchment/90'
+              }`}
+            >
+              DJ
+            </button>
+          </div>
+          <p className='mt-1 font-data text-[15px] text-parchment/60'>
+            DJ mode reveals sample selection and queue controls on every pillar.
+          </p>
+        </div>
 
         <div className='mt-5 flex min-h-[44px] items-center justify-between gap-4'>
           <span className='font-data text-[15px] text-parchment/90'>Animations</span>

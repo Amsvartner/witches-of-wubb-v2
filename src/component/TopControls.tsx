@@ -1,16 +1,32 @@
 type Props = {
-  /** Opens the Settings modal (animation kill-switch; modes arrive in WOW-007). */
+  /** Opens the Settings modal (hosts the play/DJ mode switch + animations). */
   onOpenSettings: () => void;
+  /** True while DJ mode is active — shows the persistent Exit DJ control. */
+  djActive: boolean;
+  /** Drops back to play mode. */
+  onExitDj: () => void;
 };
 
 /**
  * Visible Help + Settings controls (top-right), per the reference + wireframe.
- * Mode access lives behind Settings (ADR-006 amended 2026-07-15). Settings is
- * wired to the modal (human, 2026-07-17); Help is disabled until its content
- * arrives with WOW-007 (a focusable no-op would confuse keyboard/SR users).
+ * Mode access lives behind Settings (ADR-006 amended 2026-07-15). While DJ
+ * mode is active, a persistent "EXIT DJ" control renders first in the row —
+ * the clearly-labelled, always-visible exit affordance for the elevated mode
+ * (DESIGN_PROPOSAL §6.2). Settings is wired to the modal; Help is disabled
+ * until its content arrives with WOW-007 (a focusable no-op would confuse
+ * keyboard/SR users).
  */
-export const TopControls = ({ onOpenSettings }: Props): JSX.Element => (
+export const TopControls = ({ onOpenSettings, djActive, onExitDj }: Props): JSX.Element => (
   <div className='flex items-center gap-3'>
+    {djActive && (
+      <button
+        type='button'
+        onClick={onExitDj}
+        className='flex min-h-[44px] items-center gap-2 rounded-lg border border-red-300/60 bg-ink-btn px-4 font-data text-sm tracking-wide text-red-200'
+      >
+        EXIT DJ
+      </button>
+    )}
     <button
       type='button'
       disabled

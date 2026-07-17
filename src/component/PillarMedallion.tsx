@@ -3,19 +3,30 @@ import { ClipTypes } from 'backend/type/ClipTypes';
 import { PillarStatus } from '~/type/PillarStatus';
 import { CategoryIcon } from '~/component/CategoryIcon';
 
-type Props = {
-  status: PillarStatus;
-  /** Absent => empty pillar: desaturated dashed ring, no icon or colour. */
-  category?: ClipTypes;
-  /** Category `-300` tint hex (ring + icon + rays). Required when set. */
-  tintHex?: string;
-  /** Category fill hex, used for the glow. */
-  fillHex?: string;
-  /** Paused or muted — desaturated. */
-  dimmed?: boolean;
-  /** Global animations switch (Settings kill-switch); static when false. */
-  animated?: boolean;
-};
+type Props =
+  | {
+      status: PillarStatus;
+      /** Absent => empty pillar: desaturated dashed ring, no icon or colour. */
+      category?: undefined;
+      tintHex?: never;
+      fillHex?: never;
+      /** Paused or muted — desaturated. */
+      dimmed?: boolean;
+      /** Global animations switch (Settings kill-switch); static when false. */
+      animated?: boolean;
+    }
+  | {
+      status: PillarStatus;
+      category: ClipTypes;
+      /** Category `-300` tint hex (ring + icon + rays). */
+      tintHex: string;
+      /** Category fill hex, used for the glow. */
+      fillHex: string;
+      /** Paused or muted — desaturated. */
+      dimmed?: boolean;
+      /** Global animations switch (Settings kill-switch); static when false. */
+      animated?: boolean;
+    };
 
 const DIAMETER = 126;
 const RAY_COUNT = 48;

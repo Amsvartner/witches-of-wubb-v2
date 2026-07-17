@@ -107,6 +107,21 @@ tokenisation of the remaining one-off hexes, and confirming the
 pillar↔category 1:1 display invariant once live data is wired (pillar
 identity is positional now that pillar names are gone).
 
+## Visual polish backlog (human, 2026-07-17 — for WOW-007 slicing)
+
+Deliberately deferred refinements; none change required functionality:
+
+1. **New category icons** — replace the interim SVG glyphs with the bespoke
+   engraved icon family (§3.11); also covers the medallion treatment.
+2. **Queued-row indicator** — the coloured pip reads too much like the
+   playing-status dot; colour the sample text (or similar) instead.
+3. **Slider tube art border** — the baked-in gold frame renders with a broken
+   border; re-export/process the assets without the frame (remove the border
+   altogether).
+4. (Carried from reviews) §8.3 tokenisation of remaining one-off hexes;
+   pillar↔category display invariant check at live wiring; focus rings +
+   slider-thumb hit areas; axe contrast pass incl. legend dots.
+
 ## Decisions recorded (see DECISIONS_NEEDED.md)
 
 - **Mode taxonomy**: play / tutorial / DJ; debug becomes a panel. Doc

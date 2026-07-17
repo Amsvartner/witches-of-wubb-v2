@@ -18,18 +18,18 @@ describe('CategoryTheme.forType', () => {
     expect(CategoryTheme.forType(ClipTypes.Drums).tintClass).toBe('text-blue-300');
   });
 
-  it('warms the Melody fill to yellow-600 (WOW-007A)', () => {
-    expect(CategoryTheme.forType(ClipTypes.Melody).fillClass).toBe('bg-yellow-600');
-    expect(CategoryTheme.forType(ClipTypes.Melody).fillHex).toBe('#ca8a04');
+  it('warms the Melody fill to the melody-yellow token (WOW-007A)', () => {
+    expect(CategoryTheme.forType(ClipTypes.Melody).fillClass).toBe('bg-melody-yellow');
+    expect(CategoryTheme.forType(ClipTypes.Melody).fillHex).toBe('#dfa50a');
   });
 
   it('keeps fillHex in sync with the resolved Tailwind class for every category', () => {
     // Default-palette hex values of the Tailwind classes ColorUtil returns.
     const RESOLVED: Record<string, string> = {
       'bg-red-700': '#b91c1c',
-      'bg-yellow-600': '#ca8a04',
+      'bg-melody-yellow': '#dfa50a',
       'bg-green-700': '#15803d',
-      'bg-blue-700': '#1d4ed8',
+      'bg-drums-blue': '#3559c0',
     };
     (Object.values(ClipTypes) as ClipTypes[]).forEach((type) => {
       const { fillClass, fillHex } = CategoryTheme.forType(type);

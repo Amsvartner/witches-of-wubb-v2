@@ -27,6 +27,13 @@ module.exports = {
           line: '#c9a24b',
           bright: '#e6c877',
         },
+        // Drums hue, desaturated from blue-700 (#1d4ed8) to sit at the same
+        // perceived intensity as the other category hues (human, 2026-07-17).
+        'drums-blue': '#3559c0',
+        // Melody hue, warmed-yellow between Tailwind yellow-500/600 — clearly
+        // yellow (matching the physical pillar) but still warm, not ochre
+        // (human, 2026-07-17).
+        'melody-yellow': '#dfa50a',
         ink: {
           page: '#0e0b12',
           deep: '#080609',
@@ -54,11 +61,40 @@ module.exports = {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.55' },
         },
+        // Equalizer bars: transform-only (compositor-composited — no layout or
+        // paint), keeping the animation cheap on the already-loaded GPU.
+        eq: {
+          '0%, 100%': { transform: 'scaleY(0.4)' },
+          '50%': { transform: 'scaleY(1)' },
+        },
+        // Magic-cauldron ambience (transform/opacity only — compositor-cheap).
+        // Blobs rise ~160px from the rim, widening slightly while fading out;
+        // base opacity is 0 so a non-running animation leaves them invisible.
+        'cauldron-blob': {
+          '0%': { transform: 'translateY(0) scale(0.8)', opacity: '0' },
+          '15%': { opacity: '0.75' },
+          '100%': { transform: 'translateY(-160px) scale(1.15)', opacity: '0' },
+        },
+        'cauldron-float': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-4px)' },
+        },
+        // Centering translate lives in the keyframes: an animated transform
+        // REPLACES the utility translate classes, which otherwise shifts the
+        // ring by half its size mid-animation.
+        'cauldron-ring': {
+          '0%': { transform: 'translate(-50%, -50%) scale(1)', opacity: '0.6' },
+          '100%': { transform: 'translate(-50%, -50%) scale(1.45)', opacity: '0' },
+        },
       },
       animation: {
         fadein: 'fadein 200ms infinite',
         scale: 'scale 2s infinite',
         'pulse-calm': 'pulse-calm 2.4s ease-in-out infinite',
+        eq: 'eq 1.2s ease-in-out infinite',
+        'cauldron-blob': 'cauldron-blob 4.5s ease-out infinite',
+        'cauldron-float': 'cauldron-float 6s ease-in-out infinite',
+        'cauldron-ring': 'cauldron-ring 0.9s ease-out forwards',
       },
       transitionDuration: {
         200: '200ms',

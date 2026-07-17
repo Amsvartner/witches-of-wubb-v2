@@ -48,7 +48,7 @@ const CATEGORY_PRESENTATION: Record<ClipTypes, Omit<CategoryTokens, 'type' | 'fi
   },
   [ClipTypes.Melody]: {
     label: 'MELODY',
-    fillHex: '#ca8a04', // yellow-600 (warm yellow — WOW-007A)
+    fillHex: '#dfa50a', // melody-yellow (warm but clearly yellow — WOW-007A)
     tintClass: 'text-amber-300', // warm tint, clears AA on the page (§3.3 tint note)
     tintHex: '#fcd34d',
     assetSlug: 'amber',
@@ -62,7 +62,7 @@ const CATEGORY_PRESENTATION: Record<ClipTypes, Omit<CategoryTokens, 'type' | 'fi
   },
   [ClipTypes.Drums]: {
     label: 'DRUMS',
-    fillHex: '#1d4ed8', // blue-700
+    fillHex: '#3559c0', // drums-blue (desaturated from blue-700 — WOW-007A)
     tintClass: 'text-blue-300',
     tintHex: '#93c5fd',
     assetSlug: 'blue',

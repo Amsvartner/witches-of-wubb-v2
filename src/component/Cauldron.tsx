@@ -31,7 +31,12 @@ export const Cauldron = ({ animated = true }: Props): JSX.Element => {
   const [ringVisible, setRingVisible] = useState(false);
 
   const spawnRing = (): void => {
-    if (!animated) {
+    // No ring under reduced motion: the animation would never run, so
+    // onAnimationEnd would never fire and the (invisible) node would leak.
+    const reducedMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!animated || reducedMotion) {
       return;
     }
     setRingKey((k) => k + 1);
@@ -62,7 +67,7 @@ export const Cauldron = ({ animated = true }: Props): JSX.Element => {
           draggable={false}
           className='pointer-events-none w-full'
         />
-        {ringVisible && (
+        {ringVisible && animated && (
           <span
             key={ringKey}
             aria-hidden='true'

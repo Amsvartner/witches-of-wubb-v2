@@ -53,7 +53,7 @@ export const SettingsModal = ({
             </span>
           </button>
         </div>
-        <p className='mt-1 font-data text-xs text-parchment/60'>
+        <p className='mt-1 font-data text-[15px] text-parchment/60'>
           Disable if the show machine needs the GPU headroom.
         </p>
 

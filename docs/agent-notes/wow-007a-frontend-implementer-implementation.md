@@ -96,8 +96,16 @@ reshaped the card and centre composition (all still static/mock, frontend-only):
   (kiosk-performance escape hatch) — verified live: blobs/float/ring/eq all
   zero when off.
 
-Validation after the round: lint clean, 30 files / 230 tests, build green,
-exact 1024×1280 fit, ring centering measured at 0px delta.
+Validation after the round: lint clean, 233 tests, build green, exact
+1024×1280 fit, ring centering measured at 0px delta.
+
+Round-2 review follow-ups applied (reviewer + ui-designer + Copilot, all
+approve): ring no longer spawns under reduced motion and dies instantly if
+the kill-switch flips mid-flight; StatusBars gating unit-tested; modal helper
+text raised to 15px; stale Melody bullet fixed. Carried to WOW-007: §8.3
+tokenisation of the remaining one-off hexes, and confirming the
+pillar↔category 1:1 display invariant once live data is wired (pillar
+identity is positional now that pillar names are gone).
 
 ## Decisions recorded (see DECISIONS_NEEDED.md)
 

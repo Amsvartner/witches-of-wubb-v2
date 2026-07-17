@@ -60,22 +60,25 @@ const SelectGlyph = (): JSX.Element => (
 /**
  * Per-pillar controls (human direction 2026-07-15/16): play/pause, mute, and a
  * sample selector — icon-only, rendered in the pillar header. Touch-sized
- * (≥44px). Static/display only in the WOW-007A spike — no handlers wired.
+ * (≥44px). Static/display only in the WOW-007A spike — the controls are
+ * rendered `disabled` (real disabled buttons, still accessibly named) because
+ * no handlers are wired; they will be enabled in a follow-up wiring ticket.
  */
 export const PillarControls = ({ status, muted }: Props): JSX.Element => {
   const playing = status === 'playing';
   return (
     <div className='flex gap-2'>
-      <IconButton label={playing ? 'Pause' : 'Play'} className='h-11 w-11 shrink-0'>
+      <IconButton label={playing ? 'Pause' : 'Play'} className='h-11 w-11 shrink-0' disabled>
         {playing ? <PauseGlyph /> : <PlayGlyph />}
       </IconButton>
       <IconButton
         label={muted ? 'Unmute' : 'Mute'}
         className={`h-11 w-11 shrink-0 ${muted ? 'text-amber-300' : ''}`}
+        disabled
       >
         <SpeakerGlyph muted={muted} />
       </IconButton>
-      <IconButton label='Select sample' className='h-11 w-11 shrink-0'>
+      <IconButton label='Select sample' className='h-11 w-11 shrink-0' disabled>
         <SelectGlyph />
       </IconButton>
     </div>

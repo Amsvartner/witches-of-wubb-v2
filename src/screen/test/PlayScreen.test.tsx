@@ -40,6 +40,8 @@ describe('PlayScreen (WOW-007A play-mode spike)', () => {
     expect(getByRole('dialog')).toBeInTheDocument();
 
     const toggle = getByRole('button', { name: 'Animations' });
+    // The Animations kill-switch is the one wired control — it stays enabled.
+    expect(toggle).toBeEnabled();
     expect(toggle).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
@@ -48,18 +50,23 @@ describe('PlayScreen (WOW-007A play-mode spike)', () => {
     expect(queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('exposes visible Help and Settings controls', () => {
+  it('exposes a disabled Help affordance and an enabled Settings control', () => {
+    // Settings opens the modal (wired); Help has no content yet, so it is a
+    // real disabled button rather than a focusable no-op (WOW-007A).
     const { getByRole } = render(<PlayScreen />);
-    expect(getByRole('button', { name: /help/i })).toBeInTheDocument();
-    expect(getByRole('button', { name: /settings/i })).toBeInTheDocument();
+    expect(getByRole('button', { name: /help/i })).toBeDisabled();
+    expect(getByRole('button', { name: /settings/i })).toBeEnabled();
   });
 
-  it('renders the settings band (tempo + key controls)', () => {
+  it('renders the settings band with static (disabled) key + auto-adjust controls', () => {
+    // The tempo/key band is display-only in the spike: its controls are real
+    // disabled buttons until wired in a follow-up ticket.
     const { getByText, getByRole } = render(<PlayScreen />);
     expect(getByText('130')).toBeInTheDocument();
-    expect(getByRole('button', { name: /raise/i })).toBeInTheDocument();
-    expect(getByRole('button', { name: /lower/i })).toBeInTheDocument();
-    expect(getByRole('button', { name: /reset/i })).toBeInTheDocument();
+    expect(getByRole('button', { name: /raise/i })).toBeDisabled();
+    expect(getByRole('button', { name: /lower/i })).toBeDisabled();
+    expect(getByRole('button', { name: /reset/i })).toBeDisabled();
+    expect(getByRole('button', { name: /auto-adjust key/i })).toBeDisabled();
   });
 
   it('renders the sample-type legend', () => {

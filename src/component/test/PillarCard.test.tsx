@@ -40,6 +40,17 @@ describe('PillarCard', () => {
     expect(getByRole('button', { name: /remove vocal chop 14/i })).toBeInTheDocument();
   });
 
+  it('renders the per-pillar and queued controls present but disabled (display-only spike)', () => {
+    // WOW-007A is static/mock-only: the controls are accessibly named but not
+    // yet wired, so they must be real disabled buttons (no focusable no-ops).
+    const { getByRole } = render(<PillarCard pillar={vocalsPillar} />);
+    expect(getByRole('button', { name: /pause/i })).toBeDisabled();
+    expect(getByRole('button', { name: /mute/i })).toBeDisabled();
+    expect(getByRole('button', { name: /select sample/i })).toBeDisabled();
+    expect(getByRole('button', { name: /play vocal hook 07/i })).toBeDisabled();
+    expect(getByRole('button', { name: /remove vocal chop 14/i })).toBeDisabled();
+  });
+
   it('caps the queued list at two rows', () => {
     const threeQueued: PillarView = {
       ...vocalsPillar,

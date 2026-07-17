@@ -11,11 +11,14 @@ type Props = {
   keyDifference: string;
 };
 
+// Display-only in the WOW-007A spike: a real disabled button (still accessibly
+// named) until the key-change handler is wired in a follow-up ticket.
 const KeyControlButton = ({ glyph, label }: { glyph: JSX.Element; label: string }): JSX.Element => (
   <button
     type='button'
     aria-label={`${label} key`}
-    className='flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-gold-line/40 bg-ink-btn px-3 font-data text-xs uppercase tracking-[0.14em] text-parchment/80'
+    disabled
+    className='flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-gold-line/40 bg-ink-btn px-3 font-data text-xs uppercase tracking-[0.14em] text-parchment/80 disabled:cursor-default disabled:opacity-75'
   >
     <svg
       viewBox='0 0 24 24'
@@ -82,12 +85,15 @@ export const SettingsBand = ({
       <div className='flex flex-col justify-center gap-2 bg-ink-panel px-5 py-4'>
         <SectionLabel>Auto-adjust key</SectionLabel>
         <div className='flex items-center gap-3'>
-          {/* 44px hit area wrapping the visually 56x28 pill (§7.1). */}
+          {/* 44px hit area wrapping the visually 56x28 pill (§7.1). Display-only
+              in the WOW-007A spike: a real disabled toggle (its state still
+              reflected via aria-pressed) until wired in a follow-up ticket. */}
           <button
             type='button'
             aria-pressed={autoAdjustKey}
             aria-label='Auto-adjust key'
-            className='-my-2 flex min-h-[44px] min-w-[56px] items-center justify-center'
+            disabled
+            className='-my-2 flex min-h-[44px] min-w-[56px] items-center justify-center disabled:cursor-default disabled:opacity-75'
           >
             <span
               className={`relative block h-7 w-14 rounded-full border transition-colors ${

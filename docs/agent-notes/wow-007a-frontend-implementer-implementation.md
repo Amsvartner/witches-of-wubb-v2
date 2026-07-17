@@ -41,8 +41,11 @@ the human through **seven visual-checkpoint rounds** and approved at round 7
   families, grimoire page gradient, calm `pulse-calm` keyframe (≥ 1 s, §7.4).
 - `src/index.css`: `@font-face` for the three vendored OFL families
   (`public/fonts/`, latin subset — see `public/fonts/README.md` for licences).
-- `src/util/ColorUtil.ts`: Melody warmed `bg-yellow-700` → `bg-yellow-600`
-  (human, 2026-07-15). **Single source of truth preserved.**
+- `src/util/ColorUtil.ts`: Melody warmed off `bg-yellow-700` (human, 2026-07-15,
+  via an interim `bg-yellow-600`), then refined in round 2 to the custom
+  `bg-melody-yellow` token (`#dfa50a`); Drums desaturated to `bg-drums-blue`
+  (`#3559c0`). Both pending physical-LED re-verification. **Single source of
+  truth preserved.**
 - `src/util/CategoryTheme.ts`: presentation tokens per category (label, AA
   `-300` text tints, resolved hex for SVG/glow use, asset slug); fill class
   still sourced from `ColorUtil`.

@@ -56,6 +56,28 @@ export const PillarCard = ({ pillar, animationsEnabled = true }: Props): JSX.Ele
   const statusLabel = muted ? 'MUTED' : STATUS_LABEL[status];
   const visibleQueued = queued.slice(0, MAX_QUEUED_ROWS);
 
+  // PillarMedallion's props are a discriminated union: a categorised medallion
+  // requires the tint + fill trio together. Branch here so `tokens` is narrowed
+  // to a real value before it is passed (an empty pillar renders the empty ring),
+  // rather than forwarding possibly-undefined colours (the WOW-007A build break).
+  const medallion =
+    category && tokens ? (
+      <PillarMedallion
+        status={status}
+        category={category}
+        tintHex={tokens.tintHex}
+        fillHex={tokens.fillHex}
+        dimmed={status === 'paused' || muted}
+        animated={animationsEnabled}
+      />
+    ) : (
+      <PillarMedallion
+        status={status}
+        dimmed={status === 'paused' || muted}
+        animated={animationsEnabled}
+      />
+    );
+
   return (
     <PillarFrame className='h-full' borderHex={tokens?.fillHex} accentHex={tokens?.tintHex}>
       <div className='flex h-full flex-col gap-2 px-4 pb-6 pt-4'>
@@ -100,14 +122,7 @@ export const PillarCard = ({ pillar, animationsEnabled = true }: Props): JSX.Ele
 
           <div className='flex min-w-0 flex-1 flex-col gap-2'>
             <div className='flex flex-col items-center gap-4 py-1'>
-              <PillarMedallion
-                status={status}
-                category={category}
-                tintHex={tokens?.tintHex}
-                fillHex={tokens?.fillHex}
-                dimmed={status === 'paused' || muted}
-                animated={animationsEnabled}
-              />
+              {medallion}
               {tokens && (
                 <StatusBars
                   colorHex={tokens.fillHex}

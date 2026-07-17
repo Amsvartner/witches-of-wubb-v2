@@ -3,19 +3,33 @@ import { ClipTypes } from 'backend/type/ClipTypes';
 import { PillarStatus } from '~/type/PillarStatus';
 import { CategoryIcon } from '~/component/CategoryIcon';
 
+// Discriminated on the presence of a category: a categorised pillar must supply
+// the tint + fill trio together, while an empty pillar supplies none of them.
+// This makes "categorised medallion with an undefined tint/fill" unrepresentable,
+// so the caller can never pass a possibly-undefined colour (the WOW-007A CI build
+// break) — it must branch first.
 type Props = {
   status: PillarStatus;
-  /** Absent => empty pillar: desaturated dashed ring, no icon or colour. */
-  category?: ClipTypes;
-  /** Category `-300` tint hex (ring + icon + rays). Required when set. */
-  tintHex?: string;
-  /** Category fill hex, used for the glow. */
-  fillHex?: string;
   /** Paused or muted — desaturated. */
   dimmed?: boolean;
   /** Global animations switch (Settings kill-switch); static when false. */
   animated?: boolean;
-};
+} & (
+  | {
+      /** Category identity — required together with its tint + fill. */
+      category: ClipTypes;
+      /** Category `-300` tint hex (ring + icon + rays). */
+      tintHex: string;
+      /** Category fill hex, used for the glow. */
+      fillHex: string;
+    }
+  | {
+      /** Empty pillar: no category identity (desaturated dashed ring, no colour). */
+      category?: never;
+      tintHex?: never;
+      fillHex?: never;
+    }
+);
 
 const DIAMETER = 126;
 const RAY_COUNT = 48;

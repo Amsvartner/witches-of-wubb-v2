@@ -33,7 +33,10 @@ const RemoveGlyph = (): JSX.Element => (
  * ≥12px separation, and remove is visually distinct (red tint), so a sample
  * isn't removed by a mis-tap aimed at play (§7.1; human concern 2026-07-16).
  * The wired-up remove action must additionally get a confirm-gate
- * (UX_UI_PRINCIPLES 2 — destructive control). Static/display only in this spike.
+ * (UX_UI_PRINCIPLES 2 — destructive control). Static/display only in this spike:
+ * both controls are rendered `disabled` (real disabled buttons, still accessibly
+ * named) because no handlers are wired; they will be enabled in a follow-up
+ * wiring ticket.
  *
  * NOTE: showing sample NAMES on the pillar diverges from PRD F3 ("no clip/song
  * names on the visitor display") — flagged for confirmation with the mode-model
@@ -45,7 +48,7 @@ export const QueuedSampleRow = ({ name, tintHex }: Props): JSX.Element => {
     <li className='flex items-center gap-2 rounded-md border border-gold-line/20 bg-ink-deep/70 px-1 py-1'>
       {/* Play left, remove far right (human, 2026-07-17) — the separation also
           guards against mis-taps between the two actions. */}
-      <IconButton label={`Play ${name}`} className='h-11 w-11 shrink-0'>
+      <IconButton label={`Play ${name}`} className='h-11 w-11 shrink-0' disabled>
         <PlayGlyph />
       </IconButton>
       <span style={pip} className='h-2 w-2 shrink-0 rounded-full' aria-hidden='true' />
@@ -53,6 +56,7 @@ export const QueuedSampleRow = ({ name, tintHex }: Props): JSX.Element => {
       <IconButton
         label={`Remove ${name}`}
         className='h-11 w-11 shrink-0 border-red-300/30 text-red-300/80'
+        disabled
       >
         <RemoveGlyph />
       </IconButton>

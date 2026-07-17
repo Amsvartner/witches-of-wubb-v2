@@ -1,7 +1,7 @@
 # 003. UI audience, display, and operator surface
 
 Date: 2026-07-09
-Status: accepted (amended 2026-07-11 — operator surface resolved: mode-based main screen; amended 2026-07-15 — responsive/graceful scaling required, see Consequences)
+Status: accepted (amended 2026-07-11 — operator surface resolved: mode-based main screen; amended 2026-07-15 — responsive/graceful scaling required, see Consequences; amended 2026-07-15 — mode taxonomy renamed to **play / tutorial / DJ**, debug demoted to a diagnostics panel, see amendment below)
 
 ## Context
 
@@ -18,9 +18,22 @@ The UI's audience and display hardware were unknown. Confirmed: a single touch s
   - **debug** — normal plus a **small panel at the bottom** with diagnostic info only: a log of API calls and socket events, versions, connection state. No clip/performance controls — those require dj mode.
 - Mode switching is reached via a **visible Settings modal** — see ADR-006 (amended 2026-07-15, superseding hidden-gesture-only). Whether a covert gesture is also retained is an open WOW-006 sign-off (§8.1).
 
+> **Renamed 2026-07-15 (see the amendment at the bottom of this ADR):** `normal → play`, `dj → DJ`, and **`debug` is no longer a mode** — it becomes a **diagnostics panel** shown in any mode. A new **`tutorial`** mode is added but is **as-yet-undesigned** (open — DECISIONS_NEEDED). The three modes are now **play / tutorial / DJ**.
+
 ## Consequences
 
 - Mode state is **hand-rolled** (ADR-005) — plain React state, no router dependency.
 - There is no separate operator page/overlay to design or route to; dj/debug are additive layers on the main screen. The old full-screen debug modal (`DebugModalContainer`) is dissolved: clip selection moves to dj mode's per-pillar controls, diagnostics move to debug mode's bottom panel.
 - Design proposals are **designed-first** for the fixed 1024×1280 portrait viewport, but the layout must also **scale gracefully / responsively** to other sizes. **Amendment 2026-07-15 (human decision):** supersedes the original "no responsive-breakpoint work needed" wording — responsive behaviour is now a requirement, not out of scope. The canonical dimensions and portrait orientation are unchanged.
 - `use-grimoire` (recipes + spell names) is removed wholesale in the rework.
+
+## Amendment 2026-07-15 — mode taxonomy renamed (play / tutorial / DJ; debug demoted to a panel)
+
+**Human decision (2026-07-15).** The main-screen modes are renamed and re-membered; the 2026-07-11 `normal / dj / debug` wording above is retained as historical record.
+
+- **`normal` → `play`** — the visitor experience (substance unchanged). WOW-007A built this play-mode screen (merged, PR #53).
+- **`dj` → `DJ`** — the operator's extended per-pillar controls (substance unchanged).
+- **`debug` is no longer a mode** — it becomes a **diagnostics panel** that can be shown **in any mode**, rather than a distinct main-screen mode reached by mode-switching. The confirmed panel content (API/socket-event log, versions, connection state) is unchanged.
+- **`tutorial`** is a **new mode** — but **as-yet-undesigned**: no requirements exist, and it needs a PRD definition + design before any implementation. **Open** — tracked in `DECISIONS_NEEDED.md`.
+
+The "three modes" framing therefore now reads **play / tutorial / DJ**, with the diagnostics panel orthogonal to mode. Access is still via the visible Settings modal (ADR-006 amendment); the access variant is still open (§8.1). Per-mode **URL routing** is now wanted and supersedes the "no separate views to route between" premise — see **ADR-005** (amended 2026-07-15).

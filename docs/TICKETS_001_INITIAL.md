@@ -1,6 +1,6 @@
 # Tickets 001 — Initial
 
-Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026-07-09). Agent output notes go to `docs/agent-notes/wow-XXX-<role>-<topic>.md`.
+Updated 2026-07-17 (WOW-037/038 drafted from the `/sync-docs` mode-taxonomy propagation — for project-manager; WOW-011 added 2026-07-10; earlier scope decisions ADR-001…004 on 2026-07-09). Agent output notes go to `docs/agent-notes/wow-XXX-<role>-<topic>.md`.
 
 ---
 
@@ -175,7 +175,7 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 
 - ID: WOW-007 (placeholder)
 - Title: [Placeholder] UI rework foundation tickets
-- Summary: Sliced by project-manager **after human visual approval of the WOW-007A spike** (three-mode main screen: normal/dj/debug per ADR-003 amended, theming foundation, recipe removal, contract layer). **Blocked** by the DESIGN_PROPOSAL_001 visual-fidelity gate.
+- Summary: Sliced by project-manager **after human visual approval of the WOW-007A spike** (three-mode main screen: **play / tutorial / DJ** per ADR-003 amended 2026-07-15, with a diagnostics panel in any mode; theming foundation, recipe removal, contract layer). **Blocked** by the DESIGN_PROPOSAL_001 visual-fidelity gate. Note: **tutorial** mode is undesigned (WOW-037) and per-mode routing is its own ticket (WOW-038).
 - Dependencies: WOW-006 design proposal merged; **WOW-007A visual spike approved by the human/artists (visual-fidelity gate)**; ADR-006 amendment for the visible Settings-modal mode-access model; the §8 HALT items (mode-access, typography, palette, debug extras) resolved.
 - Stop conditions: No **human-approved** visual direction (documentation completeness is not visual approval).
 
@@ -205,3 +205,23 @@ Updated 2026-07-10 (WOW-011 added; earlier scope decisions ADR-001…004 on 2026
 - Allowed files: `sim/test/import-guard.test.ts`
 - Risk: low (test-only)
 - Dependencies: WOW-011 stack merged.
+
+---
+
+- ID: WOW-037 (draft — for project-manager)
+- Title: Tutorial mode — requirements + design (new mode from the 2026-07-15 taxonomy)
+- Summary: The 2026-07-15 mode-taxonomy rename introduced **tutorial** as a third main-screen mode (**play / tutorial / DJ**), but it is **entirely undesigned** — no requirements, no UX, no content exist. Before any implementation it needs, in order: (a) a **PRD definition** — what tutorial mode is for, who it serves (self-guided visitor vs guide-led), and what it shows/teaches; then (b) a **design proposal** — interaction model, how it composes on the single main screen, entry/exit, and how it relates to the diagnostics panel and DJ mode. Drafted by documentation-maintainer from the `/sync-docs` propagation; requires human product input to proceed.
+- Allowed files: docs only for this phase (`docs/PRD.md`, a design proposal, ADRs as needed). No code until design is human-approved.
+- Risk: n/a (docs/design phase).
+- Dependencies: human product direction on tutorial-mode purpose/scope. Related: ADR-003 (amended 2026-07-15), `DECISIONS_NEEDED.md` "Tutorial-mode design (open)".
+- Stop conditions: no human product direction on tutorial-mode purpose/scope → HALT (requirements cannot be invented).
+
+---
+
+- ID: WOW-038 (draft — for project-manager)
+- Title: Per-mode URL routes (bookmarkable/reloadable) + ADR-005 replacement
+- Summary: Human decided (2026-07-15) that each mode should have its own **bookmarkable, reloadable URL route**, openable by an existing external bash script. This supersedes ADR-005's "no separate views to route between" (ADR-005 amended 2026-07-17 to record the supersession). This ticket: (a) picks the **routing approach** — hand-rolled hash/history routing vs a router dependency; (b) obtains **human dependency approval** if a router library is proposed (AGENTS.md / ADR-008 baseline); (c) writes an **ADR-005 replacement/extension**; and (d) implements per-mode routes (play / tutorial / DJ + the diagnostics-panel toggle), replacing the temporary `#play-spike` hash demo switch. Frontend-only; must keep `socket.io-client` wire-compatible with backend 4.6.
+- Allowed files: frontend routing + entry (`src/main.tsx`, a routing module, screen wrappers); `docs/adr/005-*` replacement. No backend/OSC/RFID/Ableton/lighting.
+- Risk: medium (app-wide routing; a router dependency would need approval).
+- Dependencies: ADR-005 amendment (recorded 2026-07-17); coordinate with WOW-007 mode-screen slicing; possible dependency-approval gate (WOW-009 audit).
+- Stop conditions: a router dependency is proposed without human approval → HALT.

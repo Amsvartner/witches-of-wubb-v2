@@ -27,4 +27,6 @@ Each elevated mode gets its **own separate hidden gesture** — e.g. distinct th
 
 **Still open (WOW-006 HALT §8.1 — not decided here):** the exact access variant — **A** visible Settings modal only; **B** visible Settings modal **plus** a retained covert press-and-hold gesture (e.g. quick/covert debug entry); or **C** visible Settings modal with a confirm/long-press guard against casual visitor switching. If B is chosen, the earlier themed-element/hold-duration guidance above still applies to that one covert path. This variant is picked at the WOW-006 visual sign-off before WOW-007 slicing.
 
-**Consequence:** the hidden-gesture asset/motif work is now conditional on variant B; the visible Settings/Help controls become part of the normal-mode chrome (design proposal §1/§6).
+**Consequence:** the hidden-gesture asset/motif work is now conditional on variant B; the visible Settings/Help controls become part of the play-mode (visitor) chrome (design proposal §1/§6).
+
+**Taxonomy note (2026-07-15 rename — see ADR-003 amendment):** the modes are now **play / tutorial / DJ**. What this ADR calls "elevated-mode access" now concerns the **DJ** mode; **debug is no longer a mode** (it is a diagnostics panel toggleable in any mode), and **tutorial** is a new, as-yet-undesigned mode whose access model will be settled when it is designed. The access-variant question (A/B/C above) is unchanged and still open.

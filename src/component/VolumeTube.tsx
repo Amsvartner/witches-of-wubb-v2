@@ -5,9 +5,7 @@ type Props = {
   volumePercent: number;
   /**
    * Category asset slug — selects the bespoke tube + gem art. Absent => empty
-   * pillar: the tube renders desaturated with no gem and no percentage.
-   * (The supplied slider-background-empty.png is a partial crop — right frame
-   * missing — so the empty look is derived from the red tube via CSS instead.)
+   * pillar: renders the bespoke empty-tube asset with no gem and no percentage.
    */
   assetSlug?: 'red' | 'amber' | 'green' | 'blue';
 };
@@ -23,7 +21,7 @@ const GEM_WIDTH = 54;
  */
 export const VolumeTube = ({ volumePercent, assetSlug }: Props): JSX.Element => {
   const clamped = Math.max(0, Math.min(100, volumePercent));
-  const tubeSrc = `/images/slider-background-${assetSlug ?? 'red'}.png`;
+  const tubeSrc = `/images/slider-background-${assetSlug ?? 'empty'}.png`;
   const gemSrc = assetSlug ? `/images/slider-handle-${assetSlug}.png` : undefined;
 
   const litClip: CSSProperties = { clipPath: `inset(${100 - clamped}% 0 0 0)` };
@@ -49,7 +47,7 @@ export const VolumeTube = ({ volumePercent, assetSlug }: Props): JSX.Element => 
           aria-hidden='true'
           draggable={false}
           className={`absolute left-1/2 h-full w-auto -translate-x-1/2 ${
-            assetSlug ? 'brightness-[0.3] saturate-[0.6]' : 'brightness-[0.45] saturate-0'
+            assetSlug ? 'brightness-[0.3] saturate-[0.6]' : ''
           }`}
         />
         {assetSlug && (

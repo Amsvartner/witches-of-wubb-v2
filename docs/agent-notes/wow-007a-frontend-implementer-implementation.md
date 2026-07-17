@@ -57,10 +57,15 @@ four slider tubes, four gem handles. Processing (PIL, documented here for
 reproducibility): tubes isolated from sheet crops by opaque-column
 segmentation (picking the saturated segment); remaining baked checkerboard in
 **enclosed** regions of the logo/cauldron keyed out (low-saturation + light
-pixels); all trimmed and downscaled (~1.9 MB total). The supplied
-`slider-background-empty.png` is a **partial crop** (right frame missing), so
-empty pillars render the tube art desaturated via CSS instead — swap in a
-complete asset later if desired.
+pixels); all trimmed and downscaled (~1.9 MB total).
+
+**Update 2026-07-17 (`hexology-ui-assets-fixed`):** the human re-exported the
+slider set with the cropping fixed — clean single tubes, uniform dimensions,
+real alpha (plain trim + resize, no segmentation/keying needed). The complete
+`slider-background-empty.png` now renders empty pillars directly, replacing
+the earlier CSS-desaturated fallback. Slider files only — the cauldron in
+that folder is still being iterated by the human and was deliberately **not**
+copied.
 
 ## Decisions recorded (see DECISIONS_NEEDED.md)
 

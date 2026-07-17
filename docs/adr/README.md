@@ -30,7 +30,7 @@ Status: proposed | accepted | superseded by NNN
 
 - [001 — Offline simulator: standalone mock backend + shared core module](001-offline-simulator-mock-backend.md) (accepted, amended)
 - [002 — Clip category naming follows the implementation](002-clip-category-naming.md) (accepted)
-- [003 — UI audience, display, and operator surface](003-ui-audience-display-two-pages.md) (accepted, amended 2026-07-11: three main-screen modes — normal/dj/debug)
+- [003 — UI audience, display, and operator surface](003-ui-audience-display-two-pages.md) (accepted, amended 2026-07-11: three main-screen modes; **amended 2026-07-15: renamed play/tutorial/DJ, debug demoted to a diagnostics panel**)
 - [004 — Frontend-only scope for this project phase](004-frontend-only-scope.md) (accepted)
-- [005 — Hand-rolled mode state (no router dependency)](005-hand-rolled-routing.md) (accepted, human-authored; amended 2026-07-11: applies to mode state)
-- [006 — Elevated-mode (dj/debug) access](006-operator-access-gesture.md) (accepted; amended 2026-07-11: one gesture per mode; **amended 2026-07-15: visible Settings-modal access supersedes hidden-gesture-only**)
+- [005 — Hand-rolled mode state (no router dependency)](005-hand-rolled-routing.md) (accepted, human-authored; amended 2026-07-11: applies to mode state; **partially superseded 2026-07-15: per-mode URL routes now wanted — own follow-up ticket**)
+- [006 — Elevated-mode (DJ) access + debug panel](006-operator-access-gesture.md) (accepted; amended 2026-07-11: one gesture per mode; amended 2026-07-15: visible Settings-modal access supersedes hidden-gesture-only; **taxonomy note 2026-07-15: elevated access is DJ mode, debug is now a panel**)

@@ -460,7 +460,7 @@ The same pillar component, instantiated four times, composed into the full norma
   <!-- shared: settings band -->
   <rect x="44" y="1150" width="936" height="70" rx="8" fill="#0f0d16" stroke="#c9a24b" stroke-opacity="0.3"/>
   <text x="512" y="1180" text-anchor="middle" font-size="13" fill="#cbb98f">shared region · TEMPO · AUTO-ADJUST · KEY · KEY CONTROLS</text>
-  <text x="512" y="1204" text-anchor="middle" font-size="12" fill="#9a9080">(visitor-visible in normal mode — ADR-003 amended)</text>
+  <text x="512" y="1204" text-anchor="middle" font-size="12" fill="#9a9080">(visitor-visible in play mode — ADR-003 amended)</text>
   <!-- shared: legend -->
   <g font-size="13">
     <circle cx="330" cy="1238" r="6" fill="#b91c1c"/><text x="342" y="1243" fill="#cbb98f">Vocals</text>
@@ -478,13 +478,15 @@ The same pillar component, instantiated four times, composed into the full norma
 
 ---
 
-## 6. Normal / DJ / Debug mode specifications
+## 6. Play / Tutorial / DJ mode specifications (+ diagnostics panel)
 
-Three modes on **one screen** (ADR-003 amended; no separate page/overlay, ADR-005 hand-rolled state). dj and debug are **additive layers** over normal — normal is always the base. **Mode is selected from the visible Settings modal** (the wireframe annotates the Settings button as "toggle a modal with more settings, such as which mode is visible"). This **supersedes the earlier hidden-gesture-only access model of ADR-006** (**ADR-006 amended 2026-07-15**); whether a covert gesture is _also_ retained is the open access-model question in §8.1. Each elevated mode keeps an **explicit close/exit control visible only while active**.
+> **Amended 2026-07-15 — mode taxonomy renamed (see the ADR-003 amendment).** This section was authored as "Normal / DJ / Debug." The modes are now **play / tutorial / DJ**: `normal → play`, `dj → DJ`, and **`debug` is no longer a mode** — the diagnostic dock in §6.3 is now a **diagnostics panel available in any mode**. **`tutorial`** is a **new, as-yet-undesigned mode** (no requirements exist — open, `DECISIONS_NEEDED`); it has no specification here. The DJ and diagnostics detail below stands as proposed — read "normal" as **play** and "debug mode" as **the diagnostics panel**. Per-mode **URL routing** is now wanted (ADR-005 amended — own follow-up ticket).
 
-### 6.1 Normal mode (visitor experience — the default)
+Three modes on **one screen** (ADR-003 amended; no separate page/overlay, ADR-005 hand-rolled state — though per-mode URL routes are now wanted). DJ is an **additive layer** over play — play is always the base; the **diagnostics panel** is an additive layer available in any mode. **Tutorial** is a new base-level mode but is **undesigned** (no spec below). **Mode is selected from the visible Settings modal** (the wireframe annotates the Settings button as "toggle a modal with more settings, such as which mode is visible"). This **supersedes the earlier hidden-gesture-only access model of ADR-006** (**ADR-006 amended 2026-07-15**); whether a covert gesture is _also_ retained is the open access-model question in §8.1. The DJ mode keeps an **explicit close/exit control visible only while active**.
 
-- **Shows:** everything in §2/§5 — four pillar medallions + category names (empty pillars show **no category**), per-pillar volume, **Currently-playing** (state-only in normal — no clip name, F3) + queued state (no titles), cauldron, tempo slider, auto-adjust-key toggle + **current key** (+ key difference), key controls (Raise/Lower/Reset), legend, and the visible **Help** and **Settings** controls (Settings opens the mode/settings modal).
+### 6.1 Play mode (visitor experience — the default)
+
+- **Shows:** everything in §2/§5 — four pillar medallions + category names (empty pillars show **no category**), per-pillar volume, **Currently-playing** (state-only in play — no clip name, F3) + queued state (no titles), cauldron, tempo slider, auto-adjust-key toggle + **current key** (+ key difference), key controls (Raise/Lower/Reset), legend, and the visible **Help** and **Settings** controls (Settings opens the mode/settings modal).
 - **Hides:** clip/song **names**, all diagnostics. (Mode chrome is reached through the visible Settings modal, not hidden.)
 - **Interactivity:** tempo, per-pillar volume, and key controls **remain visitor-visible and operable** (ADR-003 amended, human-confirmed 2026-07-11 — this resolves the audit's open "do these move to operator?" question: they **stay**). Destructive-ish controls (key reset) still get a confirm-gate per UX_UI_PRINCIPLES 2.
 - **Entry/exit:** it is the base state; there is nothing to enter or close.
@@ -493,11 +495,11 @@ Three modes on **one screen** (ADR-003 amended; no separate page/overlay, ADR-00
 
 Adds, **beside each pillar**, an extended controls drawer. This is where the old debug modal's per-pillar clip control **moves to** (FR3; dissolving `DebugModalContainer`, closing audit UI-04/UI-05/UI-06).
 
-- **Adds per pillar:** clip/sample selection (open the samples menu — search + filter by category/BPM/key, multi-select, sortable headers, per the wireframe's samples-modal annotations); play/pause; the queued list **with clip names**, each row with stop (■) and remove (×); simulated tag place/remove (the sim path). Song/artist metadata surfaces **here only** (FR2 "may move to operator surface — designer's call"; this proposal puts it in dj mode).
-- **Keeps visible:** the whole normal-mode surface underneath (tempo/volume/key stay live).
+- **Adds per pillar:** clip/sample selection (open the samples menu — search + filter by category/BPM/key, multi-select, sortable headers, per the wireframe's samples-modal annotations); play/pause; the queued list **with clip names**, each row with stop (■) and remove (×); simulated tag place/remove (the sim path). Song/artist metadata surfaces **here only** (FR2 "may move to operator surface — designer's call"; this proposal puts it in DJ mode).
+- **Keeps visible:** the whole play-mode surface underneath (tempo/volume/key stay live).
 - **Safety:** clip start/stop and tag actions get a **confirm-gate or an explicit "armed" affordance** — no single accidental tap fires a real Ableton trigger (UX_UI_PRINCIPLES 2; fixes audit UI-04).
 - **Entry:** selected from the **Settings modal** (visible Settings button → "DJ mode"). Optional covert gesture is the open access-model question (§8.1).
-- **Exit:** a persistent, clearly-labelled **"Exit DJ mode"** control shown only while dj mode is active (top-corner or settings-band). Also auto-times-out to normal after N minutes of no operator input (proposed safeguard so a walk-away doesn't leave operator controls exposed to visitors — value TBD, flag for review).
+- **Exit:** a persistent, clearly-labelled **"Exit DJ mode"** control shown only while DJ mode is active (top-corner or settings-band). Also auto-times-out to play after N minutes of no operator input (proposed safeguard so a walk-away doesn't leave operator controls exposed to visitors — value TBD, flag for review).
 
 <svg viewBox="0 0 460 300" width="100%" style="max-width:420px;background:#0b0910;border:1px solid #333" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif,system-ui" role="img" aria-label="DJ mode per-pillar extended controls drawer detail">
   <rect width="460" height="300" fill="#0c0a12"/>
@@ -523,19 +525,21 @@ Adds, **beside each pillar**, an extended controls drawer. This is where the old
   <rect x="394" y="230" width="34" height="24" rx="4" fill="#241820"/><text x="411" y="247" text-anchor="middle" font-size="12" fill="#fca5a5">×</text>
 </svg>
 
-### 6.3 Debug mode (operator — diagnostics only)
+### 6.3 Diagnostics panel (formerly "debug mode" — diagnostics only, available in any mode)
 
-Adds a **small panel docked to the bottom** with diagnostics **only** — no clip/performance controls (those are dj mode). This is the confirmed baseline (ADR-003, PRD FR3); extras are HALT §8.4.
+> **2026-07-15:** debug is no longer a mode — this is a **diagnostics panel** that can be toggled on **in any mode** (see the §6 amendment). Content and behaviour below are unchanged.
+
+Adds a **small panel docked to the bottom** with diagnostics **only** — no clip/performance controls (those are DJ mode). This is the confirmed baseline (ADR-003, PRD FR3); extras are HALT §8.4.
 
 - **Shows (confirmed baseline):** rolling **log of API calls + socket events**; **connection state** (WS connected/disconnected, last event timestamp, reconnect status — closes audit UI-01); **versions** (app build, backend/contract if available); the **SIMULATED badge** when running against `sim/` (UX_UI_PRINCIPLES 10 — currently absent, audit finding). An **idle-timeout indicator** reflecting `timeout_warning` (closes audit UI-17) belongs here too.
-- **The debug panel itself adds no performance controls** — no clip controls, and it contributes no volume/tempo/key controls of its own. (The normal-mode base tempo/volume/key controls remain visible above the ≤ 30% dock, per the §6.4 matrix; debug is an additive diagnostics layer, not a replacement surface.)
-- **Entry:** selected from the **Settings modal** (visible Settings button → "Debug mode"), distinct from the DJ entry.
-- **Exit:** explicit **"Close debug"** control on the panel; the panel is a bottom dock that does not obscure the pillar grid.
+- **The diagnostics panel itself adds no performance controls** — no clip controls, and it contributes no volume/tempo/key controls of its own. (Whatever mode's base surface is active remains visible above the ≤ 30% dock, per the §6.4 matrix; the panel is an additive diagnostics layer, not a replacement surface.)
+- **Entry:** toggled from the **Settings modal** (visible Settings button → "Diagnostics"); it can be shown on top of any mode.
+- **Exit:** explicit **"Close diagnostics"** control on the panel; the panel is a bottom dock that does not obscure the pillar grid.
 - **Presentation:** monospaced, dense but readable log; newest at bottom, auto-scroll with a pause-on-touch; the panel occupies ≤ 30% of screen height so the visitor grid remains legible above it.
 
-<svg viewBox="0 0 460 210" width="100%" style="max-width:420px;background:#0b0910;border:1px solid #333" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace,monospace" role="img" aria-label="Debug mode bottom diagnostic panel detail">
+<svg viewBox="0 0 460 210" width="100%" style="max-width:420px;background:#0b0910;border:1px solid #333" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace,monospace" role="img" aria-label="Diagnostics panel bottom dock detail">
   <rect width="460" height="210" fill="#0c0a12"/>
-  <text x="16" y="24" font-size="12" fill="#e6c877" font-family="ui-sans-serif">Debug mode · bottom diagnostic dock (detail)</text>
+  <text x="16" y="24" font-size="12" fill="#e6c877" font-family="ui-sans-serif">Diagnostics panel · bottom dock (detail)</text>
   <rect x="12" y="34" width="436" height="164" rx="6" fill="#0f0d15" stroke="#c9a24b" stroke-opacity="0.35"/>
   <circle cx="30" cy="56" r="6" fill="#22c55e"/><text x="44" y="60" font-size="12" fill="#ece3d0" font-family="ui-sans-serif">WS connected · sim :3335</text>
   <rect x="250" y="46" width="90" height="22" rx="11" fill="#3a2a12"/><text x="295" y="61" text-anchor="middle" font-size="11" fill="#fcd34d" font-family="ui-sans-serif">SIMULATED</text>
@@ -546,24 +550,24 @@ Adds a **small panel docked to the bottom** with diagnostics **only** — no cli
   <text x="24" y="130" font-size="11" fill="#86efac">12:04:09  ← ingredient_detected {pillar:1}</text>
   <text x="24" y="148" font-size="11" fill="#fcd34d">12:06:41  ⚠ timeout_warning (T-30s)</text>
   <text x="24" y="166" font-size="11" fill="#9a9080">12:06:44  ← clip_queued {pillar:1}</text>
-  <rect x="352" y="176" width="86" height="18" rx="4" fill="#171019"/><text x="395" y="189" text-anchor="middle" font-size="10" fill="#ece3d0" font-family="ui-sans-serif">Close debug</text>
+  <rect x="352" y="176" width="86" height="18" rx="4" fill="#171019"/><text x="395" y="189" text-anchor="middle" font-size="10" fill="#ece3d0" font-family="ui-sans-serif">Close diag</text>
 </svg>
 
 ### 6.4 Mode matrix
 
-| Capability                                          | normal  |       dj       |     debug      |
-| --------------------------------------------------- | :-----: | :------------: | :------------: |
-| Category medallions + names, legend, cauldron       |    ●    |       ●        |       ●        |
-| Visible Help + Settings controls                    |    ●    |       ●        |       ●        |
-| Tempo / per-pillar volume / key controls            |    ●    |       ●        |       ●        |
-| Currently-playing (state only, no name)             |    ●    | ● (with name)  |       ●        |
-| Song/clip names & metadata                          |    —    |       ●        |       —        |
-| Per-pillar clip select / play / pause / sim-tag     |    —    |       ●        |       —        |
-| Diagnostics log / connection / versions / SIMULATED |    —    |       —        |       ●        |
-| Entry                                               | default | Settings modal | Settings modal |
-| Explicit close control                              |   n/a   |       ●        |       ●        |
+| Capability                                          |  play   |       DJ       |    diag. panel    |
+| --------------------------------------------------- | :-----: | :------------: | :---------------: |
+| Category medallions + names, legend, cauldron       |    ●    |       ●        |         ●         |
+| Visible Help + Settings controls                    |    ●    |       ●        |         ●         |
+| Tempo / per-pillar volume / key controls            |    ●    |       ●        |         ●         |
+| Currently-playing (state only, no name)             |    ●    | ● (with name)  |         ●         |
+| Song/clip names & metadata                          |    —    |       ●        |         —         |
+| Per-pillar clip select / play / pause / sim-tag     |    —    |       ●        |         —         |
+| Diagnostics log / connection / versions / SIMULATED |    —    |       —        |         ●         |
+| Entry                                               | default | Settings modal | toggle (any mode) |
+| Explicit close control                              |   n/a   |       ●        |         ●         |
 
-> Modes are **not mutually exclusive by requirement**, but this proposal recommends **one elevated mode active at a time** (entering debug closes dj and vice-versa) to keep the operator's mental model simple. Flag for confirmation — an operator _could_ want the diagnostic dock visible while DJ-ing.
+> **Renamed 2026-07-15:** columns are now **play / DJ / diagnostics panel** (was normal / dj / debug). The **diagnostics panel is not a mode** — it can overlay **any** mode, so it is no longer mutually exclusive with DJ (this resolves the earlier "an operator could want the dock visible while DJ-ing" flag in favour of "yes, it can"). **DJ** is the single elevated mode; **play** is the base. **Tutorial** is a new base-level mode with **no spec yet** (undesigned — omitted from this matrix).
 
 ---
 
@@ -604,7 +608,7 @@ Installation context: a public, unattended touch kiosk in a **dim** room, embedd
 
 - **Disconnect (UI-01):** a persistent, non-flashing **warning/error banner** (tokens §3.9) appears on WS/Ableton drop in _all_ modes, with the affected pillar(s) shown in the **disabled** state (§4). An operator should diagnose "why is pillar 3 silent" in seconds (UX_UI_PRINCIPLES 4).
 - **Idle timeout (UI-17):** at `timeout_warning` (T-30s) a calm warning appears; when the system returns to attractor state the pillars visibly clear.
-- **SIMULATED badge (UX_UI_PRINCIPLES 10):** always visible (subtly) when connected to `sim/`, prominent in debug mode.
+- **SIMULATED badge (UX_UI_PRINCIPLES 10):** always visible (subtly) when connected to `sim/`, prominent in the diagnostics panel.
 
 ---
 

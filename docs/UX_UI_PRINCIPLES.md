@@ -19,7 +19,7 @@ Principles for the UI rework. These are working principles, not visual identity 
 
 - Complete visual overhaul; **witchy/occult theme stays**; background = extension of the physical grimoire.
 - Recipe suggestions AND random spell names removed entirely (`useGrimoire` goes).
-- Visitor display is **category-centric**: per-pillar category icon + category name (no song/picture names), plus a category legend. Category colors come from `src/util/ColorUtil.ts`: Vox red, Bass green, Drums blue, Melody yellow (Tailwind -700 shades).
+- Visitor display is **category-centric**: per-pillar category icon + category name (no song/picture names), plus a category legend. Category colors come from `src/util/ColorUtil.ts` (single source of truth): Vox `red-700`, Bass `green-700`, Drums the custom **`drums-blue`** token (`#3559c0`, desaturated), Melody the custom **`melody-yellow`** token (`#dfa50a`, warm) — Drums/Melody retokenised from `-700` in WOW-007A; physical-LED re-verification pending.
 - Volume stays a plain slider (hardware enforces max volume).
 - Operator access: three main-screen modes (**play / tutorial / DJ** since the 2026-07-15 rename; debug is now a diagnostics panel available in any mode; tutorial undesigned/pending), the DJ mode reached via a visible Settings modal (ADR-003/006 amended; ADR-006 amended 2026-07-15 supersedes hidden-gesture-only, covert-gesture variant open — WOW-006 §8.1); hand-rolled mode state (ADR-005; per-mode URL routes now wanted — own follow-up ticket).
 - Tempo/volume/key controls remain visitor-visible in play mode (confirmed 2026-07-11).

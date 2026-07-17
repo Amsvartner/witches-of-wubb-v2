@@ -20,7 +20,7 @@ Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list).
 
 **F3 — Category-centric display.** Replace per-clip pictures with **icons specific to the clip's category** (Vox/Melody/Bass/Drums), and show **category names instead of song/picture names** on the visitor display.
 
-**F4 — Category legend.** Visible legend mapping the four categories to their icons/colors. Canonical colors live in `src/util/ColorUtil.ts` (`ColorUtil.getBackgroundColorFromType`): **Vox = red-700, Bass = green-700, Drums = blue-700, Melody = yellow-700** (Tailwind classes). Legend/icons key off this function; the redesign may restyle the values there, keeping it the single source of truth.
+**F4 — Category legend.** Visible legend mapping the four categories to their icons/colors. Canonical colors live in `src/util/ColorUtil.ts` (`ColorUtil.getBackgroundColorFromType`): **Vox = red-700, Bass = green-700, Drums = `drums-blue` (`#3559c0`), Melody = `melody-yellow` (`#dfa50a`)** (Tailwind classes; Drums and Melody were retokenised from `-700` to custom desaturated/warm tokens in WOW-007A — physical-LED re-verification pending). Legend/icons key off this function; it remains the single source of truth.
 
 **F5 — Recipe & spell-name removal.** Recipe suggestions AND the random spell-name display are removed entirely (`RecipeBoxContainer`, `useGrimoire`).
 

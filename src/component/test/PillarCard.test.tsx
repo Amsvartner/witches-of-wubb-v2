@@ -26,8 +26,8 @@ const emptyPillar: PillarView = {
 describe('PillarCard', () => {
   it('shows category identity, status, controls and queued rows for an active pillar', () => {
     const { getByText, getByRole } = render(<PillarCard pillar={vocalsPillar} />);
-    expect(getByText('PILLAR 1')).toBeInTheDocument();
-    expect(getByText('VOCALS')).toBeInTheDocument();
+    // The category name is the card's heading (pillar names removed 2026-07-17).
+    expect(getByRole('heading', { name: 'VOCALS' })).toBeInTheDocument();
     expect(getByText('PLAYING')).toBeInTheDocument();
     // Per-pillar controls.
     expect(getByRole('button', { name: /pause/i })).toBeInTheDocument();
@@ -77,7 +77,6 @@ describe('PillarCard', () => {
 
   it('shows no category or controls for an empty pillar', () => {
     const { getByText, queryByText, queryByRole } = render(<PillarCard pillar={emptyPillar} />);
-    expect(getByText('PILLAR 4')).toBeInTheDocument();
     expect(getByText(/awaiting ingredient/i)).toBeInTheDocument();
     expect(getByText('EMPTY')).toBeInTheDocument();
     expect(queryByText('DRUMS')).not.toBeInTheDocument();

@@ -42,15 +42,17 @@ const RemoveGlyph = (): JSX.Element => (
 export const QueuedSampleRow = ({ name, tintHex }: Props): JSX.Element => {
   const pip: CSSProperties = { backgroundColor: tintHex, boxShadow: `0 0 6px ${tintHex}aa` };
   return (
-    <li className='flex items-center gap-2 rounded-md border border-gold-line/20 bg-ink-deep/70 py-1 pl-2 pr-1'>
-      <span style={pip} className='h-2 w-2 shrink-0 rounded-full' aria-hidden='true' />
-      <span className='flex-1 truncate font-data text-[15px] text-parchment/85'>{name}</span>
+    <li className='flex items-center gap-2 rounded-md border border-gold-line/20 bg-ink-deep/70 px-1 py-1'>
+      {/* Play left, remove far right (human, 2026-07-17) — the separation also
+          guards against mis-taps between the two actions. */}
       <IconButton label={`Play ${name}`} className='h-11 w-11 shrink-0'>
         <PlayGlyph />
       </IconButton>
+      <span style={pip} className='h-2 w-2 shrink-0 rounded-full' aria-hidden='true' />
+      <span className='flex-1 truncate font-data text-[15px] text-parchment/85'>{name}</span>
       <IconButton
         label={`Remove ${name}`}
-        className='ml-3 h-11 w-11 shrink-0 border-red-300/30 text-red-300/80'
+        className='h-11 w-11 shrink-0 border-red-300/30 text-red-300/80'
       >
         <RemoveGlyph />
       </IconButton>

@@ -12,7 +12,7 @@ export const Wordmark = (): JSX.Element => (
       draggable={false}
       className='h-14 w-auto select-none'
     />
-    <h1 className='bg-gradient-to-b from-gold-bright via-gold-line to-[#9a7b32] bg-clip-text font-display text-[52px] leading-none tracking-[0.16em] text-transparent'>
+    <h1 className='bg-gradient-to-b from-gold-bright via-gold-line to-[#9a7b32] bg-clip-text font-display text-[36px] leading-none tracking-[0.16em] text-transparent'>
       HEXOLOGY
     </h1>
   </div>

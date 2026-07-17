@@ -21,17 +21,24 @@ const PauseGlyph = (): JSX.Element => (
 
 const SpeakerGlyph = ({ muted }: { muted: boolean }): JSX.Element => (
   <svg
-    viewBox='0 0 20 20'
-    className='h-5 w-5'
+    viewBox='0 0 24 24'
+    className='h-6 w-6'
     fill='none'
     stroke='currentColor'
-    strokeWidth={1.8}
+    strokeWidth={2}
     strokeLinecap='round'
     strokeLinejoin='round'
     aria-hidden='true'
   >
-    <path d='M4 8v4h3l4 3V5L7 8z' fill='currentColor' stroke='none' />
-    {muted ? <path d='M14 8l4 4M18 8l-4 4' /> : <path d='M13.5 7.5a4 4 0 0 1 0 5' />}
+    <path d='M3 9v6h4l6 5V4L7 9z' fill='currentColor' stroke='none' />
+    {muted ? (
+      <path d='M16.5 9.5l5 5M21.5 9.5l-5 5' />
+    ) : (
+      <>
+        <path d='M16 9.5a4 4 0 0 1 0 5' />
+        <path d='M18.5 7a7.5 7.5 0 0 1 0 10' />
+      </>
+    )}
   </svg>
 );
 

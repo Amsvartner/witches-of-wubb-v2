@@ -13,9 +13,11 @@ type Props = {
   fillHex?: string;
   /** Paused or muted — desaturated. */
   dimmed?: boolean;
+  /** Global animations switch (Settings kill-switch); static when false. */
+  animated?: boolean;
 };
 
-const DIAMETER = 84;
+const DIAMETER = 126;
 const RAY_COUNT = 48;
 
 // Ray burst behind the icon, inside the ring (human direction 2026-07-16:
@@ -47,6 +49,7 @@ export const PillarMedallion = ({
   tintHex,
   fillHex,
   dimmed,
+  animated = true,
 }: Props): JSX.Element => {
   const size: CSSProperties = { width: DIAMETER, height: DIAMETER };
 
@@ -54,10 +57,16 @@ export const PillarMedallion = ({
     return (
       <div
         style={size}
-        className='flex items-center justify-center rounded-full border-2 border-dashed border-[#3a3540] bg-ink-panel/60'
+        className='relative flex items-center justify-center rounded-full border-2 border-dashed border-[#3a3540] bg-ink-panel/60'
       >
-        <span className='font-display text-3xl text-[#5a5560]' aria-hidden='true'>
-          ?
+        <span className='font-data text-5xl font-light text-[#5a5560]' aria-hidden='true'>
+          +
+        </span>
+        <span
+          className='absolute left-[6%] top-[30%] text-xs text-gold-bright/70'
+          aria-hidden='true'
+        >
+          ✦
         </span>
       </div>
     );
@@ -81,7 +90,11 @@ export const PillarMedallion = ({
 
   const ringClass = [
     'relative flex items-center justify-center rounded-full border-[3px]',
-    queued ? 'border-dashed motion-safe:animate-pulse-calm' : 'border-solid',
+    queued && animated
+      ? 'border-dashed motion-safe:animate-pulse-calm'
+      : queued
+      ? 'border-dashed'
+      : 'border-solid',
   ].join(' ');
 
   return (
@@ -104,7 +117,7 @@ export const PillarMedallion = ({
           />
         ))}
       </svg>
-      <CategoryIcon type={category} size={46} className='relative' />
+      <CategoryIcon type={category} size={68} className='relative' />
     </div>
   );
 };

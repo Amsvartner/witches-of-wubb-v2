@@ -1,9 +1,14 @@
+type Props = {
+  /** Opens the Settings modal (animation kill-switch; modes arrive in WOW-007). */
+  onOpenSettings: () => void;
+};
+
 /**
  * Visible Help + Settings controls (top-right), per the reference + wireframe.
- * Mode access lives behind Settings (ADR-006 amended 2026-07-15). In the
- * WOW-007A spike these are styled affordances only — not yet wired to a modal.
+ * Mode access lives behind Settings (ADR-006 amended 2026-07-15). Settings is
+ * wired to the modal (human, 2026-07-17); Help remains a styled affordance.
  */
-export const TopControls = (): JSX.Element => (
+export const TopControls = ({ onOpenSettings }: Props): JSX.Element => (
   <div className='flex items-center gap-3'>
     <button
       type='button'
@@ -25,6 +30,7 @@ export const TopControls = (): JSX.Element => (
     </button>
     <button
       type='button'
+      onClick={onOpenSettings}
       className='flex min-h-[44px] items-center gap-2 rounded-lg border border-gold-line/50 bg-ink-btn px-4 font-data text-sm tracking-wide text-parchment/90'
     >
       <svg

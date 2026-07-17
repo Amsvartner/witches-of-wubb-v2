@@ -1,4 +1,5 @@
 import { type CSSProperties } from 'react';
+import { SectionLabel } from '~/component/SectionLabel';
 
 type Props = {
   /** 0–100 display value. Ignored when `assetSlug` is absent (empty pillar). */
@@ -32,14 +33,7 @@ export const VolumeTube = ({ volumePercent, assetSlug }: Props): JSX.Element => 
   };
 
   return (
-    <div className='flex w-[72px] select-none flex-col items-center gap-1.5'>
-      {assetSlug && <span className='sr-only'>{`Volume ${clamped}%`}</span>}
-      <span
-        aria-hidden='true'
-        className='font-number text-[15px] font-semibold tabular-nums text-parchment/90'
-      >
-        {assetSlug ? `${clamped}%` : ' '}
-      </span>
+    <div className='flex w-[80px] select-none flex-col items-center gap-1.5'>
       <div className='relative min-h-0 w-full flex-1'>
         <img
           src={tubeSrc}
@@ -70,6 +64,16 @@ export const VolumeTube = ({ volumePercent, assetSlug }: Props): JSX.Element => 
             />
           </>
         )}
+      </div>
+      <div className='mt-1.5 flex flex-col items-center'>
+        {assetSlug && <SectionLabel>Volume</SectionLabel>}
+        {assetSlug && <span className='sr-only'>{`${clamped}%`}</span>}
+        <span
+          aria-hidden='true'
+          className='font-number text-xl font-semibold leading-none tabular-nums text-parchment/90'
+        >
+          {assetSlug ? `${clamped}%` : ' '}
+        </span>
       </div>
     </div>
   );

@@ -6,12 +6,14 @@ type Props = {
 /**
  * Visible Help + Settings controls (top-right), per the reference + wireframe.
  * Mode access lives behind Settings (ADR-006 amended 2026-07-15). Settings is
- * wired to the modal (human, 2026-07-17); Help remains a styled affordance.
+ * wired to the modal (human, 2026-07-17); Help is disabled until its content
+ * arrives with WOW-007 (a focusable no-op would confuse keyboard/SR users).
  */
 export const TopControls = ({ onOpenSettings }: Props): JSX.Element => (
   <div className='flex items-center gap-3'>
     <button
       type='button'
+      disabled
       className='flex min-h-[44px] items-center gap-2 rounded-lg border border-gold-line/50 bg-ink-btn px-4 font-data text-sm tracking-wide text-parchment/90'
     >
       <svg

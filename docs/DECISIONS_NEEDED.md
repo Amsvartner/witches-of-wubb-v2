@@ -2,6 +2,29 @@
 
 Open questions for the human. Answered decisions live in ADRs (`docs/adr/`) and the owning docs — see "Resolved" below.
 
+## Security
+
+Decision needed:
+
+- Whether to scrub the leaked Wi-Fi credentials from git history (commit `e4b22c2` and any other commit touching the two Arduino sketches), via BFG Repo-Cleaner or `git filter-repo`, now that WOW-028 removes them from the working tree and rotation invalidates the leaked values.
+
+Why this matters:
+
+- The repo is public on GitHub. Rotating the network password (human action, tracked independently of this PR) makes the leaked value itself worthless, so scrubbing is optional hygiene rather than a security requirement — but a rewritten history invalidates every existing clone/fork/PR branch reference and is worth deciding explicitly rather than leaving ambiguous.
+
+Options:
+
+1. Scrub history now (BFG or `git filter-repo`) — cleanest, but rewrites all commit SHAs after the affected commits; every local clone (incl. this fork's other open branches, if any are based on affected history) needs to be re-cloned or hard-reset.
+2. Leave history as-is post-rotation — the leaked value is dead once rotated; accept that it remains readable in `git log`/GitHub history as a permanent (but harmless) record.
+3. Scrub history at a planned low-activity point (e.g. after the current ticket batch merges and before the next long-lived branch set) to minimize rebase pain.
+
+Recommendation:
+
+- Option 2 (leave as-is) once rotation is confirmed complete — the credential is dead, and a history rewrite on a shared fork is disruptive relative to the residual risk. Revisit if the repo's threat model changes (e.g. if the leaked value is reused elsewhere).
+
+Blocked until human confirms:
+yes
+
 ## Product / UX
 
 - **Visual art direction (WOW-006, REQUEST-CHANGES 2026-07-15):** the primary visual reference is `docs/design/hexology-grimoire-concept-3.png` (gold-slider variant). The **WOW-007A visual spike was built and visually approved by the human through 7 iteration rounds (2026-07-16/17)** — see `docs/agent-notes/wow-007a-frontend-implementer-implementation.md`. Resolved along the way: **typography** (§8.2 → direction C), **Melody hue** (§8.3 → warm yellow), **pillar frame** (§8.5 → amber double border, no corner embellishments, top-centre flourish), and the primary artwork now uses **human-supplied assets** (logo symbol, cauldron, sliders, gems). Still open: **page palette** beyond the spike's Obsidian & Gilt baseline (§8.3), **mode-access variant** (§8.1), **debug-panel extras** (§8.4).
@@ -78,7 +101,8 @@ yes
 
 ## Out of scope (parked)
 
-- WiFi credentials committed in `Arduino/` sketches (standing security note).
+- WiFi credential rotation and device reflashing (human action; code-side fix landed via WOW-028 — see "Security" above for the remaining git-history-scrubbing decision).
+- Network redesign (VLANs, OSC/Art-Net authentication) — the installation network currently carries unauthenticated show-control traffic; worth a dedicated security discussion (noted in WOW-028).
 - Lighting server, audio path, show startup/shutdown procedures.
 
 ## Proposed ADRs (future)

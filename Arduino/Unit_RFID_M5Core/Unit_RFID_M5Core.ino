@@ -16,6 +16,7 @@
 #include <OSCMessage.h>
 #include <WiFiUdp.h>
 #include "UNIT_UHF_RFID.h"
+#include "secrets.h"
 
 // Set up the Wi-Fi client
 WiFiClient client;
@@ -27,18 +28,10 @@ WiFiUDP udp;
 // Make sure to modify the waitMsg Timeout to be 50
 Unit_UHF_RFID uhf;
 
-// Networking constants
-// const char *ssid = "TP-Link_E262";
-// const char *password = "13921255";
-
-//const char *ssid = "Haleakala IoT";
-//const char *password = "amends nova skirt voiced";
-
-const char *ssid = "wubb-net";
-const char *password = "audioshitstorm";
-
-// const char *ssid = "WirelessB";
-// const char *password = "greasy@pizza";
+// Networking constants — real values live in secrets.h (gitignored).
+// Copy secrets.h.example to secrets.h and fill in the real network credentials.
+const char *ssid = WIFI_SSID;
+const char *password = WIFI_PASSWORD;
 
 // UPDATE ME!!!
 IPAddress ip(192, 168, 0, 52);

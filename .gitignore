@@ -25,3 +25,6 @@ dist-ssr
 *.sw?
 
 tsconfig.tsbuildinfo
+
+# Arduino secrets (WOW-030) — per-device pillar IP; WiFi credentials join it when WOW-028 lands. Never committed.
+Arduino/**/secrets.h

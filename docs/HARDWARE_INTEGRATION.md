@@ -12,14 +12,37 @@ Status: observed from `Arduino/` sketches and backend code. **Entirely out of sc
 ## Pillars
 
 - 4 pillars, indexed 0–3 in code, 1–4 in outgoing OSC addresses.
-- Identified by static IPs: 192.168.0.101–104 (`backend/event/IncomingEvents.ts`).
+- Identified by static IPs, matched against the frozen map in `backend/event/IncomingEvents.ts` (never edited without approval — see `docs/CODING_GUIDELINES.md`'s "Config conventions"):
+
+  | Pillar (code index) | Pillar (OSC/UI, +1) | IP            |
+  | ------------------- | ------------------- | ------------- |
+  | 0                   | 1                   | 192.168.0.101 |
+  | 1                   | 2                   | 192.168.0.102 |
+  | 2                   | 3                   | 192.168.0.103 |
+  | 3                   | 4                   | 192.168.0.104 |
+
+  Each RFID reader is told which pillar it is via `PILLAR_IP` in its own gitignored `secrets.h` (WOW-030) — see "RFID readers" and the flashing checklist below. This doesn't change how the backend identifies the pillar (still the sender IP, matched against this same table); it's what makes the sender IP correct for wherever a given device is physically placed. Getting it wrong doesn't crash anything — the backend just can't place that device's tags on any pillar (logged as an unknown-IP warning naming the offending address, and ignored — WOW-017, now merged on main).
+
+  **A second, related risk worth flashing-time attention**: `secrets.h.example`'s shipped `PILLAR_IP` default is a real, valid pillar address (Pillar 0 / `.101`), not an obviously-wrong placeholder — deliberately, so an unedited device shows up claiming a real pillar (diagnosable via the boot log) rather than silently vanishing like the old `.52` default did. The trade-off: if more than one physical device is ever flashed without editing this value, they'll collide on the same static IP on the venue network — a different, network-level failure rather than a single silently-dropped device. The flashing checklist's "double-check against the physical installation" step exists specifically to catch this before it happens; there's no code-level guard against it (would require either a compile-time uniqueness check across devices, which isn't possible per-sketch, or a runtime IP-conflict detector, which is out of this ticket's scope).
+
 - Each has: speaker (audio path TBD — presumably per-track routing from the Ableton machine's interface), LEDs, RFID reader.
 
 ## RFID readers
 
 - M5Stack Core + UHF RFID unit (`Arduino/Unit_RFID_M5Core/`).
 - Connect over WiFi (`wubb-net`), send OSC over UDP to the backend (port 9000): `/new/tag [rfid]`, `/departed/tag [rfid]`. Sender IP identifies the pillar.
+- Each device's pillar identity is set via `PILLAR_IP` in its own `secrets.h` (WOW-030, see the table above). The sketch prints the configured IP and its derived pillar index (or `UNKNOWN`) over serial at boot, before attempting to connect to Wi-Fi, so a mis-flashed device is diagnosable over serial even if it then hangs waiting for a connection.
 - Tag IDs: 24-hex-char EPCs (see CSV). Polling interval, RF power, multi-tag behavior: TBD.
+
+## Flashing checklist (WOW-030)
+
+Before flashing the RFID reader sketch onto a device (Wi-Fi credentials are not covered by this checklist — they stay hardcoded in the sketches until WOW-028 lands and moves them into `secrets.h`):
+
+1. Copy `Unit_RFID_M5Core/secrets.h.example` to `secrets.h` in the same directory.
+2. Set `PILLAR_IP` in `secrets.h` to the address matching wherever this physical device is being placed (see the pillar table above). Double-check against the physical installation, not just the box the device came out of — a device that travels between pillars between shows is exactly the failure mode this exists to catch.
+3. Confirm `secrets.h` is untracked (`git status` should not list it — `.gitignore` covers `Arduino/**/secrets.h`).
+4. Compile and flash as before; no other setup changed.
+5. **First flash after WOW-030**: watch the serial monitor at boot and confirm "Derived pillar index" matches the intended pillar before walking away from the device. While there, this is also the moment to bench-check two pre-existing behaviors WOW-030 noticed but deliberately did not change (out of that ticket's scope): `WiFi.config(ip)` is called without gateway/subnet arguments, and `setup()` loops forever if Wi-Fi never connects (no timeout, no fallback). If either causes a real problem against the venue AP, stop and report rather than silently working around it — see `docs/DECISIONS_NEEDED.md`.
 
 ## Speakers / audio routing
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Wordmark } from '~/component/Wordmark';
 import { TopControls } from '~/component/TopControls';
 import { PillarCardContainer } from '~/container/PillarCardContainer';
@@ -11,6 +11,10 @@ import { useSocketContext } from '~/context/hook/useSocketContext';
 import { useSliderEmit } from '~/hook/useSliderEmit';
 import { KeyUtil } from '~/util/KeyUtil';
 import { PillarViewUtil } from '~/util/PillarViewUtil';
+import { type SelectableClip } from '~/component/SampleModal';
+
+/** One pending-pick slot per pillar, all unset at mount. */
+const NO_PENDING_PICKS: (SelectableClip | null)[] = [null, null, null, null];
 
 /** Legacy TempoSliderContainer bounds — carried over unchanged (WOW-007B). */
 const TEMPO_MIN = 75;
@@ -72,6 +76,22 @@ export const PlayModeContainer = (): JSX.Element => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [mode, setMode] = useState<Mode>('play');
+  // Pending DJ picks (WOW-007B pending-pick queue): a clip a DJ has chosen
+  // from the sample picker but not yet started. Held here (not inside
+  // PillarCardContainer) rather than emitted immediately, because the
+  // backend starts an idle pillar's clip immediately on `/new/tag` and even
+  // a backend-"queued" clip auto-fires at the next phrase boundary (see
+  // sim/core/simulator.ts) — so a mere pick can't reach the socket at all.
+  // Lifted to this shared parent (rather than local per-card state) so every
+  // pillar's SampleModal can build its `activeByRfid` map from every other
+  // pillar's pending pick too, not just its own. Deliberately persists across
+  // DJ exit/re-entry (human decision — a held pick shouldn't evaporate just
+  // because the DJ closed the extended controls).
+  const [pendingPicks, setPendingPicks] = useState<(SelectableClip | null)[]>(NO_PENDING_PICKS);
+
+  const handlePendingPickChange = useCallback((index: number, clip: SelectableClip | null) => {
+    setPendingPicks((current) => current.map((existing, i) => (i === index ? clip : existing)));
+  }, []);
 
   useEffect(() => {
     setIsConnected(Boolean(socket.connected));
@@ -158,6 +178,8 @@ export const PlayModeContainer = (): JSX.Element => {
             djMode={mode === 'dj'}
             animationsEnabled={animationsEnabled}
             isConnected={isConnected}
+            pendingPicks={pendingPicks}
+            onPendingPickChange={handlePendingPickChange}
           />
         </div>
         <div className='relative z-10 min-w-0 lg:col-start-3 lg:row-start-1'>
@@ -167,6 +189,8 @@ export const PlayModeContainer = (): JSX.Element => {
             djMode={mode === 'dj'}
             animationsEnabled={animationsEnabled}
             isConnected={isConnected}
+            pendingPicks={pendingPicks}
+            onPendingPickChange={handlePendingPickChange}
           />
         </div>
         {/* Oversized focal cauldron — deliberately extends behind the pillar
@@ -183,6 +207,8 @@ export const PlayModeContainer = (): JSX.Element => {
             djMode={mode === 'dj'}
             animationsEnabled={animationsEnabled}
             isConnected={isConnected}
+            pendingPicks={pendingPicks}
+            onPendingPickChange={handlePendingPickChange}
           />
         </div>
         <div className='relative z-10 min-w-0 lg:col-start-3 lg:row-start-2'>
@@ -192,6 +218,8 @@ export const PlayModeContainer = (): JSX.Element => {
             djMode={mode === 'dj'}
             animationsEnabled={animationsEnabled}
             isConnected={isConnected}
+            pendingPicks={pendingPicks}
+            onPendingPickChange={handlePendingPickChange}
           />
         </div>
       </div>

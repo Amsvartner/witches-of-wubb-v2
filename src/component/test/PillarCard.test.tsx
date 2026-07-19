@@ -13,14 +13,6 @@ const playingVocals: PillarView = {
   queued: [],
 };
 
-const queuedVocals: PillarView = {
-  ...playingVocals,
-  queued: [
-    { id: 'v1', name: 'Vocal Hook 07' },
-    { id: 'v2', name: 'Vocal Chop 14' },
-  ],
-};
-
 const emptyPillar: PillarView = {
   pillarNumber: 4,
   status: 'empty',
@@ -38,9 +30,11 @@ describe('PillarCard', () => {
     });
 
     it('renders no queue section, even when the pillar has queued samples', () => {
-      const { queryByText } = render(<PillarCard pillar={queuedVocals} />);
+      // `pillar.queued` is legacy display data the card no longer reads in
+      // DJ mode (queue rows are container-composed via `dj.queueRows` now),
+      // but play mode never shows a queue section regardless.
+      const { queryByText } = render(<PillarCard pillar={playingVocals} />);
       expect(queryByText('Queued')).not.toBeInTheDocument();
-      expect(queryByText('Vocal Hook 07')).not.toBeInTheDocument();
     });
 
     it('renders no buttons at all on the card', () => {
@@ -75,26 +69,34 @@ describe('PillarCard', () => {
       expect(queryByText('VOCALS')).not.toBeInTheDocument();
       expect(queryByRole('button')).not.toBeInTheDocument();
     });
+
+    it('renders the empty medallion as a non-interactive element (no Add sample button)', () => {
+      const { queryByRole } = render(<PillarCard pillar={emptyPillar} />);
+      expect(queryByRole('button', { name: 'Add sample' })).not.toBeInTheDocument();
+    });
   });
 
   describe('DJ mode (dj prop present)', () => {
     it('renders a Select sample button', () => {
       const { getByRole } = render(
-        <PillarCard pillar={playingVocals} dj={{ onSelectSample: vi.fn() }} />,
+        <PillarCard pillar={playingVocals} dj={{ onSelectSample: vi.fn(), queueRows: [] }} />,
       );
       expect(getByRole('button', { name: 'Select sample' })).toBeInTheDocument();
     });
 
     it('renders a Stop button when onStop is supplied', () => {
       const { getByRole } = render(
-        <PillarCard pillar={playingVocals} dj={{ onSelectSample: vi.fn(), onStop: vi.fn() }} />,
+        <PillarCard
+          pillar={playingVocals}
+          dj={{ onSelectSample: vi.fn(), onStop: vi.fn(), queueRows: [] }}
+        />,
       );
       expect(getByRole('button', { name: 'Stop' })).toBeInTheDocument();
     });
 
     it('renders no Stop button when onStop is absent', () => {
       const { queryByRole } = render(
-        <PillarCard pillar={playingVocals} dj={{ onSelectSample: vi.fn() }} />,
+        <PillarCard pillar={playingVocals} dj={{ onSelectSample: vi.fn(), queueRows: [] }} />,
       );
       expect(queryByRole('button', { name: /stop/i })).not.toBeInTheDocument();
     });
@@ -102,7 +104,10 @@ describe('PillarCard', () => {
     it('confirm-gates Stop: first tap arms, second tap fires once', () => {
       const onStop = vi.fn();
       const { getByRole } = render(
-        <PillarCard pillar={playingVocals} dj={{ onSelectSample: vi.fn(), onStop }} />,
+        <PillarCard
+          pillar={playingVocals}
+          dj={{ onSelectSample: vi.fn(), onStop, queueRows: [] }}
+        />,
       );
 
       fireEvent.click(getByRole('button', { name: 'Stop' }));
@@ -113,48 +118,89 @@ describe('PillarCard', () => {
       expect(onStop).toHaveBeenCalledTimes(1);
     });
 
-    it('renders "Queue empty" when there are no queued samples', () => {
+    it('renders "Queue empty" when there are no queue rows', () => {
       const { getByText } = render(
-        <PillarCard
-          pillar={playingVocals}
-          dj={{ onSelectSample: vi.fn(), onRemoveQueued: vi.fn() }}
-        />,
+        <PillarCard pillar={playingVocals} dj={{ onSelectSample: vi.fn(), queueRows: [] }} />,
       );
       expect(getByText('Queued')).toBeInTheDocument();
       expect(getByText('Queue empty')).toBeInTheDocument();
     });
 
-    it('renders queued sample rows with a confirm-gated remove and no play button', () => {
-      const onRemoveQueued = vi.fn();
+    it('renders a backend-queued row with a confirm-gated remove and no play button', () => {
+      const onRemove = vi.fn();
       const { getByText, getByRole, queryByRole } = render(
-        <PillarCard pillar={queuedVocals} dj={{ onSelectSample: vi.fn(), onRemoveQueued }} />,
+        <PillarCard
+          pillar={playingVocals}
+          dj={{
+            onSelectSample: vi.fn(),
+            queueRows: [{ id: 'v1', name: 'Vocal Hook 07', onRemove }],
+          }}
+        />,
       );
 
       expect(getByText('Vocal Hook 07')).toBeInTheDocument();
-      expect(getByText('Vocal Chop 14')).toBeInTheDocument();
       expect(queryByRole('button', { name: /play/i })).not.toBeInTheDocument();
 
       fireEvent.click(getByRole('button', { name: 'Remove Vocal Hook 07' }));
-      expect(onRemoveQueued).not.toHaveBeenCalled();
+      expect(onRemove).not.toHaveBeenCalled();
       expect(getByRole('button', { name: 'Confirm remove Vocal Hook 07' })).toBeInTheDocument();
 
       fireEvent.click(getByRole('button', { name: 'Confirm remove Vocal Hook 07' }));
-      expect(onRemoveQueued).toHaveBeenCalledTimes(1);
+      expect(onRemove).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders a pending-pick row with Play and a non-confirm-gated remove', () => {
+      const onPlay = vi.fn();
+      const onRemove = vi.fn();
+      const { getByRole } = render(
+        <PillarCard
+          pillar={playingVocals}
+          dj={{
+            onSelectSample: vi.fn(),
+            queueRows: [{ id: 'pending-1', name: 'Held Sample', onPlay, onRemove }],
+          }}
+        />,
+      );
+
+      fireEvent.click(getByRole('button', { name: 'Play Held Sample' }));
+      expect(onPlay).toHaveBeenCalledTimes(1);
+
+      // Not confirm-gated: a single tap removes immediately, no "Confirm?" step.
+      fireEvent.click(getByRole('button', { name: 'Remove Held Sample' }));
+      expect(onRemove).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders both a backend-queued row and a pending row together, backend-queued first', () => {
+      const { getAllByRole } = render(
+        <PillarCard
+          pillar={playingVocals}
+          dj={{
+            onSelectSample: vi.fn(),
+            queueRows: [
+              { id: 'queued-1', name: 'Backend Queued', onRemove: vi.fn() },
+              { id: 'pending-1', name: 'Pending Pick', onPlay: vi.fn(), onRemove: vi.fn() },
+            ],
+          }}
+        />,
+      );
+
+      const rows = getAllByRole('listitem').map((item) => item.textContent);
+      expect(rows[0]).toContain('Backend Queued');
+      expect(rows[1]).toContain('Pending Pick');
     });
 
     it('caps the queued list at two rows', () => {
-      const threeQueued: PillarView = {
-        ...playingVocals,
-        queued: [
-          { id: 'a', name: 'Alpha' },
-          { id: 'b', name: 'Beta' },
-          { id: 'c', name: 'Gamma' },
-        ],
-      };
       const { queryByText } = render(
         <PillarCard
-          pillar={threeQueued}
-          dj={{ onSelectSample: vi.fn(), onRemoveQueued: vi.fn() }}
+          pillar={playingVocals}
+          dj={{
+            onSelectSample: vi.fn(),
+            queueRows: [
+              { id: 'a', name: 'Alpha' },
+              { id: 'b', name: 'Beta' },
+              { id: 'c', name: 'Gamma' },
+            ],
+          }}
         />,
       );
       expect(queryByText('Alpha')).toBeInTheDocument();
@@ -162,17 +208,87 @@ describe('PillarCard', () => {
       expect(queryByText('Gamma')).not.toBeInTheDocument();
     });
 
-    it('renders Select sample (but no Stop or queue section) for an empty pillar', () => {
+    it('renders Select sample (but no Stop or queue section) for an empty pillar with no pending pick', () => {
       // An empty pillar is exactly where the DJ needs to place a clip, so
       // Select sample renders regardless of category; Stop stays absent
       // (no active clip to stop) and the queue section stays gated on a
-      // real category (nothing to queue on an empty pillar).
+      // real category OR a pending pick — nothing to queue on a plain empty
+      // pillar.
       const { getByRole, queryByRole, queryByText } = render(
-        <PillarCard pillar={emptyPillar} dj={{ onSelectSample: vi.fn() }} />,
+        <PillarCard pillar={emptyPillar} dj={{ onSelectSample: vi.fn(), queueRows: [] }} />,
       );
       expect(getByRole('button', { name: 'Select sample' })).toBeInTheDocument();
       expect(queryByRole('button', { name: /stop/i })).not.toBeInTheDocument();
       expect(queryByText('Queued')).not.toBeInTheDocument();
+    });
+
+    it('renders the empty medallion as an Add sample button that opens the picker', () => {
+      const onSelectSample = vi.fn();
+      const { getByRole } = render(
+        <PillarCard pillar={emptyPillar} dj={{ onSelectSample, queueRows: [] }} />,
+      );
+
+      fireEvent.click(getByRole('button', { name: 'Add sample' }));
+      expect(onSelectSample).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the Queued section and a working Play button on an empty pillar with a pending pick', () => {
+      // The gap this closes: picking a sample via the empty-medallion Add
+      // button has to land somewhere the DJ can actually start it, even
+      // though an empty pillar has no category tokens.
+      const onPlay = vi.fn();
+      const { getByText, getByRole } = render(
+        <PillarCard
+          pillar={emptyPillar}
+          dj={{
+            onSelectSample: vi.fn(),
+            queueRows: [{ id: 'pending-empty', name: 'Held For Empty', onPlay, onRemove: vi.fn() }],
+          }}
+        />,
+      );
+
+      expect(getByText('Queued')).toBeInTheDocument();
+      expect(getByText('Held For Empty')).toBeInTheDocument();
+
+      fireEvent.click(getByRole('button', { name: 'Play Held For Empty' }));
+      expect(onPlay).toHaveBeenCalledTimes(1);
+    });
+
+    describe('mute', () => {
+      it('renders a Mute button on a categorised pillar when muted + onToggleMute are supplied', () => {
+        const onToggleMute = vi.fn();
+        const { getByRole } = render(
+          <PillarCard
+            pillar={playingVocals}
+            dj={{ onSelectSample: vi.fn(), queueRows: [], muted: false, onToggleMute }}
+          />,
+        );
+
+        fireEvent.click(getByRole('button', { name: 'Mute' }));
+        expect(onToggleMute).toHaveBeenCalledTimes(1);
+      });
+
+      it('shows Unmute and a MUTED status label when muted is true', () => {
+        const { getByRole, getByText } = render(
+          <PillarCard
+            pillar={{ ...playingVocals, muted: true }}
+            dj={{ onSelectSample: vi.fn(), queueRows: [], muted: true, onToggleMute: vi.fn() }}
+          />,
+        );
+
+        expect(getByRole('button', { name: 'Unmute' })).toBeInTheDocument();
+        expect(getByText('MUTED')).toBeInTheDocument();
+      });
+
+      it('renders no Mute button on an empty pillar even when muted/onToggleMute are supplied', () => {
+        const { queryByRole } = render(
+          <PillarCard
+            pillar={emptyPillar}
+            dj={{ onSelectSample: vi.fn(), queueRows: [], muted: false, onToggleMute: vi.fn() }}
+          />,
+        );
+        expect(queryByRole('button', { name: /mute/i })).not.toBeInTheDocument();
+      });
     });
   });
 });

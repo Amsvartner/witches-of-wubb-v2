@@ -21,8 +21,16 @@ type Props = {
     /** Present while a clip is playing/stopping. */
     onStop?: () => void;
     onSelectSample: () => void;
-    /** Present when a queued clip exists. */
-    onRemoveQueued?: () => void;
+    /** Present when the pillar has a category — nothing to mute otherwise. */
+    muted?: boolean;
+    onToggleMute?: () => void;
+    /**
+     * Rows to render in the Queued section (WOW-007B pending-pick queue):
+     * the container composes at most one backend-queued row (remove only)
+     * and, last, the pillar's pending pick (play + remove). Same 2-row cap
+     * as before, applied here rather than upstream.
+     */
+    queueRows: { id: string; name: string; onPlay?: () => void; onRemove?: () => void }[];
   };
   /** Live volume interaction (both modes). Absent = display-only (tests/mock). */
   onVolumePercentChange?: (percent: number) => void;
@@ -57,6 +65,12 @@ const MUTED_DOT_HEX = '#6b6472';
 /** Max queued sample rows rendered per pillar (human direction 2026-07-15). */
 const MAX_QUEUED_ROWS = 2;
 
+// Queue-row tint for an empty pillar's pending pick (WOW-007B change 3): an
+// empty pillar has no category tokens to source a tint from, but a pending
+// pick there still needs a row + Play button — gold-line reads as a neutral
+// "not yet a category" accent rather than borrowing an unrelated category hue.
+const NEUTRAL_QUEUE_TINT_HEX = '#c9a24b';
+
 /**
  * One pillar card — the single most-reused unit of the play-mode screen. All
  * four instances share this structure; only `category` + live state differ
@@ -74,13 +88,12 @@ export const PillarCard = ({
   onVolumeDragStart,
   onVolumeDragEnd,
 }: Props): JSX.Element => {
-  const { category, status, muted, volumePercent, queued } = pillar;
+  const { category, status, muted, volumePercent } = pillar;
   const tokens = category ? CategoryTheme.forType(category) : undefined;
 
   const dotHex = muted ? MUTED_DOT_HEX : statusDotHex(status, tokens?.tintHex ?? '#9a9080');
   const statusLabel = muted ? 'MUTED' : STATUS_LABEL[status];
-  const visibleQueued = queued.slice(0, MAX_QUEUED_ROWS);
-  const onRemoveQueued = dj?.onRemoveQueued;
+  const visibleQueueRows = dj?.queueRows.slice(0, MAX_QUEUED_ROWS) ?? [];
 
   // PillarMedallion's props are a discriminated union: a categorised medallion
   // requires the tint + fill trio together. Branch here so `tokens` is narrowed
@@ -101,6 +114,7 @@ export const PillarCard = ({
         status={status}
         dimmed={status === 'paused' || muted}
         animated={animationsEnabled}
+        onAddSample={dj?.onSelectSample}
       />
     );
 
@@ -143,8 +157,16 @@ export const PillarCard = ({
           {/* DJ controls render regardless of category: an EMPTY pillar is
               exactly where the DJ needs Select-sample (the legacy debug modal
               allowed placing clips on any pillar). Stop only appears when a
-              clip is actually active (onStop present). */}
-          {dj && <DjPillarControls onStop={dj.onStop} onSelectSample={dj.onSelectSample} />}
+              clip is actually active (onStop present); Mute only appears when
+              the pillar has a category — there's nothing to mute otherwise. */}
+          {dj && (
+            <DjPillarControls
+              onStop={dj.onStop}
+              onSelectSample={dj.onSelectSample}
+              muted={tokens ? dj.muted : undefined}
+              onToggleMute={tokens ? dj.onToggleMute : undefined}
+            />
+          )}
         </div>
 
         <div className='flex min-h-0 flex-1 gap-3'>
@@ -169,23 +191,29 @@ export const PillarCard = ({
             </div>
 
             {/* Queue display is a DJ-mode surface only (human decision
-                2026-07-17): play mode shows no queue, no sample names. */}
-            {tokens && dj && (
+                2026-07-17): play mode shows no queue, no sample names. Also
+                renders for an EMPTY pillar that has a pending pick (WOW-007B
+                change 3 — Add-sample on an empty pillar needs somewhere to
+                show the resulting hold and its Play button); an empty pillar
+                with nothing pending still shows no section at all, same as
+                before. */}
+            {dj && (tokens || visibleQueueRows.length > 0) && (
               <div className='mt-auto flex flex-col gap-1.5'>
                 <SectionLabel>Queued</SectionLabel>
-                {visibleQueued.length > 0 ? (
+                {visibleQueueRows.length > 0 ? (
                   <ul className='flex flex-col gap-1.5'>
-                    {/* The socket contract holds at most one queued clip per
-                        pillar, and `dj.onRemoveQueued` removes exactly that
-                        clip — so only the first row gets the remove action;
-                        any further rows (mock/legacy data) are display-only
-                        (Copilot review, PR #55). */}
-                    {visibleQueued.map((sample, sampleIndex) => (
+                    {/* A row with `onPlay` is the pending pick (WOW-007B):
+                        its remove isn't confirm-gated (dropping a local hold
+                        that was never emitted isn't destructive), unlike the
+                        backend-queued row. */}
+                    {visibleQueueRows.map((row) => (
                       <QueuedSampleRow
-                        key={sample.id}
-                        name={sample.name}
-                        tintHex={tokens.tintHex}
-                        onRemove={sampleIndex === 0 ? onRemoveQueued : undefined}
+                        key={row.id}
+                        name={row.name}
+                        tintHex={tokens?.tintHex ?? NEUTRAL_QUEUE_TINT_HEX}
+                        onPlay={row.onPlay}
+                        onRemove={row.onRemove}
+                        confirmRemove={!row.onPlay}
                       />
                     ))}
                   </ul>

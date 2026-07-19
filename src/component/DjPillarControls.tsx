@@ -6,11 +6,41 @@ type Props = {
   onStop?: () => void;
   /** Opens the pillar's sample-selection modal. */
   onSelectSample: () => void;
+  /**
+   * Mute toggle (WOW-007B). Rendered together with `onToggleMute` — the
+   * caller only supplies both when the pillar has a category (there's
+   * nothing to mute on an empty pillar).
+   */
+  muted?: boolean;
+  onToggleMute?: () => void;
 };
 
 const StopGlyph = (): JSX.Element => (
   <svg viewBox='0 0 20 20' className='h-5 w-5' fill='currentColor' aria-hidden='true'>
     <rect x={5} y={5} width={10} height={10} rx={1.5} />
+  </svg>
+);
+
+const SpeakerGlyph = ({ muted }: { muted: boolean }): JSX.Element => (
+  <svg
+    viewBox='0 0 24 24'
+    className='h-5 w-5'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth={2}
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    aria-hidden='true'
+  >
+    <path d='M3 9v6h4l6 5V4L7 9z' fill='currentColor' stroke='none' />
+    {muted ? (
+      <path d='M16.5 9.5l5 5M21.5 9.5l-5 5' />
+    ) : (
+      <>
+        <path d='M16 9.5a4 4 0 0 1 0 5' />
+        <path d='M18.5 7a7.5 7.5 0 0 1 0 10' />
+      </>
+    )}
   </svg>
 );
 
@@ -31,12 +61,19 @@ const SelectGlyph = (): JSX.Element => (
 
 /**
  * Per-pillar DJ controls (WOW-007B): stop the playing clip (confirm-gated —
- * stopping live audio is destructive, UX_UI_PRINCIPLES 2) and open the
- * sample-selection modal. DJ mode only; play mode renders no per-pillar
- * controls (human decision 2026-07-17). There is no pause or mute — the
- * socket contract has neither event (place/remove tag is the mechanism).
+ * stopping live audio is destructive, UX_UI_PRINCIPLES 2), mute/unmute (not
+ * confirm-gated — reversible, human-authorized volume-0 approach; see
+ * PillarCardContainer), and open the sample-selection modal. DJ mode only;
+ * play mode renders no per-pillar controls (human decision 2026-07-17).
+ * There is no pause — the socket contract has no such event (place/remove
+ * tag is the mechanism).
  */
-export const DjPillarControls = ({ onStop, onSelectSample }: Props): JSX.Element => {
+export const DjPillarControls = ({
+  onStop,
+  onSelectSample,
+  muted,
+  onToggleMute,
+}: Props): JSX.Element => {
   const stopConfirm = useConfirmTap(() => onStop?.());
 
   return (
@@ -55,6 +92,15 @@ export const DjPillarControls = ({ onStop, onSelectSample }: Props): JSX.Element
           }`}
         >
           <StopGlyph />
+        </IconButton>
+      )}
+      {onToggleMute && (
+        <IconButton
+          label={muted ? 'Unmute' : 'Mute'}
+          onClick={onToggleMute}
+          className={`h-11 w-11 shrink-0 ${muted ? 'text-amber-300' : ''}`}
+        >
+          <SpeakerGlyph muted={Boolean(muted)} />
         </IconButton>
       )}
       <IconButton label='Select sample' onClick={onSelectSample} className='h-11 w-11 shrink-0'>

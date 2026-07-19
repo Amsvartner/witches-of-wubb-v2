@@ -13,19 +13,39 @@ export type SelectableClip = {
   key?: string;
 };
 
+/**
+ * Where (if anywhere) a clip is currently live, per rfid — across every
+ * pillar (WOW-007B pending-pick queue). Drives both the disabled state and
+ * the Pillar column's hint text. Supplied by the container from
+ * playingClips/queuedClips/stoppingClips plus every pillar's local pending
+ * pick (`PlayModeContainer`'s `pendingPicks`).
+ */
+export type ActiveByRfid = Record<
+  string,
+  { pillarNumber: number; state: 'playing' | 'queued' | 'stopping' | 'pending' }
+>;
+
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** 1-based pillar number, for the title. */
+  /** 1-based pillar number, for the title and the pending-on-this-pillar
+   * enabled exception. */
   pillarNumber: number;
   /** Full clip catalogue, already sorted by name (DebugModal parity). */
   clips: SelectableClip[];
-  /** Places the clip on this pillar (emits the new-tag event) and closes. */
-  onPick: (rfid: string) => void;
+  /**
+   * Holds the clip as this pillar's pending pick and closes the modal
+   * (WOW-007B — no longer emits `/new/tag` directly; Play on the pending
+   * queue row is what actually emits it, see PillarCardContainer).
+   */
+  onPick: (clip: SelectableClip) => void;
+  /** Active/pending state for every catalogue rfid, across all 4 pillars. */
+  activeByRfid: ActiveByRfid;
 };
 
 type CategoryFilter = 'All' | ClipTypes;
-type SortMode = 'name' | 'bpm' | 'key';
+type SortColumn = 'name' | 'key' | 'bpm' | 'type' | 'pillar';
+type SortDirection = 'asc' | 'desc';
 
 const CATEGORY_ORDER: ClipTypes[] = [
   ClipTypes.Vox,
@@ -43,13 +63,34 @@ const CATEGORY_CHIP_LABEL: Record<ClipTypes, string> = {
   [ClipTypes.Drums]: 'Drums',
 };
 
-const SORT_OPTIONS: { mode: SortMode; label: string }[] = [
-  { mode: 'name', label: 'Name' },
-  { mode: 'bpm', label: 'BPM' },
-  { mode: 'key', label: 'Key' },
+/** Type-column sort order (per ticket: Vox/Melody/Bass/Drums). */
+const CATEGORY_SORT_ORDER: Record<ClipTypes, number> = {
+  [ClipTypes.Vox]: 0,
+  [ClipTypes.Melody]: 1,
+  [ClipTypes.Bass]: 2,
+  [ClipTypes.Drums]: 3,
+};
+
+const COLUMNS: { key: SortColumn; label: string }[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'key', label: 'Key' },
+  { key: 'bpm', label: 'BPM' },
+  { key: 'type', label: 'Type' },
+  { key: 'pillar', label: 'Pillar' },
 ];
 
-const DEFAULT_SORT_MODE: SortMode = 'name';
+const DEFAULT_SORT_COLUMN: SortColumn = 'name';
+const DEFAULT_SORT_DIRECTION: SortDirection = 'asc';
+
+/**
+ * Shared grid template so the header row and every data row line up. The
+ * leading 14px column is the category dot (headers render it empty) — keeping
+ * it inside the grid means the Name header aligns with the name text, not
+ * with the dot. Both the header wrapper and the scroll list reserve a stable
+ * scrollbar gutter (see below) so the scrollbar can't skew rows relative to
+ * the headers.
+ */
+const ROW_GRID_CLASS = 'grid grid-cols-[14px_minmax(0,1fr)_64px_64px_96px_80px] items-center gap-2';
 
 const matchesSearch = (clip: SelectableClip, query: string): boolean => {
   if (!query) return true;
@@ -73,82 +114,181 @@ const parseCamelotKey = (key: string): { position: number; letter: string } => (
   letter: (key.match(/[A-Za-z]/)?.[0] ?? '').toUpperCase(),
 });
 
-/**
- * Applies the active sort. Missing bpm/key clips always sort last. Sorts
- * against an already name-ordered copy first so ties within a sort group
- * (equal bpm, equal key, or the 'name' mode itself) stay stable by name —
- * `Array.prototype.sort` is spec-stable, so a comparator returning 0 for a
- * tie preserves that pre-existing order.
- */
-const sortClips = (list: SelectableClip[], mode: SortMode): SelectableClip[] => {
-  const nameSorted = [...list].sort(byName);
-  if (mode === 'name') return nameSorted;
-
-  if (mode === 'bpm') {
-    return nameSorted.sort((a, b) => {
-      if (a.bpm == null && b.bpm == null) return 0;
-      if (a.bpm == null) return 1;
-      if (b.bpm == null) return -1;
-      return a.bpm - b.bpm;
-    });
+/** Whether `clip` has a value for `column` — missing values always sort last
+ * (see `sortClips`), regardless of the active direction. */
+const hasColumnValue = (
+  clip: SelectableClip,
+  column: SortColumn,
+  activeByRfid: ActiveByRfid,
+): boolean => {
+  switch (column) {
+    case 'name':
+    case 'type':
+      return true;
+    case 'bpm':
+      return clip.bpm != null;
+    case 'key':
+      return Boolean(clip.key);
+    case 'pillar':
+      return activeByRfid[clip.rfid] != null;
   }
-
-  return nameSorted.sort((a, b) => {
-    if (!a.key && !b.key) return 0;
-    if (!a.key) return 1;
-    if (!b.key) return -1;
-    const keyA = parseCamelotKey(a.key);
-    const keyB = parseCamelotKey(b.key);
-    if (keyA.position !== keyB.position) return keyA.position - keyB.position;
-    return keyA.letter.localeCompare(keyB.letter);
-  });
 };
 
-/** Right-aligned row metadata, e.g. "128 · 4A". Omits missing fields. */
-const metaLabel = (clip: SelectableClip): string =>
-  [clip.bpm != null ? String(clip.bpm) : null, clip.key || null].filter(Boolean).join(' · ');
+/**
+ * Ascending comparator for one column. Only ever called between two clips
+ * that both `hasColumnValue` for `column` — missing values are filtered out
+ * to the end before this runs, so the non-null assertions below are safe.
+ */
+const compareByColumn = (
+  a: SelectableClip,
+  b: SelectableClip,
+  column: SortColumn,
+  activeByRfid: ActiveByRfid,
+): number => {
+  switch (column) {
+    case 'name':
+      return byName(a, b);
+    case 'bpm':
+      return (a.bpm as number) - (b.bpm as number);
+    case 'key': {
+      const keyA = parseCamelotKey(a.key as string);
+      const keyB = parseCamelotKey(b.key as string);
+      if (keyA.position !== keyB.position) return keyA.position - keyB.position;
+      return keyA.letter.localeCompare(keyB.letter);
+    }
+    case 'type':
+      return CATEGORY_SORT_ORDER[a.type] - CATEGORY_SORT_ORDER[b.type];
+    case 'pillar':
+      return (
+        (activeByRfid[a.rfid] as { pillarNumber: number }).pillarNumber -
+        (activeByRfid[b.rfid] as { pillarNumber: number }).pillarNumber
+      );
+  }
+};
+
+/**
+ * Applies the active column sort. Missing values (no bpm/key, or not active
+ * on any pillar for the Pillar column) always sort last, regardless of
+ * direction. Sorts against an already name-ordered copy first so ties within
+ * a sort group stay stable by name — `Array.prototype.sort` is spec-stable.
+ */
+const sortClips = (
+  list: SelectableClip[],
+  column: SortColumn,
+  direction: SortDirection,
+  activeByRfid: ActiveByRfid,
+): SelectableClip[] => {
+  const nameSorted = [...list].sort(byName);
+  const present = nameSorted.filter((clip) => hasColumnValue(clip, column, activeByRfid));
+  const missing = nameSorted.filter((clip) => !hasColumnValue(clip, column, activeByRfid));
+
+  const sortedPresent = [...present].sort((a, b) => {
+    const ascending = compareByColumn(a, b, column, activeByRfid);
+    return direction === 'asc' ? ascending : -ascending;
+  });
+
+  return [...sortedPresent, ...missing];
+};
+
+/** `P{n}`, with a short state hint for anything but 'playing'; `—` when the
+ * clip isn't active anywhere. */
+const pillarCellText = (clip: SelectableClip, activeByRfid: ActiveByRfid): string => {
+  const active = activeByRfid[clip.rfid];
+  if (!active) return '—';
+  const base = `P${active.pillarNumber}`;
+  switch (active.state) {
+    case 'playing':
+      return base;
+    case 'queued':
+      return `${base} ·q`;
+    case 'stopping':
+      return `${base} ·s`;
+    case 'pending':
+      return `${base} ·hold`;
+  }
+};
+
+/**
+ * A tag can only ever be on one pillar, and re-picking an active clip has
+ * undefined backend behaviour, so every active row is disabled — except a
+ * clip that's pending ON THIS SAME pillar (re-picking it is a harmless
+ * replace-with-itself).
+ */
+const isRowDisabled = (
+  clip: SelectableClip,
+  activeByRfid: ActiveByRfid,
+  pillarNumber: number,
+): boolean => {
+  const active = activeByRfid[clip.rfid];
+  if (!active) return false;
+  return !(active.state === 'pending' && active.pillarNumber === pillarNumber);
+};
 
 /**
  * DJ-mode sample picker (WOW-007B) — the old debug modal's per-pillar clip
- * list in grimoire styling: every catalogue clip, tap to place it on the
- * pillar (the same simulated-tag event the debug modal emitted). Placing is
- * additive, not destructive, so no confirm gate (UX_UI_PRINCIPLES 2 applies
- * to stop/remove, which live on the pillar card).
+ * list in grimoire styling: tap a clip to hold it as this pillar's pending
+ * pick (an explicit Play on the pillar card's queue row is what actually
+ * emits the tag event — see PillarCardContainer). Holding is additive/
+ * reversible, not destructive, so no confirm gate (UX_UI_PRINCIPLES 2
+ * applies to stop/remove, which live on the pillar card).
  *
- * WOW-007B search/filter/sort (DESIGN_PROPOSAL_001 §6.2, scoped): search by
- * name/artist/song title, category chips, and a Name/BPM/Key sort — still
- * single tap-to-pick, no multi-select. Search/filter/sort state resets
- * whenever `open` transitions, so a DJ opening a different pillar's (or the
- * same pillar's, next time) picker never inherits a stale search.
+ * WOW-007B rework: sortable column headers (Name/Key/BPM/Type/Pillar,
+ * click-to-toggle ascending/descending) replace the old segmented Name/BPM/
+ * Key control; rows show every column and disable clips already active on
+ * any pillar. Search/filter/sort state resets whenever `open` transitions, so
+ * a DJ opening a different pillar's (or the same pillar's, next time) picker
+ * never inherits a stale search.
  */
-export const SampleModal = ({ open, onClose, pillarNumber, clips, onPick }: Props): JSX.Element => {
+export const SampleModal = ({
+  open,
+  onClose,
+  pillarNumber,
+  clips,
+  onPick,
+  activeByRfid,
+}: Props): JSX.Element => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<CategoryFilter>('All');
-  const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT_MODE);
+  const [sortColumn, setSortColumn] = useState<SortColumn>(DEFAULT_SORT_COLUMN);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(DEFAULT_SORT_DIRECTION);
 
   useEffect(() => {
     setSearch('');
     setCategory('All');
-    setSortMode(DEFAULT_SORT_MODE);
+    setSortColumn(DEFAULT_SORT_COLUMN);
+    setSortDirection(DEFAULT_SORT_DIRECTION);
   }, [open]);
 
   const filteredClips = useMemo(
     () => clips.filter((clip) => matchesSearch(clip, search) && matchesCategory(clip, category)),
     [clips, search, category],
   );
-  const visibleClips = useMemo(() => sortClips(filteredClips, sortMode), [filteredClips, sortMode]);
+  const visibleClips = useMemo(
+    () => sortClips(filteredClips, sortColumn, sortDirection, activeByRfid),
+    [filteredClips, sortColumn, sortDirection, activeByRfid],
+  );
 
   const resetFilters = (): void => {
     setSearch('');
     setCategory('All');
-    setSortMode(DEFAULT_SORT_MODE);
+    setSortColumn(DEFAULT_SORT_COLUMN);
+    setSortDirection(DEFAULT_SORT_DIRECTION);
+  };
+
+  const handleHeaderClick = (column: SortColumn): void => {
+    if (column === sortColumn) {
+      setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortColumn(column);
+    setSortDirection('asc');
   };
 
   return (
     <Dialog open={open} onClose={onClose} className='relative z-50'>
       <div className='fixed inset-0 bg-[#0b0910]/95' aria-hidden='true' />
       <div className='fixed inset-0 flex items-center justify-center p-6'>
-        <Dialog.Panel className='flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl border border-gold-line/40 bg-ink-panel p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]'>
+        <Dialog.Panel className='flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl border border-gold-line/40 bg-ink-panel p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]'>
           <Dialog.Title className='font-display text-2xl tracking-[0.14em] text-gold-bright'>
             Pillar {pillarNumber} — Select sample
           </Dialog.Title>
@@ -210,30 +350,39 @@ export const SampleModal = ({ open, onClose, pillarNumber, clips, onPick }: Prop
               })}
             </div>
 
-            <div className='flex items-center justify-between gap-3'>
-              <span className='font-data text-xs uppercase tracking-[0.14em] text-parchment/60'>
-                Sort
-              </span>
-              <div className='flex overflow-hidden rounded-lg border border-gold-line/40'>
-                {SORT_OPTIONS.map(({ mode, label }) => (
-                  <button
-                    key={mode}
-                    type='button'
-                    aria-pressed={sortMode === mode}
-                    onClick={() => setSortMode(mode)}
-                    className={`min-h-[44px] min-w-[44px] px-4 font-data text-xs tracking-wide ${
-                      sortMode === mode
-                        ? 'bg-gold-line/70 text-ink-deep'
-                        : 'bg-ink-btn text-parchment/90'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <p className='font-data text-xs text-parchment/60'>{visibleClips.length} samples</p>
+
+            {/* overflow-y-auto + the same stable scrollbar-gutter as the list
+                below: the header never scrolls, but reserving the identical
+                gutter width keeps its grid exactly as wide as the rows'. */}
+            <div className={`${ROW_GRID_CLASS} overflow-y-auto px-2 [scrollbar-gutter:stable]`}>
+              <span aria-hidden='true' />
+              {COLUMNS.map((column) => {
+                const isActive = sortColumn === column.key;
+                const ariaSort = isActive
+                  ? sortDirection === 'asc'
+                    ? 'ascending'
+                    : 'descending'
+                  : 'none';
+                return (
+                  <button
+                    key={column.key}
+                    type='button'
+                    role='columnheader'
+                    aria-sort={ariaSort}
+                    onClick={() => handleHeaderClick(column.key)}
+                    className={`flex min-h-[44px] items-center gap-1 font-data text-xs uppercase tracking-[0.14em] ${
+                      column.key === 'name' ? 'justify-start' : 'justify-center'
+                    } ${isActive ? 'text-gold-bright' : 'text-parchment/60'}`}
+                  >
+                    {column.label}
+                    {isActive && (
+                      <span aria-hidden='true'>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {visibleClips.length === 0 ? (
@@ -248,38 +397,44 @@ export const SampleModal = ({ open, onClose, pillarNumber, clips, onPick }: Prop
               </button>
             </div>
           ) : (
-            <ul className='mt-1 min-h-0 flex-1 overflow-y-auto pr-1'>
+            <ul className='mt-1 min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]'>
               {visibleClips.map((clip) => {
                 const tokens = CategoryTheme.forType(clip.type);
-                const meta = metaLabel(clip);
+                const disabled = isRowDisabled(clip, activeByRfid, pillarNumber);
+                const pillarText = pillarCellText(clip, activeByRfid);
                 return (
                   <li key={clip.rfid}>
                     <button
                       type='button'
-                      onClick={() => onPick(clip.rfid)}
-                      className='flex min-h-[44px] w-full items-center gap-3 rounded-lg px-2 text-left hover:bg-ink-btn focus-visible:bg-ink-btn'
+                      disabled={disabled}
+                      onClick={() => onPick(clip)}
+                      className={`${ROW_GRID_CLASS} min-h-[44px] w-full rounded-lg px-2 text-left hover:bg-ink-btn focus-visible:bg-ink-btn disabled:opacity-60 disabled:hover:bg-transparent`}
                     >
                       <span
                         style={{
                           backgroundColor: tokens.fillHex,
                           boxShadow: `0 0 6px ${tokens.fillHex}aa`,
                         }}
-                        className='h-2.5 w-2.5 shrink-0 rounded-full'
+                        className='h-2.5 w-2.5 justify-self-center rounded-full'
                         aria-hidden='true'
                       />
-                      <span className='flex-1 truncate font-data text-[15px] text-parchment/90'>
+                      <span className='truncate font-data text-[15px] text-parchment/90'>
                         {clip.clipName}
                       </span>
-                      <span className='flex flex-col items-end gap-0.5'>
-                        {meta && (
-                          <span className='font-number text-xs text-parchment/60'>{meta}</span>
-                        )}
-                        <span
-                          style={{ color: tokens.tintHex }}
-                          className='font-data text-xs uppercase tracking-[0.14em]'
-                        >
-                          {tokens.label}
-                        </span>
+                      <span className='text-center font-number text-xs text-parchment/70'>
+                        {clip.key ?? '—'}
+                      </span>
+                      <span className='text-center font-number text-xs text-parchment/70'>
+                        {clip.bpm ?? '—'}
+                      </span>
+                      <span
+                        style={{ color: tokens.tintHex }}
+                        className='text-center font-data text-[11px] uppercase tracking-[0.1em]'
+                      >
+                        {tokens.label}
+                      </span>
+                      <span className='text-center font-data text-xs text-parchment/70'>
+                        {pillarText}
                       </span>
                     </button>
                   </li>

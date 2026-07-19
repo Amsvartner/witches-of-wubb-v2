@@ -17,4 +17,23 @@ describe('ClipDatabaseUtil (real Music Database.csv, read-only)', () => {
     const sample = ClipDatabaseUtil.clipNameToInfoMap[names[0]];
     expect(sample.rfid).toBeTruthy();
   });
+
+  it('enriches the RFID map with numeric BPM from the CSV BPM column (WOW-007B)', () => {
+    // CsvUtil.parseCsv never maps BPM (backend parser is contract-frozen);
+    // ClipDatabaseUtil enriches its own entries from the raw rows instead.
+    const entries = Object.values(ClipDatabaseUtil.rfidToClipMap);
+    const withBpm = entries.filter((entry) => typeof entry.bpm === 'number');
+
+    // The real CSV carries BPM for the overwhelming majority of rows — if the
+    // enrichment regresses, this collapses to zero.
+    expect(withBpm.length).toBeGreaterThan(entries.length / 2);
+    withBpm.forEach((entry) => {
+      expect(entry.bpm).toBeGreaterThan(0);
+      expect(Number.isFinite(entry.bpm)).toBe(true);
+    });
+
+    // Spot-check a known row: "Mizbiz vox 3B 86" is BPM 86 in the CSV.
+    const mizbiz = entries.find((entry) => entry.clipName === 'Mizbiz vox 3B 86');
+    expect(mizbiz?.bpm).toBe(86);
+  });
 });

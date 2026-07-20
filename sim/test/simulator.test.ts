@@ -3,6 +3,7 @@ import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ClipTypes,
+  MIN_IDLE_TIMEOUT_MS,
   MusicDatabase,
   SimEmittedEvent,
   Simulator,
@@ -417,6 +418,138 @@ describe('Simulator', () => {
       events = [];
       vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS - 1000);
       expect(eventNames()).not.toContain('timeout_warning');
+    });
+  });
+
+  // WOW-007C: cauldron drum-rack sample trigger — deterministic sim clip name
+  // (no Live set to pick a random clip from), fire-and-forget contract.
+  describe('cauldron sample', () => {
+    it('trigger_cauldron_sample emits cauldron_sample_triggered with a deterministic clip name', () => {
+      simulator.triggerCauldronSample();
+      expect(lastEvent('cauldron_sample_triggered')?.data).toEqual({ clipName: 'Sim Drum Hit' });
+    });
+
+    it('emitting cauldron_sample_triggered resets the idle timeout (counts as activity)', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS - 1000);
+      simulator.triggerCauldronSample();
+      events = [];
+      vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS - 1000);
+      expect(eventNames()).not.toContain('timeout_warning');
+    });
+  });
+
+  // WOW-007C: cauldron (drum-rack track) loudness — independent of pillar
+  // volumes, same 0.6 default and [0, 0.7] ceiling as the backend.
+  describe('cauldron volume', () => {
+    it('defaults to 0.6', () => {
+      expect(simulator.getCauldronVolume()).toBe(0.6);
+    });
+
+    it('set_cauldron_volume updates state and emits cauldron_volume_changed', () => {
+      simulator.setCauldronVolume({ volume: 0.35 });
+      expect(simulator.getCauldronVolume()).toBeCloseTo(0.35);
+      expect(lastEvent('cauldron_volume_changed')?.data).toEqual({ volume: 0.35 });
+    });
+
+    it('clamps to the [0, 0.7] ceiling, same as pillar volumes', () => {
+      simulator.setCauldronVolume({ volume: 5 });
+      expect(simulator.getCauldronVolume()).toBeCloseTo(0.7);
+      expect(lastEvent('cauldron_volume_changed')?.data).toEqual({ volume: 0.7 });
+
+      simulator.setCauldronVolume({ volume: -5 });
+      expect(simulator.getCauldronVolume()).toBe(0);
+    });
+  });
+
+  // WOW-007C: runtime-configurable idle-timeout ("pause music"/attractor
+  // handover), mirroring get_idle_timeout/set_idle_timeout.
+  describe('idle timeout config', () => {
+    it('defaults to enabled, 3 minutes', () => {
+      expect(simulator.getIdleTimeoutConfig()).toEqual({
+        enabled: true,
+        timeoutMs: TIMEOUT_IN_MILISECONDS,
+      });
+    });
+
+    it('accepts a valid config and broadcasts idle_timeout_changed (without resetting the timeout)', () => {
+      const result = simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 });
+      expect(result).toEqual({ enabled: true, timeoutMs: 60_000 });
+      expect(simulator.getIdleTimeoutConfig()).toEqual({ enabled: true, timeoutMs: 60_000 });
+      expect(lastEvent('idle_timeout_changed')?.data).toEqual({ enabled: true, timeoutMs: 60_000 });
+    });
+
+    it('a new timeoutMs takes effect immediately for the next timeout', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      events = [];
+
+      // MIN_IDLE_TIMEOUT_MS (30s) is the shortest allowed value.
+      simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: MIN_IDLE_TIMEOUT_MS });
+      events = [];
+      vi.advanceTimersByTime(MIN_IDLE_TIMEOUT_MS);
+      expect(eventNames()).toContain('clip_stopped');
+    });
+
+    it('disabling clears the running timers — no timeout_warning or timeout fires', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      simulator.setIdleTimeoutConfig({ enabled: false, timeoutMs: 60_000 });
+      events = [];
+
+      vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS * 2);
+      expect(events).toEqual([]);
+      expect(simulator.getPlayingClips()[drums.pillar]).not.toBeNull();
+    });
+
+    it.each([
+      ['below the 30s minimum', 29_999],
+      ['above the 60min maximum', 60 * 60 * 1000 + 1],
+      ['non-integer', 60_000.5],
+    ])(
+      'ignores an out-of-bounds timeoutMs (%s), leaving config unchanged',
+      (_label, badTimeoutMs) => {
+        const before = simulator.getIdleTimeoutConfig();
+
+        const result = simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: badTimeoutMs });
+
+        expect(result).toEqual(before);
+        expect(simulator.getIdleTimeoutConfig()).toEqual(before);
+      },
+    );
+
+    it('accepts the exact bounds (30s and 60min)', () => {
+      expect(simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: 30_000 })).toEqual({
+        enabled: true,
+        timeoutMs: 30_000,
+      });
+      expect(simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60 * 60 * 1000 })).toEqual({
+        enabled: true,
+        timeoutMs: 60 * 60 * 1000,
+      });
+    });
+  });
+
+  // WOW-007C (human request): a pillar's explicitly-set volume survives the
+  // next clip that starts there, instead of always resetting to 0.6.
+  describe('desired volume respected at clip start', () => {
+    it('a pillar with no explicit volume still gets the 0.6 fallback on clip start', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      expect(lastEvent('volume_changed')?.data).toEqual({ pillar: drums.pillar, volume: 0.6 });
+    });
+
+    it('a volume set before anything plays on that pillar is restored when a clip starts there', () => {
+      simulator.setTrackVolume({ pillar: drums.pillar, volume: 0.3 });
+      events = [];
+
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      expect(lastEvent('volume_changed')?.data).toEqual({ pillar: drums.pillar, volume: 0.3 });
+    });
+
+    it('other pillars keep their own 0.6 fallback after only one pillar has an explicit volume', () => {
+      simulator.setTrackVolume({ pillar: drums.pillar, volume: 0.2 });
+      events = [];
+
+      simulator.handleNewTag({ rfid: melody.rfid, pillar: melody.pillar });
+      expect(lastEvent('volume_changed')?.data).toEqual({ pillar: melody.pillar, volume: 0.6 });
     });
   });
 });

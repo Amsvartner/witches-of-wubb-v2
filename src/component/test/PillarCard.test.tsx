@@ -55,10 +55,22 @@ describe('PillarCard', () => {
       expect(queryByRole('slider')).not.toBeInTheDocument();
     });
 
-    it('does not render a volume slider for an empty pillar, even with a handler', () => {
-      const { queryByRole } = render(
+    // WOW-007C: VolumeTube no longer gates interactivity on `assetSlug` — an
+    // empty pillar's volume becomes interactive too, once given a handler
+    // (DJ mode pre-setting a pillar's level before anything's placed there).
+    // PillarCard itself has no notion of play/DJ mode; PillarCardContainer is
+    // what decides whether an empty pillar's handler is actually supplied
+    // (only in DJ mode — see PillarCardContainer.test.tsx).
+    it('renders the volume slider for an empty pillar too, when a handler is supplied', () => {
+      const { getByRole } = render(
         <PillarCard pillar={emptyPillar} onVolumePercentChange={vi.fn()} />,
       );
+      const slider = getByRole('slider', { name: 'Volume' });
+      expect(slider).toHaveAttribute('aria-valuenow', '0');
+    });
+
+    it('does not render a volume slider for an empty pillar without a handler (display-only)', () => {
+      const { queryByRole } = render(<PillarCard pillar={emptyPillar} />);
       expect(queryByRole('slider')).not.toBeInTheDocument();
     });
 

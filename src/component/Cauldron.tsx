@@ -3,6 +3,12 @@ import { useState } from 'react';
 type Props = {
   /** Global animations switch (Settings kill-switch); fully static when false. */
   animated?: boolean;
+  /**
+   * WOW-007C: fires a random cauldron drum-rack sample on tap/click, in
+   * addition to the existing ring animation. Absent = ring-only (tests,
+   * display-only renders).
+   */
+  onTrigger?: () => void;
 };
 
 // Rising plume blobs: desynced via per-blob offset/size/timing (deterministic).
@@ -26,7 +32,7 @@ const BLOBS = [
  * transform/opacity-only (compositor-cheap), gated behind `motion-safe`
  * (§7.4 reduced-motion) and the Settings animations kill-switch.
  */
-export const Cauldron = ({ animated = true }: Props): JSX.Element => {
+export const Cauldron = ({ animated = true, onTrigger }: Props): JSX.Element => {
   const [ringKey, setRingKey] = useState(0);
   const [ringVisible, setRingVisible] = useState(false);
 
@@ -43,6 +49,11 @@ export const Cauldron = ({ animated = true }: Props): JSX.Element => {
     setRingVisible(true);
   };
 
+  const handleClick = (): void => {
+    spawnRing();
+    onTrigger?.();
+  };
+
   return (
     <div className='relative flex items-end justify-center'>
       <div
@@ -56,7 +67,7 @@ export const Cauldron = ({ animated = true }: Props): JSX.Element => {
       <button
         type='button'
         aria-label='Cauldron'
-        onClick={spawnRing}
+        onClick={handleClick}
         className={`relative block w-full select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-bright ${
           animated ? 'motion-safe:animate-cauldron-float' : ''
         }`}

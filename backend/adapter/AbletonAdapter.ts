@@ -4,6 +4,7 @@ import * as path from 'path';
 import { execFileSync } from 'child_process';
 import { Ableton } from 'ableton-js';
 import { Track } from 'ableton-js/ns/track';
+import { Clip } from 'ableton-js/ns/clip';
 import { DeviceParameter } from 'ableton-js/ns/device-parameter';
 import * as socketio from 'socket.io';
 import * as nodeOSC from 'node-osc';
@@ -17,6 +18,7 @@ import { ClipInfo } from '../type/ClipInfo';
 import { ClipList } from '../type/ClipList';
 import { ClipMetadataType } from '../type/ClipMetadataType';
 import { ClipTypes } from '../type/ClipTypes';
+import { IdleTimeoutConfigType } from '../type/IdleTimeoutConfigType';
 import { Maybe } from '../type/Maybe';
 import { WarpMarker } from '../type/WarpMarker';
 
@@ -27,8 +29,41 @@ import { KeyTranspositionService } from '../service/KeyTranspositionService';
 
 let oscServer: nodeOSC.Server;
 const sockets: socketio.Socket[] = [];
-const TIMEOUT_IN_MILLISECONDS = 60 * 3 * 1000; // three minutes
+// WOW-007C: the fixed 3-minute const became a runtime-configurable pair
+// (`get_idle_timeout`/`set_idle_timeout`), so the DJ can tune or disable the
+// idle handover to the Live-set attractor ("Wicked Casting" - see
+// docs/ABLETON_INTEGRATION.md) without a redeploy. Same three-minute default
+// as before; TIMEOUT_WARNING_IN_MILLISECONDS is unchanged and un-configurable
+// (only the overall timeout is exposed).
+let idleTimeoutMs = 60 * 3 * 1000; // three minutes
+let idleTimeoutEnabled = true;
 const TIMEOUT_WARNING_IN_MILLISECONDS = 30 * 1000; // thirty seconds
+const MIN_IDLE_TIMEOUT_MS = 30 * 1000; // thirty seconds
+const MAX_IDLE_TIMEOUT_MS = 60 * 60 * 1000; // one hour
+
+// WOW-007C: the drum-rack "cauldron sample" track, after the four pillar
+// tracks (0-3). `Number(undefined)` is NaN, so an unset env var fails the
+// integer/non-negative check below exactly like a garbage value - both
+// disable the feature cleanly rather than crashing startup.
+const DRUM_RACK_TRACK_INDEX = Number(process.env.DRUM_RACK_TRACK_INDEX);
+const isDrumRackTrackIndexValid =
+  Number.isInteger(DRUM_RACK_TRACK_INDEX) && DRUM_RACK_TRACK_INDEX >= 0;
+if (!isDrumRackTrackIndexValid) {
+  Logger.warn(
+    `DRUM_RACK_TRACK_INDEX env var is missing or invalid ("${process.env.DRUM_RACK_TRACK_INDEX}") - cauldron sample/volume features disabled. Set it in .env to the drum-rack track's 0-based index.`,
+  );
+}
+
+// Same ceiling the frontend already enforces for pillar volume sliders
+// (VOLUME_MAX in src/container/PillarCardContainer.tsx / PillarViewUtil.ts) -
+// applied here too so an out-of-range value from any caller (UI bug, stale
+// client, malformed socket payload) can't push a track louder than the
+// installation's own volume ceiling (AGENTS.md "Volume" safety rule).
+const PILLAR_VOLUME_CEILING = 0.7;
+function clampVolume(volume: number): number {
+  if (!Number.isFinite(volume)) return 0;
+  return Math.min(PILLAR_VOLUME_CEILING, Math.max(0, volume));
+}
 
 // WOW-032: bounded startup connection timeout + remote-script version diagnostics.
 const ABLETON_START_TIMEOUT_MS = Number(process.env.ABLETON_START_TIMEOUT_MS) || 45000;
@@ -52,8 +87,17 @@ const RESTORE_PORT_FILE_SCRIPT = path.join(
 let timeoutId: NodeJS.Timeout;
 let timeoutWarningId: NodeJS.Timeout;
 let allAbletonClips: ClipBoard;
-let tracks: Track[];
-let trackVolumes: Array<DeviceParameter>;
+// Reassigned in place (tracks.length = 0; tracks.push(...)) rather than
+// wholesale (`tracks = ...`) so the AbletonAdapter.tracks getter's returned
+// reference stays live for external mutation - the same "getter returns the
+// mutable array" seam trackVolumes already uses, which lets tests inject fake
+// Track objects without a live Ableton connection (see
+// backend/adapter/test/AbletonAdapter.test.ts).
+const tracks: Track[] = [];
+// Same "getter returns the mutable array" seam as `tracks` above - see there
+// for why (backend/adapter/test/AbletonAdapter.test.ts pushes fake
+// DeviceParameters into this directly).
+const trackVolumes: Array<DeviceParameter> = [];
 let phraseLeader: Maybe<ClipInfo>;
 let cleanUpPhraseLeaderEventListener: (() => Promise<unknown>) | undefined;
 
@@ -62,6 +106,22 @@ let masterKey = '';
 const stoppingClips: ClipList = [];
 const playingClips: ClipList = [];
 const queuedClips: ClipList = [];
+
+// WOW-007C ("trigger random drum rack sample", ported from upstream
+// j-pollack/witches-of-wubb commit 633d67a with fixes - see PR description):
+// cache of the drum-rack track's non-null clips, refetched lazily by
+// triggerRandomDrumSample when empty/stale. null = never fetched;
+// [] = fetched but empty (or the feature is disabled).
+let drumRackClips: Clip[] | null = null;
+// Lazily-fetched, cached DeviceParameter for the drum-rack track's volume -
+// mirrors trackVolumes' shape but for the single non-pillar cauldron track.
+let cauldronVolumeParam: DeviceParameter | undefined;
+
+// WOW-007C (human request): the last volume a caller explicitly asked for on
+// each pillar, so a new clip starting on that pillar restores it instead of
+// always slamming the pre-existing hardcoded 0.6 (see resolveClipStartVolume
+// and the playing_slot_index listener below). null = never explicitly set.
+const desiredVolumes: (number | null)[] = [null, null, null, null];
 
 const ableton = new Ableton({ logger: Logger });
 
@@ -192,6 +252,13 @@ async function startAbleton() {
   await logConnectedRemoteScriptVersion();
   await getTracksAndClips();
   await getTrackVolumes();
+  // WOW-007C: loaded after getTracksAndClips so `tracks` is already
+  // populated; never fatal to startup (own try/catch, warns and disables
+  // cleanly) - a missing/misconfigured drum-rack track shouldn't block the
+  // rest of the installation from starting.
+  await getDrumRackClips().catch((err) =>
+    Logger.error(err, 'Error fetching drum-rack clips at startup'),
+  );
 }
 
 async function handleTimeout() {
@@ -247,6 +314,12 @@ async function stopAllClipsBestEffort() {
 }
 
 function startTimeoutTimer() {
+  // WOW-007C: disabling the idle timeout (`set_idle_timeout`) means spells
+  // loop indefinitely and the Live-set attractor never engages - arm nothing.
+  if (!idleTimeoutEnabled) {
+    Logger.info('Idle timeout disabled - not arming timers');
+    return;
+  }
   Logger.info('Starting timeout timer');
   function shouldShowTimeout() {
     return (
@@ -259,20 +332,51 @@ function startTimeoutTimer() {
       Logger.warn('Timeout warning');
       OutgoingEvents.emitEventWithoutResettingTimeout('timeout_warning');
     }
-  }, TIMEOUT_IN_MILLISECONDS - TIMEOUT_WARNING_IN_MILLISECONDS);
+  }, idleTimeoutMs - TIMEOUT_WARNING_IN_MILLISECONDS);
   timeoutId = setTimeout(() => {
     if (shouldShowTimeout()) {
       Logger.warn('Timeout exceeded, restarting the UI');
       handleTimeout().catch((err) => Logger.error(err, 'Error handling idle timeout'));
     }
-  }, TIMEOUT_IN_MILLISECONDS);
+  }, idleTimeoutMs);
 }
 
 function restartTimeoutTimer() {
   Logger.warn('Restarting timeout timer');
+  // Always clear first, even when now-disabled: startTimeoutTimer's early
+  // return above only skips arming *new* timers, it doesn't clear stale ones.
   clearTimeout(timeoutId);
   clearTimeout(timeoutWarningId);
   startTimeoutTimer();
+}
+
+function getIdleTimeoutConfig(): IdleTimeoutConfigType {
+  return { enabled: idleTimeoutEnabled, timeoutMs: idleTimeoutMs };
+}
+
+// Validates and applies a new idle-timeout config, then re-arms (or clears)
+// the running timers immediately so a change takes effect without waiting
+// for the next activity event. Invalid timeoutMs is ignored (warn + no
+// change) rather than falling back to a guessed default - same "no
+// surprises" posture as setTempo's NaN guard (WOW-020).
+function setIdleTimeoutConfig(config: IdleTimeoutConfigType): IdleTimeoutConfigType {
+  const { enabled, timeoutMs } = config;
+  if (
+    !Number.isInteger(timeoutMs) ||
+    timeoutMs < MIN_IDLE_TIMEOUT_MS ||
+    timeoutMs > MAX_IDLE_TIMEOUT_MS
+  ) {
+    Logger.warn(
+      `Ignoring setIdleTimeoutConfig: timeoutMs ${timeoutMs} must be an integer in [${MIN_IDLE_TIMEOUT_MS}, ${MAX_IDLE_TIMEOUT_MS}]`,
+    );
+    return getIdleTimeoutConfig();
+  }
+  idleTimeoutEnabled = Boolean(enabled);
+  idleTimeoutMs = timeoutMs;
+  Logger.info(`Idle timeout config: enabled=${idleTimeoutEnabled} timeoutMs=${idleTimeoutMs}`);
+  restartTimeoutTimer();
+  OutgoingEvents.emitEventWithoutResettingTimeout('idle_timeout_changed', getIdleTimeoutConfig());
+  return getIdleTimeoutConfig();
 }
 
 function connectOscServer(server: nodeOSC.Server) {
@@ -509,7 +613,12 @@ const getTracksAndClips = async () => {
   FindAllClipsInLoop.cache.clear?.();
   // 2-D array of all the clips, ordered by Track
   allAbletonClips = [];
-  tracks = await ableton.song.get('tracks');
+  const fetchedTracks = await ableton.song.get('tracks');
+  // Mutate in place (not `tracks = fetchedTracks`) so the AbletonAdapter.tracks
+  // getter's returned reference stays live - see the `const tracks` declaration
+  // above (never reassigned, only mutated - that's why it's `const`).
+  tracks.length = 0;
+  tracks.push(...fetchedTracks);
 
   for (let pillar = 0; pillar < 4; pillar++) {
     const track = tracks[pillar];
@@ -565,7 +674,7 @@ const getTracksAndClips = async () => {
                 OutgoingEvents.emitEventWithoutResettingTimeout('clip_playing', browserInfo);
               } else {
                 OutgoingEvents.emitEvent('clip_started', browserInfo);
-                setTrackVolume(pillar, 0.6).catch((err) =>
+                setTrackVolume(pillar, resolveClipStartVolume(pillar)).catch((err) =>
                   Logger.error(err, `Error setting track volume on pillar ${pillar + 1}`),
                 );
               }
@@ -652,7 +761,10 @@ function setTempo(tempo: number) {
 
 async function getTrackVolumes() {
   Logger.info('Getting track volumes');
-  trackVolumes = [];
+  // Mutate in place (not `trackVolumes = []`) so the AbletonAdapter.trackVolumes
+  // getter's returned reference stays live - see the `const trackVolumes`
+  // declaration above (never reassigned, only mutated - that's why it's `const`).
+  trackVolumes.length = 0;
   for (const track of tracks.slice(0, 4)) {
     const mixerDevice = await track.get('mixer_device');
     const deviceParameter = await mixerDevice.sendCommand('get_volume');
@@ -666,11 +778,152 @@ async function getTrackVolumes() {
 }
 
 async function setTrackVolume(pillar: number, volume: number) {
-  Logger.info(`Setting volume for pillar ${pillar + 1} to ${volume}`);
+  const clampedVolume = clampVolume(volume);
+  Logger.info(`Setting volume for pillar ${pillar + 1} to ${clampedVolume}`);
   if (!trackVolumes?.length) await getTrackVolumes();
   const trackVolume = trackVolumes[pillar];
-  await trackVolume?.set('value', volume);
-  OutgoingEvents.emitEvent('volume_changed', { pillar, volume });
+  await trackVolume?.set('value', clampedVolume);
+  // WOW-007C (human request): remember what was explicitly asked for on this
+  // pillar so the next clip that starts here restores it instead of the
+  // hardcoded 0.6 - see resolveClipStartVolume.
+  desiredVolumes[pillar] = clampedVolume;
+  OutgoingEvents.emitEvent('volume_changed', { pillar, volume: clampedVolume });
+}
+
+// WOW-007C: small, pure/parameterized seam (same pattern as
+// calculateBpmFromWarpMarkers) so the clip-start volume fallback is testable
+// without exercising the whole playing_slot_index listener. 0.6 is the
+// original hardcoded default, now only used until a pillar's volume has ever
+// been explicitly set.
+function resolveClipStartVolume(pillar: number): number {
+  return desiredVolumes[pillar] ?? 0.6;
+}
+
+// --- WOW-007C: cauldron drum-rack sample + volume -------------------------
+// Ported from upstream j-pollack/witches-of-wubb commit 633d67a ("trigger
+// random drum rack sample"), reimplemented in this repo's conventions and
+// fixing the upstream issues found in review: an unhandled async rejection
+// (every path here is try/catch-wrapped, WOW-014 style), a cache that was
+// never invalidated on a stale/failed fire (refetched below), emitting
+// before the clip actually fired (fire-then-emit ordering below), an
+// unvalidated NaN env var (isDrumRackTrackIndexValid above), and no
+// connection/track-presence guard (checked on every entry point here).
+
+// Fetches and caches the drum-rack track's non-null clips. Called once at
+// startup (after getTracksAndClips, so `tracks` is populated) and again,
+// lazily, by triggerRandomDrumSample whenever the cache is empty or a fire
+// fails (stale-clip recovery). Never throws: a missing/misconfigured track
+// disables the feature cleanly (warn + empty cache) rather than blocking
+// startup or crashing a tap.
+async function getDrumRackClips(): Promise<Clip[]> {
+  if (!isDrumRackTrackIndexValid) {
+    drumRackClips = [];
+    return drumRackClips;
+  }
+  const track = tracks[DRUM_RACK_TRACK_INDEX];
+  if (!track) {
+    Logger.warn(
+      `Drum rack track index ${DRUM_RACK_TRACK_INDEX} not found among ${
+        tracks?.length ?? 0
+      } fetched tracks - cauldron sample feature disabled until getTracksAndClips is re-run`,
+    );
+    drumRackClips = [];
+    return drumRackClips;
+  }
+  const clipSlots = await track.get('clip_slots');
+  const clips: Clip[] = [];
+  for (const clipSlot of clipSlots) {
+    const clip = await clipSlot.get('clip');
+    if (clip) clips.push(clip);
+  }
+  drumRackClips = clips;
+  Logger.info(
+    `Cauldron drum-rack clips loaded: ${clips.length} clip(s) on track "${track.raw.name}"`,
+  );
+  return drumRackClips;
+}
+
+// Fires a random one-shot from the drum-rack track and broadcasts
+// `cauldron_sample_triggered`. Fire-then-emit (not the reverse, unlike the
+// upstream bug this ports from): the browser/lighting side should only learn
+// a sample triggered once it actually has, not optimistically before the
+// Ableton call even resolves. Uses emitEvent (not the without-resetting
+// variant) deliberately - a visitor tapping the cauldron is real activity and
+// should defer the idle timeout exactly like any other interaction.
+//
+// Throttled (200ms, no trailing edge) so a flurry of taps can't flood
+// Ableton with `fire()` calls; a suppressed tap during the window is simply
+// dropped rather than queued, matching how a physical instrument would
+// behave.
+const triggerRandomDrumSample = throttle(
+  async function triggerRandomDrumSampleImpl() {
+    try {
+      if (!drumRackClips || drumRackClips.length === 0) {
+        await getDrumRackClips();
+      }
+      if (!drumRackClips || drumRackClips.length === 0) {
+        Logger.warn('No cauldron/drum-rack clips available to trigger');
+        return;
+      }
+      const clip = drumRackClips[Math.floor(Math.random() * drumRackClips.length)];
+      try {
+        await clip.fire();
+      } catch (err) {
+        Logger.error(
+          err,
+          `Error firing cauldron sample clip "${clip.raw.name}" - refreshing the drum-rack clip cache for the next attempt`,
+        );
+        // Stale-clip recovery: don't retry this fire (the tap is over), but
+        // make sure the *next* tap gets a fresh cache rather than repeating
+        // the same failure.
+        await getDrumRackClips().catch((refetchErr) =>
+          Logger.error(refetchErr, 'Error refetching drum-rack clips after a fire failure'),
+        );
+        return;
+      }
+      OutgoingEvents.emitEvent('cauldron_sample_triggered', { clipName: clip.raw.name });
+    } catch (err) {
+      Logger.error(err, 'Error triggering random cauldron sample');
+    }
+  },
+  200,
+  { trailing: false },
+);
+
+// Lazily fetches (and caches) the DeviceParameter for the drum-rack track's
+// mixer volume - same pattern as getTrackVolumes/trackVolumes, but for the
+// single non-pillar cauldron track (no pillar semantics apply here).
+async function getCauldronVolumeParam(): Promise<DeviceParameter | undefined> {
+  if (!isDrumRackTrackIndexValid) return undefined;
+  const track = tracks[DRUM_RACK_TRACK_INDEX];
+  if (!track) {
+    Logger.warn(
+      `Drum rack track index ${DRUM_RACK_TRACK_INDEX} not found - cauldron volume unavailable until getTracksAndClips is re-run`,
+    );
+    return undefined;
+  }
+  if (!cauldronVolumeParam) {
+    const mixerDevice = await track.get('mixer_device');
+    const deviceParameter = await mixerDevice.sendCommand('get_volume');
+    cauldronVolumeParam = new DeviceParameter(ableton, deviceParameter);
+  }
+  return cauldronVolumeParam;
+}
+
+async function getCauldronVolume(): Promise<number> {
+  const param = await getCauldronVolumeParam();
+  return param?.raw.value ?? 0.6;
+}
+
+async function setCauldronVolume(volume: number): Promise<void> {
+  const clampedVolume = clampVolume(volume);
+  const param = await getCauldronVolumeParam();
+  if (!param) {
+    Logger.warn(`Cannot set cauldron volume to ${clampedVolume}: drum rack track unavailable`);
+    return;
+  }
+  await param.set('value', clampedVolume);
+  OutgoingEvents.emitEvent('cauldron_volume_changed', { volume: clampedVolume });
 }
 
 // Pure. Fewer than 2 markers, a zero/negative sample-time span, or a
@@ -763,12 +1016,16 @@ function transposeClipToNewKey(item: ClipInfo, newKey: string) {
 }
 
 export const AbletonAdapter = {
-  TIMEOUT_IN_MILLISECONDS,
   TIMEOUT_WARNING_IN_MILLISECONDS,
+  MIN_IDLE_TIMEOUT_MS,
+  MAX_IDLE_TIMEOUT_MS,
   TRIGGER_ORDER,
   ABLETON_START_TIMEOUT_MS,
+  DRUM_RACK_TRACK_INDEX,
+  isDrumRackTrackIndexValid,
   parseRemoteScriptVersion,
   ensureServerPortFile,
+  clampVolume,
   ableton,
   sockets,
   playingClips,
@@ -782,6 +1039,12 @@ export const AbletonAdapter = {
   get tracks() {
     return tracks;
   },
+  // drumRackClips is reassigned wholesale inside this module (unlike
+  // trackVolumes/tracks); a getter still exposes the current cache for
+  // tests/inspection, it just isn't a live-mutable reference.
+  get drumRackClips() {
+    return drumRackClips;
+  },
   startAbleton,
   connectOscServer,
   addWebSocket,
@@ -794,6 +1057,7 @@ export const AbletonAdapter = {
   setTempo,
   getTrackVolumes,
   setTrackVolume,
+  resolveClipStartVolume,
   calculateBpmFromWarpMarkers,
   getKeyLockState,
   setKeyLockState,
@@ -804,4 +1068,10 @@ export const AbletonAdapter = {
   stopAllClipsBestEffort,
   startTimeoutTimer,
   restartTimeoutTimer,
+  getIdleTimeoutConfig,
+  setIdleTimeoutConfig,
+  getDrumRackClips,
+  triggerRandomDrumSample,
+  getCauldronVolume,
+  setCauldronVolume,
 };

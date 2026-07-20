@@ -146,12 +146,20 @@ export const PillarCardContainer = ({
   );
   const volumeSlider = useSliderEmit(pillar.volumePercent, emitVolumePercent);
 
+  // WOW-007C: an empty pillar's volume is only interactive in DJ mode (DJing
+  // ahead — pre-setting a pillar's level before anything's placed there); a
+  // play-mode visitor still can't touch an empty pillar's volume (nothing to
+  // mute either — the empty medallion isn't even DJ's Add-sample button
+  // outside DJ mode). A non-empty pillar stays interactive in both modes, as
+  // before.
+  const showVolumeControls = pillar.status !== 'empty' || djMode;
+
   // Render the drag-local slider value instead of the derived percent so a
-  // drag tracks the finger exactly (useSliderEmit's contract) — only for a
-  // non-empty pillar; empty pillars stay display-only (no gem/asset to drag)
-  // and have nothing to mute either.
-  const renderedPillar: PillarView =
-    pillar.status !== 'empty' ? { ...pillar, volumePercent: volumeSlider.value, muted } : pillar;
+  // drag tracks the finger exactly (useSliderEmit's contract) — only while
+  // volume is actually interactive; otherwise render the plain derived view.
+  const renderedPillar: PillarView = showVolumeControls
+    ? { ...pillar, volumePercent: volumeSlider.value, muted }
+    : pillar;
 
   const emitGuarded = (
     action: string,
@@ -286,9 +294,9 @@ export const PillarCardContainer = ({
               }
             : undefined
         }
-        onVolumePercentChange={volumeSlider.onValue}
-        onVolumeDragStart={volumeSlider.onDragStart}
-        onVolumeDragEnd={volumeSlider.onDragEnd}
+        onVolumePercentChange={showVolumeControls ? volumeSlider.onValue : undefined}
+        onVolumeDragStart={showVolumeControls ? volumeSlider.onDragStart : undefined}
+        onVolumeDragEnd={showVolumeControls ? volumeSlider.onDragEnd : undefined}
       />
       <SampleModal
         open={isSampleModalOpen}

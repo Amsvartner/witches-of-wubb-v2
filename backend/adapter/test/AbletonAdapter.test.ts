@@ -2,6 +2,9 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { vi } from 'vitest';
+import type { Clip } from 'ableton-js/ns/clip';
+import type { ClipSlot } from 'ableton-js/ns/clip-slot';
+import type { Track } from 'ableton-js/ns/track';
 import { AbletonAdapter } from '../AbletonAdapter';
 import { Logger } from '../../util/Logger';
 
@@ -203,5 +206,583 @@ describe('AbletonAdapter.ensureServerPortFile', () => {
       AbletonAdapter.ensureServerPortFile(path.join(tmpDir, 'does-not-exist.port'), exec),
     ).not.toThrow();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('spawnSync ETIMEDOUT'));
+  });
+});
+
+// WOW-007C: clampVolume is pure and side-effect-free, so it's tested directly
+// off the statically-imported module (no env/mocking seam needed).
+describe('AbletonAdapter.clampVolume', () => {
+  it('passes a mid-range value through unchanged', () => {
+    expect(AbletonAdapter.clampVolume(0.42)).toBeCloseTo(0.42);
+  });
+
+  it('clamps negative values to 0', () => {
+    expect(AbletonAdapter.clampVolume(-0.5)).toBe(0);
+  });
+
+  it('clamps values above the 0.7 pillar ceiling', () => {
+    expect(AbletonAdapter.clampVolume(1)).toBeCloseTo(0.7);
+    expect(AbletonAdapter.clampVolume(0.7)).toBeCloseTo(0.7);
+  });
+
+  it('treats non-finite input (NaN/Infinity) as 0 rather than propagating it', () => {
+    expect(AbletonAdapter.clampVolume(NaN)).toBe(0);
+    expect(AbletonAdapter.clampVolume(Infinity)).toBe(0);
+    expect(AbletonAdapter.clampVolume(-Infinity)).toBe(0);
+  });
+});
+
+// --- WOW-007C: cauldron drum-rack sample, cauldron volume, idle-timeout
+// config, and desired-volume-on-clip-start - all exercised against a fresh,
+// per-test module instance (vi.doMock + dynamic import, this repo's vitest
+// does not hoist vi.mock). A fresh instance per test is needed here (unlike
+// IncomingEvents.test.ts's single shared beforeAll) because:
+//   (1) DRUM_RACK_TRACK_INDEX is read from process.env at module load, so
+//       different env values need different module instances; and
+//   (2) triggerRandomDrumSample is throttled at module scope, so sharing one
+//       instance across tests would let one test's throttle window suppress
+//       another's call.
+//
+// This vitest version (0.28.5) only honors the FIRST vi.doMock registration
+// for a given dependency module id within a test file - a second
+// vi.resetModules() + vi.doMock() pair for the SAME id (e.g. calling doMock
+// again for '../../event/OutgoingEvents' inside a later test) is silently
+// ignored and keeps resolving to the first test's mock factory, even though
+// the module actually under test here (AbletonAdapter itself, never
+// doMocked) reliably re-evaluates fresh on every dynamic import - confirmed
+// directly: DRUM_RACK_TRACK_INDEX/tracks/the throttled triggerRandomDrumSample
+// closure all correctly reset per loadAdapter() call below, but a SECOND
+// `vi.doMock('.../OutgoingEvents', ...)` call would silently keep routing
+// every subsequent test's AbletonAdapter calls to the FIRST test's emitEvent
+// spy, invisible to that later test's own assertions. So OutgoingEvents and
+// ableton-js's DeviceParameter are mocked exactly ONCE here (describe-body
+// scope, before any test runs) and their call history is cleared per test
+// instead of being re-registered - the same "one shared mock, cleared every
+// test" shape as IncomingEvents.test.ts's top-level beforeAll spies.
+describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeout, desired volumes)', () => {
+  const ENV_KEYS = ['DRUM_RACK_TRACK_INDEX'] as const;
+  const originalEnv: Record<string, string | undefined> = {};
+
+  const emitEvent = vi.fn();
+  const emitEventWithoutResettingTimeout = vi.fn();
+  vi.doMock('../../event/OutgoingEvents', () => ({
+    OutgoingEvents: { emitEvent, emitEventWithoutResettingTimeout },
+  }));
+
+  // ableton-js's real DeviceParameter.set() calls into the real `ableton`
+  // instance's setProp, which would hang/throw without a live connection
+  // (.start() is never called in tests) - mocked with a plain fake that
+  // mirrors the shape AbletonAdapter actually reads (`raw.value`) and writes
+  // (`.set('value', x)`), same spirit as fakeTrackVolume in
+  // backend/event/test/IncomingEvents.test.ts. Registered once (see the
+  // block comment above) - each `new DeviceParameter(...)` call still
+  // produces its own independent `set` spy per instance, so per-test
+  // isolation of individual calls is unaffected.
+  vi.doMock('ableton-js/ns/device-parameter', () => {
+    class DeviceParameter {
+      raw: { value: number };
+      set = vi.fn(async (_key: string, value: number) => {
+        this.raw.value = value;
+        return null;
+      });
+      constructor(_ableton: unknown, raw: { value: number }) {
+        this.raw = raw;
+      }
+    }
+    return { DeviceParameter };
+  });
+
+  beforeEach(() => {
+    ENV_KEYS.forEach((key) => {
+      originalEnv[key] = process.env[key];
+    });
+    emitEvent.mockClear();
+    emitEventWithoutResettingTimeout.mockClear();
+  });
+
+  afterEach(() => {
+    ENV_KEYS.forEach((key) => {
+      if (originalEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = originalEnv[key];
+    });
+    vi.restoreAllMocks();
+  });
+
+  function fakeClip(name: string, fireImpl?: () => Promise<void>): Clip {
+    return {
+      raw: { name },
+      fire: vi.fn(fireImpl ?? (async () => undefined)),
+    } as unknown as Clip;
+  }
+
+  function fakeClipSlot(clip: Clip | null): ClipSlot {
+    return {
+      get: vi.fn(async (prop: string) => (prop === 'clip' ? clip : undefined)),
+    } as unknown as ClipSlot;
+  }
+
+  function fakeMixerDevice(volume: number) {
+    return {
+      sendCommand: vi.fn(async (cmd: string) =>
+        cmd === 'get_volume'
+          ? { id: 'vol-id', name: 'Volume', value: volume, is_quantized: false }
+          : undefined,
+      ),
+    };
+  }
+
+  function fakeTrack(
+    options: { name?: string; clipSlots?: ClipSlot[]; volume?: number } = {},
+  ): Track {
+    const { name = 'Cauldron', clipSlots = [], volume = 0.6 } = options;
+    const mixerDevice = fakeMixerDevice(volume);
+    return {
+      raw: { name },
+      get: vi.fn(async (prop: string) => {
+        if (prop === 'clip_slots') return clipSlots;
+        if (prop === 'mixer_device') return mixerDevice;
+        return undefined;
+      }),
+    } as unknown as Track;
+  }
+
+  async function loadAdapter(env: Record<string, string | undefined> = {}) {
+    vi.resetModules();
+    ENV_KEYS.forEach((key) => delete process.env[key]);
+    Object.entries(env).forEach(([key, value]) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+
+    const { AbletonAdapter: FreshAdapter } = await import('../AbletonAdapter');
+    const { Logger: FreshLogger } = await import('../../util/Logger');
+    return {
+      AbletonAdapter: FreshAdapter,
+      // Same shared, describe-scoped spies every call (see the block comment
+      // above) - returned here so existing call sites can keep destructuring
+      // `OutgoingEvents` from loadAdapter()'s result unchanged.
+      OutgoingEvents: { emitEvent, emitEventWithoutResettingTimeout },
+      Logger: FreshLogger,
+    };
+  }
+
+  describe('DRUM_RACK_TRACK_INDEX env validation', () => {
+    it('disables the feature when the env var is unset (NaN)', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: undefined });
+      expect(Fresh.isDrumRackTrackIndexValid).toBe(false);
+    });
+
+    it('disables the feature for a negative index', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: '-1' });
+      expect(Fresh.isDrumRackTrackIndexValid).toBe(false);
+    });
+
+    it('disables the feature for a non-integer index', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: '4.5' });
+      expect(Fresh.isDrumRackTrackIndexValid).toBe(false);
+    });
+
+    it('logs a startup warning when disabled', async () => {
+      const { Logger: FreshLogger } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: undefined });
+      expect(FreshLogger.warn).toBeDefined();
+    });
+
+    it('enables the feature for a valid non-negative integer index', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: '4' });
+      expect(Fresh.isDrumRackTrackIndexValid).toBe(true);
+      expect(Fresh.DRUM_RACK_TRACK_INDEX).toBe(4);
+    });
+
+    it('a disabled feature: getDrumRackClips returns [] without touching tracks (the startup warning already covered the "why")', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: undefined });
+
+      const clips = await Fresh.getDrumRackClips();
+
+      expect(clips).toEqual([]);
+      expect(Fresh.drumRackClips).toEqual([]);
+    });
+
+    it('a disabled feature: getCauldronVolume returns the 0.6 default', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: undefined });
+      await expect(Fresh.getCauldronVolume()).resolves.toBe(0.6);
+    });
+
+    it('a disabled feature: setCauldronVolume warns and does not throw', async () => {
+      const { AbletonAdapter: Fresh, Logger: FreshLogger } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: undefined,
+      });
+      const warnSpy = vi.spyOn(FreshLogger, 'warn').mockImplementation(() => undefined as never);
+
+      await expect(Fresh.setCauldronVolume(0.5)).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('a disabled feature: triggerRandomDrumSample warns and does not throw', async () => {
+      const { AbletonAdapter: Fresh, Logger: FreshLogger } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: undefined,
+      });
+      const warnSpy = vi.spyOn(FreshLogger, 'warn').mockImplementation(() => undefined as never);
+
+      await expect(Fresh.triggerRandomDrumSample()).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No cauldron/drum-rack clips available'),
+      );
+    });
+  });
+
+  describe('getDrumRackClips', () => {
+    it('filters out empty clip slots and keeps only non-null clips, logging the count and track name', async () => {
+      const { AbletonAdapter: Fresh, Logger: FreshLogger } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: '4',
+      });
+      const infoSpy = vi.spyOn(FreshLogger, 'info').mockImplementation(() => undefined as never);
+      const kick = fakeClip('Kick 1');
+      const snare = fakeClip('Snare 1');
+      Fresh.tracks.push(
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        fakeTrack({
+          name: 'Cauldron Drums',
+          clipSlots: [fakeClipSlot(kick), fakeClipSlot(null), fakeClipSlot(snare)],
+        }),
+      );
+
+      const clips = await Fresh.getDrumRackClips();
+
+      expect(clips).toEqual([kick, snare]);
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('2 clip(s)'));
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('Cauldron Drums'));
+    });
+
+    it('warns and returns [] when the configured track index is beyond the fetched tracks', async () => {
+      const { AbletonAdapter: Fresh, Logger: FreshLogger } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: '4',
+      });
+      const warnSpy = vi.spyOn(FreshLogger, 'warn').mockImplementation(() => undefined as never);
+      // Only 2 tracks fetched - index 4 doesn't exist.
+      Fresh.tracks.push({} as Track, {} as Track);
+
+      const clips = await Fresh.getDrumRackClips();
+
+      expect(clips).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('not found'));
+    });
+  });
+
+  describe('triggerRandomDrumSample', () => {
+    it('fires before emitting (fire-then-emit ordering) and broadcasts the fired clip name', async () => {
+      const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: '4',
+      });
+      const callOrder: string[] = [];
+      const clip = fakeClip('Kick 1', async () => {
+        callOrder.push('fire');
+      });
+      OutgoingEvents.emitEvent.mockImplementation(() => callOrder.push('emit'));
+      Fresh.tracks.push(
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        fakeTrack({ clipSlots: [fakeClipSlot(clip)] }),
+      );
+      await Fresh.getDrumRackClips();
+
+      await Fresh.triggerRandomDrumSample();
+
+      expect(callOrder).toEqual(['fire', 'emit']);
+      expect(OutgoingEvents.emitEvent).toHaveBeenCalledWith('cauldron_sample_triggered', {
+        clipName: 'Kick 1',
+      });
+    });
+
+    it('with an empty cache, refetches once from tracks before firing', async () => {
+      const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: '4',
+      });
+      const clip = fakeClip('Snare 1');
+      Fresh.tracks.push(
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        fakeTrack({ clipSlots: [fakeClipSlot(clip)] }),
+      );
+      expect(Fresh.drumRackClips).toBeNull();
+
+      await Fresh.triggerRandomDrumSample();
+
+      expect(clip.fire).toHaveBeenCalledTimes(1);
+      expect(OutgoingEvents.emitEvent).toHaveBeenCalledWith('cauldron_sample_triggered', {
+        clipName: 'Snare 1',
+      });
+    });
+
+    it('warns and does not emit or throw when the cache is empty even after a refetch attempt', async () => {
+      const {
+        AbletonAdapter: Fresh,
+        OutgoingEvents,
+        Logger: FreshLogger,
+      } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: '4',
+      });
+      const warnSpy = vi.spyOn(FreshLogger, 'warn').mockImplementation(() => undefined as never);
+      // Track exists but has no clips at all.
+      Fresh.tracks.push({} as Track, {} as Track, {} as Track, {} as Track, fakeTrack());
+
+      await expect(Fresh.triggerRandomDrumSample()).resolves.toBeUndefined();
+
+      expect(OutgoingEvents.emitEvent).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No cauldron/drum-rack clips available'),
+      );
+    });
+
+    it('on a fire failure, logs the error, refetches the cache for next time, and does not emit or throw', async () => {
+      const {
+        AbletonAdapter: Fresh,
+        OutgoingEvents,
+        Logger: FreshLogger,
+      } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: '4',
+      });
+      const errorSpy = vi.spyOn(FreshLogger, 'error').mockImplementation(() => undefined as never);
+      const failingClip = fakeClip('Broken Hat', async () => {
+        throw new Error('fire boom');
+      });
+      const replacementClip = fakeClip('Fresh Hat');
+      Fresh.tracks.push(
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        fakeTrack({ clipSlots: [fakeClipSlot(failingClip)] }),
+      );
+      await Fresh.getDrumRackClips();
+      // Swap in a healthy clip so the post-failure refetch is observable.
+      (Fresh.tracks[4] as unknown as { get: ReturnType<typeof vi.fn> }).get = vi.fn(
+        async (prop: string) => {
+          if (prop === 'clip_slots') return [fakeClipSlot(replacementClip)];
+          return undefined;
+        },
+      );
+
+      await expect(Fresh.triggerRandomDrumSample()).resolves.toBeUndefined();
+
+      expect(OutgoingEvents.emitEvent).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.stringContaining('Broken Hat'),
+      );
+      expect(Fresh.drumRackClips).toEqual([replacementClip]);
+    });
+
+    it('throttles: a second tap within 200ms is dropped (fire called only once)', async () => {
+      vi.useFakeTimers();
+      try {
+        const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter({
+          DRUM_RACK_TRACK_INDEX: '4',
+        });
+        const clip = fakeClip('Kick 1');
+        Fresh.tracks.push(
+          {} as Track,
+          {} as Track,
+          {} as Track,
+          {} as Track,
+          fakeTrack({ clipSlots: [fakeClipSlot(clip)] }),
+        );
+        await Fresh.getDrumRackClips();
+
+        Fresh.triggerRandomDrumSample();
+        Fresh.triggerRandomDrumSample();
+        await vi.runOnlyPendingTimersAsync();
+
+        expect(clip.fire).toHaveBeenCalledTimes(1);
+        expect(OutgoingEvents.emitEvent).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('cauldron volume', () => {
+    it('getCauldronVolume reads the drum-rack track mixer volume', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: '4' });
+      Fresh.tracks.push(
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        fakeTrack({ volume: 0.55 }),
+      );
+
+      await expect(Fresh.getCauldronVolume()).resolves.toBeCloseTo(0.55);
+    });
+
+    it('getCauldronVolume falls back to 0.6 when the track is missing', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: '4' });
+      // No tracks fetched at all.
+      await expect(Fresh.getCauldronVolume()).resolves.toBe(0.6);
+    });
+
+    it('setCauldronVolume clamps to [0, 0.7] and broadcasts cauldron_volume_changed', async () => {
+      const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: '4',
+      });
+      Fresh.tracks.push(
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        {} as Track,
+        fakeTrack({ volume: 0.4 }),
+      );
+
+      await Fresh.setCauldronVolume(5); // way above ceiling
+
+      expect(OutgoingEvents.emitEvent).toHaveBeenCalledWith('cauldron_volume_changed', {
+        volume: 0.7,
+      });
+      await expect(Fresh.getCauldronVolume()).resolves.toBeCloseTo(0.7);
+    });
+
+    it('setCauldronVolume warns and does not throw when the track is missing', async () => {
+      const {
+        AbletonAdapter: Fresh,
+        OutgoingEvents,
+        Logger: FreshLogger,
+      } = await loadAdapter({
+        DRUM_RACK_TRACK_INDEX: '4',
+      });
+      const warnSpy = vi.spyOn(FreshLogger, 'warn').mockImplementation(() => undefined as never);
+
+      await expect(Fresh.setCauldronVolume(0.5)).resolves.toBeUndefined();
+
+      expect(OutgoingEvents.emitEvent).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('idle timeout config', () => {
+    it('defaults to enabled, 3 minutes', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+      expect(Fresh.getIdleTimeoutConfig()).toEqual({ enabled: true, timeoutMs: 3 * 60 * 1000 });
+    });
+
+    it('accepts a valid config, arms two timers, and broadcasts idle_timeout_changed', async () => {
+      vi.useFakeTimers();
+      try {
+        const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+
+        const result = Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 });
+
+        expect(result).toEqual({ enabled: true, timeoutMs: 60_000 });
+        expect(Fresh.getIdleTimeoutConfig()).toEqual({ enabled: true, timeoutMs: 60_000 });
+        expect(vi.getTimerCount()).toBe(2);
+        expect(OutgoingEvents.emitEventWithoutResettingTimeout).toHaveBeenCalledWith(
+          'idle_timeout_changed',
+          { enabled: true, timeoutMs: 60_000 },
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('disabling clears any armed timers', async () => {
+      vi.useFakeTimers();
+      try {
+        const { AbletonAdapter: Fresh } = await loadAdapter();
+        Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 });
+        expect(vi.getTimerCount()).toBe(2);
+
+        Fresh.setIdleTimeoutConfig({ enabled: false, timeoutMs: 60_000 });
+
+        expect(vi.getTimerCount()).toBe(0);
+        expect(Fresh.getIdleTimeoutConfig().enabled).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([
+      ['below the 30s minimum', 29_999],
+      ['above the 60min maximum', 60 * 60 * 1000 + 1],
+      ['non-integer', 60_000.5],
+    ])(
+      'ignores an out-of-bounds timeoutMs (%s) and logs a warning, leaving config unchanged',
+      async (_label, badTimeoutMs) => {
+        const { AbletonAdapter: Fresh, Logger: FreshLogger } = await loadAdapter();
+        const warnSpy = vi.spyOn(FreshLogger, 'warn').mockImplementation(() => undefined as never);
+        const before = Fresh.getIdleTimeoutConfig();
+
+        const result = Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: badTimeoutMs });
+
+        expect(result).toEqual(before);
+        expect(Fresh.getIdleTimeoutConfig()).toEqual(before);
+        expect(warnSpy).toHaveBeenCalled();
+      },
+    );
+
+    it('accepts the exact bounds (30s and 60min)', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+      expect(Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 30_000 })).toEqual({
+        enabled: true,
+        timeoutMs: 30_000,
+      });
+      expect(Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60 * 60 * 1000 })).toEqual({
+        enabled: true,
+        timeoutMs: 60 * 60 * 1000,
+      });
+    });
+  });
+
+  describe('desired volumes respected at clip start', () => {
+    it('resolveClipStartVolume falls back to 0.6 for a pillar whose volume was never explicitly set', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+      expect(Fresh.resolveClipStartVolume(0)).toBe(0.6);
+    });
+
+    it('setTrackVolume records the clamped value, and resolveClipStartVolume then returns it', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+      const param = { raw: { value: 0 }, set: vi.fn(async () => null) };
+      Fresh.trackVolumes.push(
+        undefined as never,
+        undefined as never,
+        param as never,
+        undefined as never,
+      );
+
+      await Fresh.setTrackVolume(2, 5); // above the 0.7 ceiling
+
+      expect(Fresh.resolveClipStartVolume(2)).toBeCloseTo(0.7);
+      expect(param.set).toHaveBeenCalledWith('value', 0.7);
+    });
+
+    it('setTrackVolume clamps and emits the clamped volume, not the raw input', async () => {
+      const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+      const param = { raw: { value: 0 }, set: vi.fn(async () => null) };
+      Fresh.trackVolumes.push(param as never);
+
+      await Fresh.setTrackVolume(0, -1); // below the 0 floor
+
+      expect(OutgoingEvents.emitEvent).toHaveBeenCalledWith('volume_changed', {
+        pillar: 0,
+        volume: 0,
+      });
+    });
+
+    it('other pillars keep their own 0.6 fallback after only one pillar has an explicit volume', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+      const param = { raw: { value: 0 }, set: vi.fn(async () => null) };
+      Fresh.trackVolumes.push(param as never);
+
+      await Fresh.setTrackVolume(0, 0.3);
+
+      expect(Fresh.resolveClipStartVolume(0)).toBeCloseTo(0.3);
+      expect(Fresh.resolveClipStartVolume(1)).toBe(0.6);
+      expect(Fresh.resolveClipStartVolume(2)).toBe(0.6);
+      expect(Fresh.resolveClipStartVolume(3)).toBe(0.6);
+    });
   });
 });

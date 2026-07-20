@@ -11,6 +11,7 @@ import { useSocketContext } from '~/context/hook/useSocketContext';
 import { useSliderEmit } from '~/hook/useSliderEmit';
 import { KeyUtil } from '~/util/KeyUtil';
 import { LocalStorageUtil } from '~/util/LocalStorageUtil';
+import { Logger } from '~/util/Logger';
 import { PillarViewUtil } from '~/util/PillarViewUtil';
 import { type SelectableClip } from '~/component/SampleModal';
 
@@ -24,14 +25,24 @@ const TEMPO_MAX = 155;
 /** localStorage keys (WOW-007B persistence) — see LocalStorageUtil. */
 const MODE_STORAGE_KEY = 'hexology.mode';
 const BASELINE_KEY_STORAGE_KEY = 'hexology.baselineKey';
+/** WOW-007C: persisted DJ auto-exit duration, settable in the Settings modal. */
+const DJ_AUTO_EXIT_MS_STORAGE_KEY = 'hexology.djAutoExitMs';
 
 /**
  * DJ-mode walk-away safeguard (DESIGN_PROPOSAL_001 §6.2): if nobody touches
  * the kiosk while DJ mode is active, it drops back to play mode on its own so
  * the extended controls don't sit exposed indefinitely. 5 minutes is the
- * WOW-007B default — flagged for review.
+ * WOW-007B default, now DJ-adjustable via the Settings modal (WOW-007C) and
+ * persisted under DJ_AUTO_EXIT_MS_STORAGE_KEY.
  */
-const DJ_AUTO_EXIT_MS = 5 * 60 * 1000;
+const DEFAULT_DJ_AUTO_EXIT_MS = 5 * 60 * 1000;
+
+/** Parses a persisted DJ auto-exit duration, falling back to the default for
+ * anything unset/corrupted/out-of-range (never trust localStorage blindly). */
+const parseDjAutoExitMs = (stored: string | null): number => {
+  const parsed = Number(stored);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_DJ_AUTO_EXIT_MS;
+};
 
 type Mode = 'play' | 'dj';
 
@@ -60,6 +71,11 @@ export const PlayModeContainer = (): JSX.Element => {
     changeTempo,
     changeMasterKey,
     changeKeylock,
+    triggerCauldronSample,
+    cauldronVolume,
+    changeCauldronVolume,
+    idleTimeout,
+    changeIdleTimeout,
   } = useAbletonContext();
 
   const pillars = PillarViewUtil.derivePillars(
@@ -97,6 +113,15 @@ export const PlayModeContainer = (): JSX.Element => {
   // DJ exit/re-entry (human decision — a held pick shouldn't evaporate just
   // because the DJ closed the extended controls).
   const [pendingPicks, setPendingPicks] = useState<(SelectableClip | null)[]>(NO_PENDING_PICKS);
+  // WOW-007C: DJ auto-exit duration, DJ-adjustable via the Settings modal and
+  // persisted across reloads — replaces the old fixed DJ_AUTO_EXIT_MS const.
+  const [djAutoExitMs, setDjAutoExitMsState] = useState<number>(() =>
+    parseDjAutoExitMs(LocalStorageUtil.get(DJ_AUTO_EXIT_MS_STORAGE_KEY)),
+  );
+  const changeDjAutoExitMs = useCallback((ms: number) => {
+    setDjAutoExitMsState(ms);
+    LocalStorageUtil.set(DJ_AUTO_EXIT_MS_STORAGE_KEY, String(ms));
+  }, []);
 
   const handlePendingPickChange = useCallback((index: number, clip: SelectableClip | null) => {
     setPendingPicks((current) => current.map((existing, i) => (i === index ? clip : existing)));
@@ -124,15 +149,16 @@ export const PlayModeContainer = (): JSX.Element => {
     LocalStorageUtil.set(MODE_STORAGE_KEY, mode);
   }, [mode]);
 
-  // DJ auto-exit: resets a 5-minute timer on every pointer interaction while
-  // DJ mode is active, and drops back to play mode if the timer expires.
+  // DJ auto-exit: resets a timer (djAutoExitMs, DJ-adjustable) on every
+  // pointer interaction while DJ mode is active, and drops back to play mode
+  // if the timer expires.
   useEffect(() => {
     if (mode !== 'dj') return undefined;
 
     let timeoutId: number;
     const resetTimer = () => {
       window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(() => setMode('play'), DJ_AUTO_EXIT_MS);
+      timeoutId = window.setTimeout(() => setMode('play'), djAutoExitMs);
     };
 
     resetTimer();
@@ -142,7 +168,7 @@ export const PlayModeContainer = (): JSX.Element => {
       window.clearTimeout(timeoutId);
       window.removeEventListener('pointerdown', resetTimer);
     };
-  }, [mode]);
+  }, [mode, djAutoExitMs]);
 
   // Kiosk parity: suppress the context menu everywhere in this screen, ported
   // verbatim from MainScreen's identical effect.
@@ -204,6 +230,17 @@ export const PlayModeContainer = (): JSX.Element => {
     changeMasterKey(key);
   };
 
+  // WOW-007C: guarded the same way as PillarCardContainer's emitGuarded — a
+  // cauldron tap while disconnected logs and no-ops rather than emitting
+  // into a dead socket.
+  const handleCauldronTrigger = (): void => {
+    if (!isConnected) {
+      Logger.warn('Ignored cauldron trigger: socket not connected');
+      return;
+    }
+    triggerCauldronSample();
+  };
+
   return (
     <div className='mx-auto flex min-h-screen max-w-[1024px] flex-col px-8 py-4'>
       {!isConnected && (
@@ -258,7 +295,7 @@ export const PlayModeContainer = (): JSX.Element => {
             cards (human, 2026-07-17); cards layer above via z-10. */}
         <div className='relative z-0 flex items-center justify-center lg:col-start-2 lg:row-span-2 lg:row-start-1'>
           <div className='w-full max-w-[320px] lg:absolute lg:left-1/2 lg:top-1/2 lg:w-[405px] lg:max-w-none lg:-translate-x-1/2 lg:-translate-y-1/2'>
-            <Cauldron animated={animationsEnabled} />
+            <Cauldron animated={animationsEnabled} onTrigger={handleCauldronTrigger} />
           </div>
         </div>
         <div className='relative z-10 min-w-0 lg:col-start-1 lg:row-start-2'>
@@ -315,6 +352,12 @@ export const PlayModeContainer = (): JSX.Element => {
         onModeChange={setMode}
         animationsEnabled={animationsEnabled}
         onAnimationsEnabledChange={setAnimationsEnabled}
+        cauldronVolume={cauldronVolume}
+        onCauldronVolumeChange={changeCauldronVolume}
+        idleTimeout={idleTimeout}
+        onIdleTimeoutChange={changeIdleTimeout}
+        djAutoExitMs={djAutoExitMs}
+        onDjAutoExitMsChange={changeDjAutoExitMs}
       />
     </div>
   );

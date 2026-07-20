@@ -50,6 +50,12 @@ const createAbletonState = (overrides: Partial<AbletonContextState> = {}): Ablet
   changeMasterKey: vi.fn(),
   changeKeylock: vi.fn(),
   getTracksAndClips: vi.fn(),
+  // WOW-007C
+  triggerCauldronSample: vi.fn(),
+  cauldronVolume: 0.6,
+  changeCauldronVolume: vi.fn(),
+  idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+  changeIdleTimeout: vi.fn(),
   ...overrides,
 });
 
@@ -580,6 +586,89 @@ describe('PillarCardContainer', () => {
       expect(abletonState.changeTrackVolume).toHaveBeenCalledWith({
         pillar: 0,
         volume: expectedVolume,
+      });
+    });
+
+    // WOW-007C: an empty pillar's volume is only interactive in DJ mode (DJing
+    // ahead - pre-setting a level before anything's placed there); a play-mode
+    // visitor still can't touch an empty pillar's volume.
+    describe('empty pillar (WOW-007C)', () => {
+      it('renders no volume slider for an empty pillar in play mode', () => {
+        const socket = createSocket(true);
+        const abletonState = createAbletonState({
+          playingClips: [null, null, null, null],
+          trackVolume: [0.3, 0, 0, 0],
+        });
+
+        const { queryByRole } = renderContainer(abletonState, socket, {
+          index: 0,
+          djMode: false,
+          isConnected: true,
+        });
+
+        expect(queryByRole('slider')).not.toBeInTheDocument();
+      });
+
+      it('renders an interactive volume slider for an empty pillar in DJ mode', () => {
+        const socket = createSocket(true);
+        // trackVolume 0.35 of a 0.7 max -> 50%.
+        const abletonState = createAbletonState({
+          playingClips: [null, null, null, null],
+          trackVolume: [0.35, 0, 0, 0],
+        });
+
+        const { getByRole } = renderContainer(abletonState, socket, {
+          index: 0,
+          djMode: true,
+          isConnected: true,
+        });
+
+        const slider = getByRole('slider', { name: 'Volume' });
+        expect(slider).toHaveAttribute('aria-valuenow', '50');
+      });
+
+      it('calls changeTrackVolume when an empty pillar’s slider is nudged in DJ mode', () => {
+        const socket = createSocket(true);
+        const abletonState = createAbletonState({
+          playingClips: [null, null, null, null],
+          trackVolume: [0.35, 0, 0, 0],
+        });
+
+        const { getByRole } = renderContainer(abletonState, socket, {
+          index: 0,
+          djMode: true,
+          isConnected: true,
+        });
+
+        fireEvent.keyDown(getByRole('slider', { name: 'Volume' }), { key: 'ArrowUp' });
+
+        // 50% + KEY_STEP(5) = 55% -> (55/100) * 0.7.
+        const expectedVolume = (55 / 100) * 0.7;
+        expect(abletonState.changeTrackVolume).toHaveBeenCalledWith({
+          pillar: 0,
+          volume: expectedVolume,
+        });
+      });
+
+      it('a non-empty pillar keeps its interactive slider in both modes (unaffected by the empty-pillar gating)', () => {
+        const socket = createSocket(true);
+        const abletonState = createAbletonState({
+          playingClips: [
+            clipFixture(0, 'Vocal Hook 07', ClipTypes.Vox, 'rfid-vol'),
+            null,
+            null,
+            null,
+          ],
+          trackVolume: [0.42, 0, 0, 0],
+        });
+
+        const { getByRole } = renderContainer(abletonState, socket, {
+          index: 0,
+          djMode: false,
+          isConnected: true,
+        });
+
+        expect(getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
       });
     });
   });

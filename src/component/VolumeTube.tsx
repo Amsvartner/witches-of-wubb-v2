@@ -54,7 +54,15 @@ export const VolumeTube = ({
     bottom: `clamp(0px, calc(${clamped}% - ${GEM_WIDTH / 2}px), calc(100% - ${GEM_WIDTH}px))`,
   };
 
-  const interactive = Boolean(assetSlug && onPercentChange);
+  // WOW-007C: an empty pillar can be volume-interactive too (DJ mode
+  // pre-setting a pillar's level before anything plays there) — interactivity
+  // no longer requires `assetSlug`, only a handler. The empty-glass art (the
+  // `assetSlug ?? 'empty'` tube src above) still renders as the drag track.
+  const interactive = Boolean(onPercentChange);
+  // A real category always gets the readout; an empty pillar only gets one
+  // while it's actually interactive (otherwise there's no meaningful volume
+  // to show — display-only empty pillars stay blank, as before).
+  const showReadout = Boolean(assetSlug) || interactive;
 
   const percentFromPointer = (event: PointerEvent<HTMLDivElement>): number => {
     const rect = trackRef.current?.getBoundingClientRect();
@@ -151,13 +159,16 @@ export const VolumeTube = ({
         )}
       </div>
       <div className='mt-1.5 flex flex-col items-center'>
-        {assetSlug && <SectionLabel>Volume</SectionLabel>}
-        {assetSlug && !interactive && <span className='sr-only'>{`${clamped}%`}</span>}
+        {/* WOW-007C: an interactive empty pillar (DJ mode) has no category
+            art to caption, but its volume is still a real, settable value —
+            show the same readout an assetSlug pillar gets. */}
+        {showReadout && <SectionLabel>Volume</SectionLabel>}
+        {showReadout && !interactive && <span className='sr-only'>{`${clamped}%`}</span>}
         <span
           aria-hidden='true'
           className='font-number text-xl font-semibold leading-none tabular-nums text-parchment/90'
         >
-          {assetSlug ? `${clamped}%` : ' '}
+          {showReadout ? `${clamped}%` : ' '}
         </span>
       </div>
     </div>

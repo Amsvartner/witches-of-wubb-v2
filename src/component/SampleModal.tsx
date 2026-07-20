@@ -241,7 +241,7 @@ const BACKEND_STATE_LABEL: Record<'playing' | 'queued' | 'stopping', string> = {
  * standard control size.
  */
 const CHIP_BASE_CLASS =
-  'flex min-h-[40px] items-center justify-center rounded-md font-data text-[11px] uppercase tracking-[0.08em]';
+  'flex min-h-[40px] items-center justify-center rounded-md font-data text-xs uppercase tracking-[0.08em]';
 // Shared by the tappable "not active here" state and the disabled
 // "active on a different pillar" state — the latter adds nothing but the
 // `disabled:opacity-50` dimming (inert on the former, since it's never
@@ -457,7 +457,7 @@ export const SampleModal = ({
                       </span>
                       <span
                         style={{ color: tokens.tintHex }}
-                        className='text-center font-data text-[11px] uppercase tracking-[0.1em]'
+                        className='text-center font-data text-xs uppercase tracking-[0.1em]'
                       >
                         {tokens.label}
                       </span>

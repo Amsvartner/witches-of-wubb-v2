@@ -53,6 +53,15 @@ export type RFIDToClipMapType = {
   [key: string]: Omit<ClipMetadataType, 'rfid'>;
 };
 
+// WOW-007C: mirrors backend/type/SetCauldronVolumeInputType.ts — the
+// `set_cauldron_volume` socket payload.
+export type SetCauldronVolumeInputType = { volume: number };
+
+// WOW-007C: mirrors backend/type/IdleTimeoutConfigType.ts — the idle-timeout
+// ("pause music"/attractor handover) config, shared by
+// `get_idle_timeout`/`set_idle_timeout`.
+export type IdleTimeoutConfigType = { enabled: boolean; timeoutMs: number };
+
 /** A simulator-emitted socket event, as the browser would receive it. */
 export type SimEmittedEvent = {
   eventName: string;

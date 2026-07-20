@@ -42,6 +42,12 @@ const createAbletonState = (overrides: Partial<AbletonContextState> = {}): Ablet
   changeMasterKey: vi.fn(),
   changeKeylock: vi.fn(),
   getTracksAndClips: vi.fn(),
+  // WOW-007C
+  triggerCauldronSample: vi.fn(),
+  cauldronVolume: 0.6,
+  changeCauldronVolume: vi.fn(),
+  idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+  changeIdleTimeout: vi.fn(),
   ...overrides,
 });
 
@@ -292,6 +298,112 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       // A later organic change persists the new value too.
       rerender(ui({ ...abletonState, masterKey: '5A' }));
       expect(window.localStorage.getItem('hexology.baselineKey')).toBe('5A');
+    });
+  });
+
+  describe('WOW-007C: cauldron sample trigger', () => {
+    it('tapping the cauldron calls triggerCauldronSample when connected', () => {
+      const { getByRole, abletonState } = renderPlayScreen({ socket: createSocket(true) });
+
+      fireEvent.click(getByRole('button', { name: 'Cauldron' }));
+
+      expect(abletonState.triggerCauldronSample).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call triggerCauldronSample while disconnected (guarded, same as pillar volume)', () => {
+      const { getByRole, abletonState } = renderPlayScreen({ socket: createSocket(false) });
+
+      fireEvent.click(getByRole('button', { name: 'Cauldron' }));
+
+      expect(abletonState.triggerCauldronSample).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('WOW-007C: Settings modal — cauldron loudness, pause music, DJ auto-exit', () => {
+    it('renders the cauldron loudness slider at the fixture value and emits the mapped raw volume on change', () => {
+      // 0.35 / 0.7 ceiling = 50%
+      const { getByRole, abletonState } = renderPlayScreen({
+        abletonState: createAbletonState({ cauldronVolume: 0.35 }),
+      });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      const slider = getByRole('slider', { name: 'Cauldron loudness' });
+      expect(slider).toHaveValue('50');
+
+      fireEvent.change(slider, { target: { value: '80' } });
+
+      // Floating-point: 80% of 0.7 is 0.56, but the percent<->raw round trip
+      // isn't exact in JS float arithmetic.
+      expect(abletonState.changeCauldronVolume).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(abletonState.changeCauldronVolume).mock.calls[0][0]).toBeCloseTo(0.56);
+    });
+
+    it('toggles pause music via changeIdleTimeout, preserving the current timeoutMs', () => {
+      const { getByRole, abletonState } = renderPlayScreen({
+        abletonState: createAbletonState({
+          idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+        }),
+      });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'Pause music' }));
+
+      expect(abletonState.changeIdleTimeout).toHaveBeenCalledWith({
+        enabled: false,
+        timeoutMs: 3 * 60 * 1000,
+      });
+    });
+
+    it('picking a pause-music minutes choice calls changeIdleTimeout with the new duration', () => {
+      const { getByRole, abletonState } = renderPlayScreen({
+        abletonState: createAbletonState({
+          idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+        }),
+      });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'Pause music after 5 min' }));
+
+      expect(abletonState.changeIdleTimeout).toHaveBeenCalledWith({
+        enabled: true,
+        timeoutMs: 5 * 60 * 1000,
+      });
+    });
+
+    it('disables the pause-music minutes buttons when the toggle is off', () => {
+      const { getByRole } = renderPlayScreen({
+        abletonState: createAbletonState({ idleTimeout: { enabled: false, timeoutMs: 60000 } }),
+      });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+
+      expect(getByRole('button', { name: 'Pause music after 1 min' })).toBeDisabled();
+    });
+
+    it('persists a picked DJ auto-exit duration to localStorage and marks it pressed', () => {
+      const { getByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      // Default is 5 min (DEFAULT_DJ_AUTO_EXIT_MS) — pick a different one.
+      fireEvent.click(getByRole('button', { name: 'DJ auto-exit after 10 min' }));
+
+      expect(window.localStorage.getItem('hexology.djAutoExitMs')).toBe(String(10 * 60 * 1000));
+      expect(getByRole('button', { name: 'DJ auto-exit after 10 min' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+
+    it('restores a persisted DJ auto-exit duration on mount', () => {
+      window.localStorage.setItem('hexology.djAutoExitMs', String(30 * 60 * 1000));
+
+      const { getByRole } = renderPlayScreen();
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+
+      expect(getByRole('button', { name: 'DJ auto-exit after 30 min' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
     });
   });
 });

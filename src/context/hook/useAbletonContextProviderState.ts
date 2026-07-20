@@ -3,9 +3,19 @@ import { SetTrackVolumeInputType } from 'backend/type/SetTrackVolumeInputType';
 import { Logger } from '~/util/Logger';
 import { BrowserClipInfo } from 'backend/type/BrowserClipInfo';
 import { BrowserClipInfoList } from 'backend/type/BrowserClipInfoList';
+import { IdleTimeoutConfigType } from 'backend/type/IdleTimeoutConfigType';
 import { AbletonContextState } from '../type/AbletonContextState';
 import { useSocketContext } from '~/context/hook/useSocketContext';
 import { ContextUtils } from '~/context/util/ContextUtils';
+
+/** WOW-007C default idle-timeout config, mirroring the backend's
+ * pre-fetch defaults (AbletonAdapter.ts: 3 minutes, enabled) so the UI
+ * doesn't render an empty/zeroed state before the first `get_idle_timeout`
+ * response arrives. */
+const DEFAULT_IDLE_TIMEOUT: IdleTimeoutConfigType = { enabled: true, timeoutMs: 3 * 60 * 1000 };
+/** WOW-007C default cauldron volume, mirroring the backend's own 0.6
+ * fallback (AbletonAdapter.getCauldronVolume). */
+const DEFAULT_CAULDRON_VOLUME = 0.6;
 
 /* This may seem contrived, but the conventional React pattern is to keep the provider and state + subscriptions separate,
  as to keep single responsibility for each and allow for unit testing state & subscriptions in isolation without having
@@ -23,6 +33,8 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
   const [playingClips, setPlayingClips] = useState<BrowserClipInfoList>([]);
   const [stoppingClips, setStoppingClips] = useState<BrowserClipInfoList>([]);
   const [clipTempo, setClipTempo] = useState<(number | null)[]>([]);
+  const [cauldronVolume, setCauldronVolume] = useState<number>(DEFAULT_CAULDRON_VOLUME);
+  const [idleTimeout, setIdleTimeout] = useState<IdleTimeoutConfigType>(DEFAULT_IDLE_TIMEOUT);
 
   // The socket subscription effect only re-runs when `socket` changes, so reading
   // playingClips/queuedClips directly inside a handler would capture stale values.
@@ -66,6 +78,14 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     socket?.emit('get_keylock_state', null, (state: boolean) => {
       setKeylock(state);
     });
+    socket.emit('get_cauldron_volume', null, (volume: number) => {
+      Logger.debug('get_cauldron_volume returned:', volume);
+      setCauldronVolume(volume);
+    });
+    socket.emit('get_idle_timeout', null, (config: IdleTimeoutConfigType) => {
+      Logger.debug('get_idle_timeout returned:', config);
+      setIdleTimeout(config);
+    });
   }, [socket]);
 
   const changeTempo = useCallback(
@@ -97,6 +117,26 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     (newState: boolean) => {
       socket?.emit('set_keylock_state', newState, (newState: boolean) => {
         setKeylock(newState);
+      });
+    },
+    [socket],
+  );
+
+  const triggerCauldronSample = useCallback(() => {
+    socket?.emit('trigger_cauldron_sample');
+  }, [socket]);
+
+  const changeCauldronVolume = useCallback(
+    (volume: number) => {
+      socket?.emit('set_cauldron_volume', { volume });
+    },
+    [socket],
+  );
+
+  const changeIdleTimeout = useCallback(
+    (config: IdleTimeoutConfigType) => {
+      socket?.emit('set_idle_timeout', config, (result: IdleTimeoutConfigType) => {
+        setIdleTimeout(result);
       });
     },
     [socket],
@@ -175,6 +215,12 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     socket.on('master-key_changed', ({ key }: { key: string }) => {
       setMasterKey(key);
     });
+    socket.on('cauldron_volume_changed', ({ volume }: { volume: number }) => {
+      setCauldronVolume(volume);
+    });
+    socket.on('idle_timeout_changed', (config: IdleTimeoutConfigType) => {
+      setIdleTimeout(config);
+    });
 
     return () => {
       socket.off('connect', getTracksAndClips);
@@ -189,18 +235,24 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
       socket.off('tempo_changed');
       socket.off('volume_changed');
       socket.off('master-key_changed');
+      socket.off('cauldron_volume_changed');
+      socket.off('idle_timeout_changed');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket]);
 
   return useMemo(
     () => ({
+      cauldronVolume,
+      changeCauldronVolume,
+      changeIdleTimeout,
       changeKeylock,
       changeMasterKey,
       changeTempo,
       changeTrackVolume,
       clipTempo,
       getTracksAndClips,
+      idleTimeout,
       keylock,
       masterKey,
       playingClips,
@@ -208,14 +260,19 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
       stoppingClips,
       tempo,
       trackVolume,
+      triggerCauldronSample,
     }),
     [
+      cauldronVolume,
+      changeCauldronVolume,
+      changeIdleTimeout,
       changeKeylock,
       changeMasterKey,
       changeTempo,
       changeTrackVolume,
       clipTempo,
       getTracksAndClips,
+      idleTimeout,
       keylock,
       masterKey,
       playingClips,
@@ -223,6 +280,7 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
       stoppingClips,
       tempo,
       trackVolume,
+      triggerCauldronSample,
     ],
   );
 };

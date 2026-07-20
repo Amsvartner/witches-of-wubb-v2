@@ -1,4 +1,5 @@
 import { BrowserClipInfoList } from 'backend/type/BrowserClipInfoList';
+import { IdleTimeoutConfigType } from 'backend/type/IdleTimeoutConfigType';
 import { SetTrackVolumeInputType } from 'backend/type/SetTrackVolumeInputType';
 
 export type AbletonContextState = {
@@ -15,4 +16,12 @@ export type AbletonContextState = {
   changeMasterKey: (key: string) => void;
   keylock: boolean;
   changeKeylock: (keylock: boolean) => void;
+  /** WOW-007C: fires a random one-shot from the drum-rack ("cauldron") track. */
+  triggerCauldronSample: () => void;
+  /** WOW-007C: cauldron (drum-rack track) loudness, independent of pillar volumes. */
+  cauldronVolume: number;
+  changeCauldronVolume: (volume: number) => void;
+  /** WOW-007C: idle-timeout ("pause music"/attractor handover) config. */
+  idleTimeout: IdleTimeoutConfigType;
+  changeIdleTimeout: (config: IdleTimeoutConfigType) => void;
 };

@@ -38,7 +38,9 @@ const DJ_AUTO_EXIT_MS_STORAGE_KEY = 'hexology.djAutoExitMs';
 const DEFAULT_DJ_AUTO_EXIT_MS = 5 * 60 * 1000;
 
 /** Parses a persisted DJ auto-exit duration, falling back to the default for
- * anything unset/corrupted/out-of-range (never trust localStorage blindly). */
+ * anything unset, non-numeric, or non-positive (never trust localStorage
+ * blindly). Deliberately no upper bound: it's a frontend-only convenience
+ * setting (Copilot review, PR #56 — comment now matches the check). */
 const parseDjAutoExitMs = (stored: string | null): number => {
   const parsed = Number(stored);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_DJ_AUTO_EXIT_MS;

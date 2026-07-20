@@ -75,8 +75,12 @@ export const SettingsModal = ({
   );
   const cauldronSlider = useSliderEmit(toPercent(cauldronVolume), emitCauldronVolumePercent);
 
-  const idleTimeoutMinutes = Math.round(idleTimeout.timeoutMs / MINUTE_MS);
-  const djAutoExitMinutes = Math.round(djAutoExitMs / MINUTE_MS);
+  // Exact division, not Math.round: a chip only shows pressed when the
+  // config exactly matches its value — a non-UI caller can set e.g. 90s via
+  // the socket API, and rounding would falsely light the "2 min" chip
+  // (Copilot review, PR #56). Non-matching values leave no chip pressed.
+  const idleTimeoutMinutes = idleTimeout.timeoutMs / MINUTE_MS;
+  const djAutoExitMinutes = djAutoExitMs / MINUTE_MS;
 
   return (
     <Dialog open={open} onClose={onClose} className='relative z-50'>

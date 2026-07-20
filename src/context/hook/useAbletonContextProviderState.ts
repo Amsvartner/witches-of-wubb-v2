@@ -75,7 +75,10 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     socket.emit('get_master-key', null, (key: string) => {
       setMasterKey(key);
     });
-    socket?.emit('get_keylock_state', null, (state: boolean) => {
+    // Plain socket.emit like every sibling fetch in this function — the
+    // subscription effect's function-presence guard means getTracksAndClips
+    // never runs against the placeholder socket (Copilot review, PR #56).
+    socket.emit('get_keylock_state', null, (state: boolean) => {
       setKeylock(state);
     });
     socket.emit('get_cauldron_volume', null, (volume: number) => {

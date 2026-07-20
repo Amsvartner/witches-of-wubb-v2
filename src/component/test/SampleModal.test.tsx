@@ -339,6 +339,30 @@ describe('SampleModal (WOW-007B search/filter/sort/instrument/pillar-chip column
       );
     });
 
+    it('fills the playing chip green, distinct from the neutral queued/stopping fill', () => {
+      // Green = audibly live (human request 2026-07-20), matching the pillar
+      // cards' playing status-dot hue. Class-level assertion: the playing chip
+      // carries the green fill; a queued chip carries the neutral one.
+      const playing: ActiveByRfid = { 'rfid-bass-1': { pillarNumber: 3, state: 'playing' } };
+      const playingRender = renderModal({ activeByRfid: playing });
+      const playingChip = within(getRow(playingRender.getByText, 'Basement Growl')).getByRole(
+        'button',
+        { name: 'P3' },
+      );
+      expect(playingChip.className).toContain('bg-[#22c55e]');
+
+      playingRender.unmount();
+
+      const queued: ActiveByRfid = { 'rfid-bass-1': { pillarNumber: 3, state: 'queued' } };
+      const queuedRender = renderModal({ activeByRfid: queued });
+      const queuedChip = within(getRow(queuedRender.getByText, 'Basement Growl')).getByRole(
+        'button',
+        { name: 'P3' },
+      );
+      expect(queuedChip.className).not.toContain('bg-[#22c55e]');
+      expect(queuedChip.className).toContain('bg-parchment/25');
+    });
+
     it('shows a Stopping title on the active chip for a stopping clip', () => {
       const activeByRfid: ActiveByRfid = {
         'rfid-bass-1': { pillarNumber: 3, state: 'stopping' },

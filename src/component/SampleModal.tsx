@@ -250,6 +250,11 @@ const CHIP_OUTLINED_CLASS =
   'border border-gold-line/50 text-parchment/70 bg-transparent disabled:opacity-50';
 const CHIP_PENDING_CLASS = 'bg-gold-line/80 text-ink-deep border border-transparent';
 const CHIP_ACTIVE_CLASS = 'bg-parchment/25 text-ink-deep border-transparent opacity-80';
+// PLAYING gets its own green fill (human request 2026-07-20) — the same hue as
+// the pillar cards' playing status dot, so "green = audibly live" reads
+// consistently across the whole DJ surface. Queued/stopping keep the neutral
+// parchment fill above.
+const CHIP_PLAYING_CLASS = 'bg-[#22c55e]/85 text-ink-deep border-transparent';
 
 /**
  * DJ-mode sample picker (WOW-007B) — the old debug modal's per-pillar clip
@@ -475,7 +480,9 @@ export const SampleModal = ({
                                 type='button'
                                 disabled
                                 title={`${BACKEND_STATE_LABEL[activeState]} on pillar ${chipPillarNumber}`}
-                                className={`${CHIP_BASE_CLASS} ${CHIP_ACTIVE_CLASS}`}
+                                className={`${CHIP_BASE_CLASS} ${
+                                  activeState === 'playing' ? CHIP_PLAYING_CLASS : CHIP_ACTIVE_CLASS
+                                }`}
                               >
                                 {`P${chipPillarNumber}`}
                               </button>

@@ -23,7 +23,11 @@ const PILLAR_COUNT = 4;
 // an unguarded sort crashes the whole bundle at module load) — filter them
 // out instead: a nameless clip can't be presented or picked.
 const clips: SelectableClip[] = Object.entries(ClipDatabaseUtil.rfidToClipMap)
-  .map(([rfid, data]) => ({ ...data, rfid }))
+  .map(([rfid, data]) => ({
+    ...data,
+    rfid,
+    instrument: ClipDatabaseUtil.rfidToInstrumentMap[rfid],
+  }))
   .filter((clip) => Boolean(clip.clipName && clip.type))
   .sort((a, b) => a.clipName.localeCompare(b.clipName));
 
@@ -89,7 +93,11 @@ type Props = {
  * backend-"queued" clip auto-fires at the next phrase boundary (see
  * sim/core/simulator.ts) — so a mere pick has to be held frontend-side
  * (`pendingPicks`, owned by `PlayModeContainer`) until the DJ explicitly taps
- * Play on the pending queue row.
+ * Play on the pending queue row. Picking itself happens via the sample
+ * modal's per-pillar chips (`togglePillar` below) rather than a row tap —
+ * every chip on every row targets its own pillar index directly, so a chip
+ * tap from THIS pillar's modal can queue, remove, or move a hold on ANY of
+ * the 4 pillars, and the modal stays open for further taps.
  *
  * Mute is the human-authorized volume-0 approach: the socket contract has no
  * mute event, so muting emits `set_track_volume` with `volume: 0` (saving the
@@ -173,11 +181,33 @@ export const PillarCardContainer = ({
 
   const openSampleModal = (): void => setIsSampleModalOpen(true);
 
-  // Holds the pick locally (replacing any existing pending pick on this
-  // pillar) and closes the modal — no emit (see class doc above).
-  const pick = (clip: SelectableClip): void => {
-    onPendingPickChange(index, clip);
-    setIsSampleModalOpen(false);
+  // Live active/pending state for every catalogue rfid, across all 4
+  // pillars — shared by the SampleModal's chips (rendering + click targets)
+  // and by togglePillar's own read of "where (if anywhere) is this clip".
+  const activeByRfid = buildActiveByRfid(playingClips, queuedClips, stoppingClips, pendingPicks);
+
+  // Toggles the pillar chip at `pillarIndex` (0-based) for `clip` — no emit
+  // (see class doc above), and does not close the modal so a DJ can keep
+  // assigning clips to other pillars from the same open picker. A
+  // backend-active clip never reaches here (its chips are disabled in
+  // SampleModal), so only two cases matter: already pending somewhere, or
+  // pending nowhere.
+  const togglePillar = (pillarIndex: number, clip: SelectableClip): void => {
+    const active = activeByRfid[clip.rfid];
+    if (active?.state === 'pending') {
+      if (active.pillarNumber === pillarIndex + 1) {
+        // Tapped the chip it's already pending on — remove the hold.
+        onPendingPickChange(pillarIndex, null);
+        return;
+      }
+      // Tapped a different pillar's chip — move the hold: clear the old
+      // pillar first, then set the new one, so a single tag is never held
+      // pending on two pillars at once.
+      onPendingPickChange(active.pillarNumber - 1, null);
+      onPendingPickChange(pillarIndex, clip);
+      return;
+    }
+    onPendingPickChange(pillarIndex, clip);
   };
 
   // Starts the pending pick now. Not confirm-gated: this is the DJ's first
@@ -265,8 +295,8 @@ export const PillarCardContainer = ({
         onClose={() => setIsSampleModalOpen(false)}
         pillarNumber={index + 1}
         clips={clips}
-        onPick={pick}
-        activeByRfid={buildActiveByRfid(playingClips, queuedClips, stoppingClips, pendingPicks)}
+        onTogglePillar={togglePillar}
+        activeByRfid={activeByRfid}
       />
     </>
   );

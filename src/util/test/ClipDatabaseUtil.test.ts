@@ -36,4 +36,18 @@ describe('ClipDatabaseUtil (real Music Database.csv, read-only)', () => {
     const mizbiz = entries.find((entry) => entry.clipName === 'Mizbiz vox 3B 86');
     expect(mizbiz?.bpm).toBe(86);
   });
+
+  it('builds a non-empty rfid-to-instrument map from the CSV Instrument column (WOW-007B)', () => {
+    const instruments = Object.entries(ClipDatabaseUtil.rfidToInstrumentMap);
+    expect(instruments.length).toBeGreaterThan(0);
+    instruments.forEach(([rfid, instrument]) => {
+      expect(rfid).toBeTruthy();
+      expect(instrument.trim()).toBe(instrument);
+      expect(instrument.length).toBeGreaterThan(0);
+    });
+
+    // Spot-check a known row: "Mizbiz vox 3B 86" (rfid
+    // e280f3372000f00003effc95) has Instrument "Vox" in the CSV.
+    expect(ClipDatabaseUtil.rfidToInstrumentMap['e280f3372000f00003effc95']).toBe('Vox');
+  });
 });

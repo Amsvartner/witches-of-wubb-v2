@@ -11,12 +11,13 @@ export type SelectableClip = {
   songTitle?: string;
   bpm?: number;
   key?: string;
+  instrument?: string;
 };
 
 /**
  * Where (if anywhere) a clip is currently live, per rfid — across every
- * pillar (WOW-007B pending-pick queue). Drives both the disabled state and
- * the Pillar column's hint text. Supplied by the container from
+ * pillar (WOW-007B pending-pick queue). Drives both the Pillar chips' state
+ * and the Pillar column's sort order. Supplied by the container from
  * playingClips/queuedClips/stoppingClips plus every pillar's local pending
  * pick (`PlayModeContainer`'s `pendingPicks`).
  */
@@ -28,23 +29,25 @@ export type ActiveByRfid = Record<
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** 1-based pillar number, for the title and the pending-on-this-pillar
-   * enabled exception. */
+  /** 1-based pillar number, used only for the dialog title. */
   pillarNumber: number;
   /** Full clip catalogue, already sorted by name (DebugModal parity). */
   clips: SelectableClip[];
   /**
-   * Holds the clip as this pillar's pending pick and closes the modal
-   * (WOW-007B — no longer emits `/new/tag` directly; Play on the pending
-   * queue row is what actually emits it, see PillarCardContainer).
+   * Toggles the pillar-chip at `pillarIndex` (0-based) for `clip` — queues,
+   * removes, or moves the pending hold, per PillarCardContainer's
+   * `togglePillar`. Called from ANY of the 4 chips on a row, regardless of
+   * which pillar's modal is currently open (WOW-007B batch queueing — a DJ
+   * can open one pillar's picker and assign clips across all 4 pillars
+   * before closing it).
    */
-  onPick: (clip: SelectableClip) => void;
+  onTogglePillar: (pillarIndex: number, clip: SelectableClip) => void;
   /** Active/pending state for every catalogue rfid, across all 4 pillars. */
   activeByRfid: ActiveByRfid;
 };
 
 type CategoryFilter = 'All' | ClipTypes;
-type SortColumn = 'name' | 'key' | 'bpm' | 'type' | 'pillar';
+type SortColumn = 'name' | 'key' | 'bpm' | 'type' | 'instrument' | 'pillar';
 type SortDirection = 'asc' | 'desc';
 
 const CATEGORY_ORDER: ClipTypes[] = [
@@ -76,6 +79,7 @@ const COLUMNS: { key: SortColumn; label: string }[] = [
   { key: 'key', label: 'Key' },
   { key: 'bpm', label: 'BPM' },
   { key: 'type', label: 'Type' },
+  { key: 'instrument', label: 'Instrument' },
   { key: 'pillar', label: 'Pillar' },
 ];
 
@@ -86,11 +90,12 @@ const DEFAULT_SORT_DIRECTION: SortDirection = 'asc';
  * Shared grid template so the header row and every data row line up. The
  * leading 14px column is the category dot (headers render it empty) — keeping
  * it inside the grid means the Name header aligns with the name text, not
- * with the dot. Both the header wrapper and the scroll list reserve a stable
- * scrollbar gutter (see below) so the scrollbar can't skew rows relative to
- * the headers.
+ * with the dot. The trailing 170px column holds the 4 pillar chips; both the
+ * header wrapper and the scroll list reserve a stable scrollbar gutter (see
+ * below) so the scrollbar can't skew rows relative to the headers.
  */
-const ROW_GRID_CLASS = 'grid grid-cols-[14px_minmax(0,1fr)_64px_64px_96px_80px] items-center gap-2';
+const ROW_GRID_CLASS =
+  'grid grid-cols-[14px_minmax(0,1fr)_64px_64px_96px_minmax(90px,110px)_170px] items-center gap-2';
 
 const matchesSearch = (clip: SelectableClip, query: string): boolean => {
   if (!query) return true;
@@ -129,6 +134,8 @@ const hasColumnValue = (
       return clip.bpm != null;
     case 'key':
       return Boolean(clip.key);
+    case 'instrument':
+      return Boolean(clip.instrument);
     case 'pillar':
       return activeByRfid[clip.rfid] != null;
   }
@@ -158,6 +165,8 @@ const compareByColumn = (
     }
     case 'type':
       return CATEGORY_SORT_ORDER[a.type] - CATEGORY_SORT_ORDER[b.type];
+    case 'instrument':
+      return (a.instrument as string).localeCompare(b.instrument as string);
     case 'pillar':
       return (
         (activeByRfid[a.rfid] as { pillarNumber: number }).pillarNumber -
@@ -167,10 +176,11 @@ const compareByColumn = (
 };
 
 /**
- * Applies the active column sort. Missing values (no bpm/key, or not active
- * on any pillar for the Pillar column) always sort last, regardless of
- * direction. Sorts against an already name-ordered copy first so ties within
- * a sort group stay stable by name — `Array.prototype.sort` is spec-stable.
+ * Applies the active column sort. Missing values (no bpm/key/instrument, or
+ * not active on any pillar for the Pillar column) always sort last,
+ * regardless of direction. Sorts against an already name-ordered copy first
+ * so ties within a sort group stay stable by name — `Array.prototype.sort` is
+ * spec-stable.
  */
 const sortClips = (
   list: SelectableClip[],
@@ -190,61 +200,78 @@ const sortClips = (
   return [...sortedPresent, ...missing];
 };
 
-/** `P{n}`, with a short state hint for anything but 'playing'; `—` when the
- * clip isn't active anywhere. */
-const pillarCellText = (clip: SelectableClip, activeByRfid: ActiveByRfid): string => {
+type ChipStatus = 'outlined' | 'pendingHere' | 'activeHere' | 'activeElsewhere';
+
+/**
+ * Which of the 4 pillar chips a clip's row renders as, for the chip at
+ * `chipPillarNumber` (1-based):
+ * - `activeHere` / `activeElsewhere`: the clip is genuinely live (playing,
+ *   backend-queued, or stopping) somewhere — a physically-placed tag can't be
+ *   re-queued elsewhere, so every chip on the row is disabled; `activeHere`
+ *   is the one matching where it's actually placed.
+ * - `pendingHere`: the clip is this pillar's held-but-not-started pick.
+ * - `outlined`: nothing is stopping this chip from being tapped — covers
+ *   both "not active anywhere" and "pending on a DIFFERENT pillar" (tapping
+ *   it there is a valid move, handled by PillarCardContainer's togglePillar).
+ */
+const chipStatus = (
+  clip: SelectableClip,
+  chipPillarNumber: number,
+  activeByRfid: ActiveByRfid,
+): ChipStatus => {
   const active = activeByRfid[clip.rfid];
-  if (!active) return '—';
-  const base = `P${active.pillarNumber}`;
-  switch (active.state) {
-    case 'playing':
-      return base;
-    case 'queued':
-      return `${base} ·q`;
-    case 'stopping':
-      return `${base} ·s`;
-    case 'pending':
-      return `${base} ·hold`;
+  if (!active) return 'outlined';
+  if (active.state === 'pending') {
+    return active.pillarNumber === chipPillarNumber ? 'pendingHere' : 'outlined';
   }
+  return active.pillarNumber === chipPillarNumber ? 'activeHere' : 'activeElsewhere';
+};
+
+const BACKEND_STATE_LABEL: Record<'playing' | 'queued' | 'stopping', string> = {
+  playing: 'Playing',
+  queued: 'Queued',
+  stopping: 'Stopping',
 };
 
 /**
- * A tag can only ever be on one pillar, and re-picking an active clip has
- * undefined backend behaviour, so every active row is disabled — except a
- * clip that's pending ON THIS SAME pillar (re-picking it is a harmless
- * replace-with-itself).
+ * Dense-table exception to the installation's usual 44px hit-target rule
+ * (UX_UI_PRINCIPLES §8): four chips have to fit a ~170px column without
+ * wrapping, so each chip gets a considered 40px minimum instead of 44px —
+ * still generously tappable on the touch panel, just narrower than the
+ * standard control size.
  */
-const isRowDisabled = (
-  clip: SelectableClip,
-  activeByRfid: ActiveByRfid,
-  pillarNumber: number,
-): boolean => {
-  const active = activeByRfid[clip.rfid];
-  if (!active) return false;
-  return !(active.state === 'pending' && active.pillarNumber === pillarNumber);
-};
+const CHIP_BASE_CLASS =
+  'flex min-h-[40px] items-center justify-center rounded-md font-data text-[11px] uppercase tracking-[0.08em]';
+// Shared by the tappable "not active here" state and the disabled
+// "active on a different pillar" state — the latter adds nothing but the
+// `disabled:opacity-50` dimming (inert on the former, since it's never
+// disabled).
+const CHIP_OUTLINED_CLASS =
+  'border border-gold-line/50 text-parchment/70 bg-transparent disabled:opacity-50';
+const CHIP_PENDING_CLASS = 'bg-gold-line/80 text-ink-deep border border-transparent';
+const CHIP_ACTIVE_CLASS = 'bg-parchment/25 text-ink-deep border-transparent opacity-80';
 
 /**
  * DJ-mode sample picker (WOW-007B) — the old debug modal's per-pillar clip
- * list in grimoire styling: tap a clip to hold it as this pillar's pending
- * pick (an explicit Play on the pillar card's queue row is what actually
- * emits the tag event — see PillarCardContainer). Holding is additive/
- * reversible, not destructive, so no confirm gate (UX_UI_PRINCIPLES 2
- * applies to stop/remove, which live on the pillar card).
+ * list in grimoire styling, reworked around pillar chips: each row shows a
+ * P1..P4 chip strip, and tapping an eligible chip queues/removes/moves that
+ * clip's pending hold on the tapped pillar (an explicit Play on the pillar
+ * card's queue row is what actually emits the tag event — see
+ * PillarCardContainer's `togglePillar`/`playPending`). The modal stays open
+ * across chip taps so a DJ can assign several pillars from one open picker;
+ * only Close dismisses it.
  *
- * WOW-007B rework: sortable column headers (Name/Key/BPM/Type/Pillar,
- * click-to-toggle ascending/descending) replace the old segmented Name/BPM/
- * Key control; rows show every column and disable clips already active on
- * any pillar. Search/filter/sort state resets whenever `open` transitions, so
- * a DJ opening a different pillar's (or the same pillar's, next time) picker
- * never inherits a stale search.
+ * Sortable column headers (Name/Key/BPM/Type/Instrument/Pillar,
+ * click-to-toggle ascending/descending); search/filter/sort state resets
+ * whenever `open` transitions, so a DJ opening a different pillar's (or the
+ * same pillar's, next time) picker never inherits a stale search.
  */
 export const SampleModal = ({
   open,
   onClose,
   pillarNumber,
   clips,
-  onPick,
+  onTogglePillar,
   activeByRfid,
 }: Props): JSX.Element => {
   const [search, setSearch] = useState('');
@@ -288,7 +315,7 @@ export const SampleModal = ({
     <Dialog open={open} onClose={onClose} className='relative z-50'>
       <div className='fixed inset-0 bg-[#0b0910]/95' aria-hidden='true' />
       <div className='fixed inset-0 flex items-center justify-center p-6'>
-        <Dialog.Panel className='flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl border border-gold-line/40 bg-ink-panel p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]'>
+        <Dialog.Panel className='flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-gold-line/40 bg-ink-panel p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]'>
           <Dialog.Title className='font-display text-2xl tracking-[0.14em] text-gold-bright'>
             Pillar {pillarNumber} — Select sample
           </Dialog.Title>
@@ -364,6 +391,9 @@ export const SampleModal = ({
                     ? 'ascending'
                     : 'descending'
                   : 'none';
+                // Instrument's cell text is left-aligned (truncating column),
+                // so its header lines up the same way Name's does.
+                const isLeftAligned = column.key === 'name' || column.key === 'instrument';
                 return (
                   <button
                     key={column.key}
@@ -372,7 +402,7 @@ export const SampleModal = ({
                     aria-sort={ariaSort}
                     onClick={() => handleHeaderClick(column.key)}
                     className={`flex min-h-[44px] items-center gap-1 font-data text-xs uppercase tracking-[0.14em] ${
-                      column.key === 'name' ? 'justify-start' : 'justify-center'
+                      isLeftAligned ? 'justify-start' : 'justify-center'
                     } ${isActive ? 'text-gold-bright' : 'text-parchment/60'}`}
                   >
                     {column.label}
@@ -400,16 +430,9 @@ export const SampleModal = ({
             <ul className='mt-1 min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]'>
               {visibleClips.map((clip) => {
                 const tokens = CategoryTheme.forType(clip.type);
-                const disabled = isRowDisabled(clip, activeByRfid, pillarNumber);
-                const pillarText = pillarCellText(clip, activeByRfid);
                 return (
                   <li key={clip.rfid}>
-                    <button
-                      type='button'
-                      disabled={disabled}
-                      onClick={() => onPick(clip)}
-                      className={`${ROW_GRID_CLASS} min-h-[44px] w-full rounded-lg px-2 text-left hover:bg-ink-btn focus-visible:bg-ink-btn disabled:opacity-60 disabled:hover:bg-transparent`}
-                    >
+                    <div className={`${ROW_GRID_CLASS} min-h-[44px] w-full rounded-lg px-2`}>
                       <span
                         style={{
                           backgroundColor: tokens.fillHex,
@@ -433,10 +456,67 @@ export const SampleModal = ({
                       >
                         {tokens.label}
                       </span>
-                      <span className='text-center font-data text-xs text-parchment/70'>
-                        {pillarText}
+                      <span className='truncate text-left font-data text-xs text-parchment/70'>
+                        {clip.instrument ?? '—'}
                       </span>
-                    </button>
+                      <div className='grid grid-cols-4 gap-1'>
+                        {([1, 2, 3, 4] as const).map((chipPillarNumber) => {
+                          const status = chipStatus(clip, chipPillarNumber, activeByRfid);
+                          const chipIndex = chipPillarNumber - 1;
+
+                          if (status === 'activeHere') {
+                            const activeState = activeByRfid[clip.rfid]?.state as
+                              | 'playing'
+                              | 'queued'
+                              | 'stopping';
+                            return (
+                              <button
+                                key={chipPillarNumber}
+                                type='button'
+                                disabled
+                                title={`${BACKEND_STATE_LABEL[activeState]} on pillar ${chipPillarNumber}`}
+                                className={`${CHIP_BASE_CLASS} ${CHIP_ACTIVE_CLASS}`}
+                              >
+                                {`P${chipPillarNumber}`}
+                              </button>
+                            );
+                          }
+
+                          if (status === 'activeElsewhere') {
+                            return (
+                              <button
+                                key={chipPillarNumber}
+                                type='button'
+                                disabled
+                                className={`${CHIP_BASE_CLASS} ${CHIP_OUTLINED_CLASS}`}
+                              >
+                                {`P${chipPillarNumber}`}
+                              </button>
+                            );
+                          }
+
+                          const isPendingHere = status === 'pendingHere';
+                          return (
+                            <button
+                              key={chipPillarNumber}
+                              type='button'
+                              aria-pressed={isPendingHere}
+                              aria-label={
+                                isPendingHere
+                                  ? `Remove ${clip.clipName} from pillar ${chipPillarNumber} queue`
+                                  : `Queue ${clip.clipName} on pillar ${chipPillarNumber}`
+                              }
+                              onClick={() => onTogglePillar(chipIndex, clip)}
+                              className={`${CHIP_BASE_CLASS} ${
+                                isPendingHere ? CHIP_PENDING_CLASS : CHIP_OUTLINED_CLASS
+                              }`}
+                            >
+                              {`P${chipPillarNumber}`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </li>
                 );
               })}

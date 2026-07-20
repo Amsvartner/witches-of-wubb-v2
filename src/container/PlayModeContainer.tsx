@@ -10,6 +10,7 @@ import { useAbletonContext } from '~/context/hook/useAbletonContext';
 import { useSocketContext } from '~/context/hook/useSocketContext';
 import { useSliderEmit } from '~/hook/useSliderEmit';
 import { KeyUtil } from '~/util/KeyUtil';
+import { LocalStorageUtil } from '~/util/LocalStorageUtil';
 import { PillarViewUtil } from '~/util/PillarViewUtil';
 import { type SelectableClip } from '~/component/SampleModal';
 
@@ -19,6 +20,10 @@ const NO_PENDING_PICKS: (SelectableClip | null)[] = [null, null, null, null];
 /** Legacy TempoSliderContainer bounds — carried over unchanged (WOW-007B). */
 const TEMPO_MIN = 75;
 const TEMPO_MAX = 155;
+
+/** localStorage keys (WOW-007B persistence) — see LocalStorageUtil. */
+const MODE_STORAGE_KEY = 'hexology.mode';
+const BASELINE_KEY_STORAGE_KEY = 'hexology.baselineKey';
 
 /**
  * DJ-mode walk-away safeguard (DESIGN_PROPOSAL_001 §6.2): if nobody touches
@@ -75,7 +80,11 @@ export const PlayModeContainer = (): JSX.Element => {
   const [isConnected, setIsConnected] = useState(Boolean(socket.connected));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
-  const [mode, setMode] = useState<Mode>('play');
+  // Restores DJ mode across a reload (WOW-007B persistence) — any other
+  // stored value (or none) falls back to 'play', the safe default.
+  const [mode, setMode] = useState<Mode>(() =>
+    LocalStorageUtil.get(MODE_STORAGE_KEY) === 'dj' ? 'dj' : 'play',
+  );
   // Pending DJ picks (WOW-007B pending-pick queue): a clip a DJ has chosen
   // from the sample picker but not yet started. Held here (not inside
   // PillarCardContainer) rather than emitted immediately, because the
@@ -107,6 +116,13 @@ export const PlayModeContainer = (): JSX.Element => {
       socket.off('disconnect', handleDisconnect);
     };
   }, [socket]);
+
+  // Persists the mode on every change (WOW-007B) — including the DJ
+  // auto-exit timeout and the explicit EXIT DJ control below, since both
+  // just call `setMode`, same as the Settings modal's segmented control.
+  useEffect(() => {
+    LocalStorageUtil.set(MODE_STORAGE_KEY, mode);
+  }, [mode]);
 
   // DJ auto-exit: resets a 5-minute timer on every pointer interaction while
   // DJ mode is active, and drops back to play mode if the timer expires.
@@ -143,20 +159,42 @@ export const PlayModeContainer = (): JSX.Element => {
   const tempoSlider = useSliderEmit(tempo, changeTempo);
   const keyQuality = KeyUtil.keyQuality(masterKey);
 
-  // Baseline-key tracking for Reset (WOW-007B): the contract has no key-reset
-  // event, so Reset re-emits `set_master-key` with the last key the backend
-  // set ORGANICALLY (clip placement / phrase-leader), undoing manual
-  // Raise/Lower transposition. Organic vs manual is told apart by remembering
-  // the value each manual request asked for: a `masterKey` change that
-  // doesn't match the last request came from the backend itself and becomes
-  // the new baseline. Frontend-held: a mid-show page reload re-seeds the
-  // baseline from whatever key is current (prior adjustments become baseline).
+  // Baseline-key tracking for Reset (WOW-007B, extended for localStorage
+  // persistence): the contract has no key-reset event, so Reset re-emits
+  // `set_master-key` with the last key the backend set ORGANICALLY (clip
+  // placement / phrase-leader), undoing manual Raise/Lower transposition.
+  // Organic vs manual is told apart by remembering the value each manual
+  // request asked for: a `masterKey` change that doesn't match the last
+  // request came from the backend itself and becomes the new baseline
+  // (persisted immediately, so it survives a reload).
+  //
+  // The baseline itself is seeded from storage rather than starting blank,
+  // so a page reload mid-show doesn't lose track of pre-reload manual
+  // transposition (Reset must still be able to undo it). That means the
+  // FIRST masterKey observation after mount can't blindly overwrite the
+  // baseline the way every later organic change does — `hasSeenMasterKeyRef`
+  // marks that first observation so it can be skipped when a stored baseline
+  // already exists; with no stored baseline, it behaves exactly as before
+  // (baseline seeds from whatever key is live at mount).
   const lastRequestedKeyRef = useRef<string | null>(null);
-  const [baselineKey, setBaselineKey] = useState('');
+  const hasSeenMasterKeyRef = useRef(false);
+  const [baselineKey, setBaselineKey] = useState<string>(
+    () => LocalStorageUtil.get(BASELINE_KEY_STORAGE_KEY) ?? '',
+  );
   useEffect(() => {
     if (!masterKey) return;
+    const isFirstObservation = !hasSeenMasterKeyRef.current;
+    hasSeenMasterKeyRef.current = true;
+
+    if (isFirstObservation && LocalStorageUtil.get(BASELINE_KEY_STORAGE_KEY)) {
+      // A stored baseline survived the reload — trust it over whatever key
+      // happens to be live right now (that live key may just be pre-reload
+      // manual transposition the DJ hasn't reset yet).
+      return;
+    }
     if (masterKey !== lastRequestedKeyRef.current) {
       setBaselineKey(masterKey);
+      LocalStorageUtil.set(BASELINE_KEY_STORAGE_KEY, masterKey);
     }
   }, [masterKey]);
 

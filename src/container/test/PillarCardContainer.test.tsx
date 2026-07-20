@@ -56,17 +56,28 @@ const createAbletonState = (overrides: Partial<AbletonContextState> = {}): Ablet
 const createSocket = (connected = true): Socket =>
   ({ on: vi.fn(), off: vi.fn(), emit: vi.fn(), connected } as unknown as Socket);
 
-// Full catalogue, same filter/sort as the container's module-level `clips` —
-// used to pick a real, pickable clip for the pending-pick tests.
+// Full catalogue, same filter/sort/instrument-join as the container's
+// module-level `clips` — used to pick a real, pickable clip for the
+// pending-pick tests. Must match exactly (including `instrument`): these
+// objects are asserted for reference equality against what the container
+// actually passes to onPendingPickChange.
 const catalogue: SelectableClip[] = Object.entries(ClipDatabaseUtil.rfidToClipMap)
-  .map(([rfid, data]) => ({ ...data, rfid }))
+  .map(([rfid, data]) => ({
+    ...data,
+    rfid,
+    instrument: ClipDatabaseUtil.rfidToInstrumentMap[rfid],
+  }))
   .filter((clip) => Boolean(clip.clipName && clip.type))
   .sort((a, b) => a.clipName.localeCompare(b.clipName));
 
 /**
  * Mirrors `PlayModeContainer`'s lifted `pendingPicks` state locally, so a
  * single `PillarCardContainer` can be exercised end-to-end (pick -> hold ->
- * Play/Remove) exactly the way it's driven in the real tree.
+ * Play/Remove) exactly the way it's driven in the real tree. Every call to
+ * `onPendingPickChange` also goes through `onPendingPickChangeSpy`, so tests
+ * can assert the exact calls/order `togglePillar` makes (queue/remove/move)
+ * without losing the real state-driven UI updates (Play/Remove rows,
+ * SampleModal chip states) that come from actually applying them.
  */
 function renderContainer(
   abletonState: AbletonContextState,
@@ -79,6 +90,7 @@ function renderContainer(
     abletonState.stoppingClips,
     abletonState.trackVolume,
   );
+  const onPendingPickChangeSpy = vi.fn();
 
   function Wrapper() {
     const [pendingPicks, setPendingPicks] = useState<(SelectableClip | null)[]>([
@@ -88,6 +100,7 @@ function renderContainer(
       null,
     ]);
     const onPendingPickChange = (index: number, clip: SelectableClip | null) => {
+      onPendingPickChangeSpy(index, clip);
       setPendingPicks((current) => current.map((existing, i) => (i === index ? clip : existing)));
     };
 
@@ -108,7 +121,8 @@ function renderContainer(
     );
   }
 
-  return render(<Wrapper />);
+  const utils = render(<Wrapper />);
+  return { ...utils, onPendingPickChangeSpy };
 }
 
 describe('PillarCardContainer', () => {
@@ -189,14 +203,21 @@ describe('PillarCardContainer', () => {
     });
   });
 
-  describe('pending-pick queue (WOW-007B)', () => {
-    it('holds a picked sample locally as a pending row, without emitting', () => {
+  describe('pending-pick queue (WOW-007B chip queueing)', () => {
+    // Chip aria-labels are 1-based on the tapped pillar; the container's own
+    // `index` prop is 0-based. index 2 -> pillar 3, etc.
+    const queueChipLabel = (clipName: string, pillarNumber: number) =>
+      `Queue ${clipName} on pillar ${pillarNumber}`;
+    const removeChipLabel = (clipName: string, pillarNumber: number) =>
+      `Remove ${clipName} from pillar ${pillarNumber} queue`;
+
+    it('tapping this pillar’s own chip holds the sample locally as a pending row, without emitting, and keeps the modal open', () => {
       const socket = createSocket(true);
       const abletonState = createAbletonState();
       const firstClip = catalogue[0];
       expect(firstClip).toBeDefined();
 
-      const { getByRole, getByText, queryByRole } = renderContainer(abletonState, socket, {
+      const { getByRole } = renderContainer(abletonState, socket, {
         index: 2,
         djMode: true,
         isConnected: true,
@@ -205,11 +226,17 @@ describe('PillarCardContainer', () => {
       fireEvent.click(getByRole('button', { name: 'Select sample' }));
       expect(getByRole('dialog')).toBeInTheDocument();
 
-      fireEvent.click(getByText(firstClip.clipName).closest('button') as HTMLButtonElement);
+      fireEvent.click(getByRole('button', { name: queueChipLabel(firstClip.clipName, 3) }));
 
       expect(socket.emit).not.toHaveBeenCalled();
-      expect(queryByRole('dialog')).not.toBeInTheDocument();
-      expect(getByRole('button', { name: `Play ${firstClip.clipName}` })).toBeInTheDocument();
+      expect(getByRole('dialog')).toBeInTheDocument();
+      // The pending row lives on the PillarCard, behind the still-open modal
+      // — Headless UI marks background content aria-hidden while a Dialog is
+      // open, so this needs `hidden: true` to look past that and confirm the
+      // row is really there (not just present-but-inert).
+      expect(
+        getByRole('button', { name: `Play ${firstClip.clipName}`, hidden: true }),
+      ).toBeInTheDocument();
     });
 
     it('Play emits /departed/tag for the active clip first, then /new/tag for the pick, in order', () => {
@@ -225,14 +252,15 @@ describe('PillarCardContainer', () => {
       const firstClip = catalogue[0];
       expect(firstClip).toBeDefined();
 
-      const { getByRole, getByText } = renderContainer(abletonState, socket, {
+      const { getByRole } = renderContainer(abletonState, socket, {
         index: 2,
         djMode: true,
         isConnected: true,
       });
 
       fireEvent.click(getByRole('button', { name: 'Select sample' }));
-      fireEvent.click(getByText(firstClip.clipName).closest('button') as HTMLButtonElement);
+      fireEvent.click(getByRole('button', { name: queueChipLabel(firstClip.clipName, 3) }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
       fireEvent.click(getByRole('button', { name: `Play ${firstClip.clipName}` }));
 
       expect(socket.emit).toHaveBeenNthCalledWith(1, '/departed/tag', {
@@ -252,14 +280,15 @@ describe('PillarCardContainer', () => {
       const firstClip = catalogue[0];
       expect(firstClip).toBeDefined();
 
-      const { getByRole, getByText } = renderContainer(abletonState, socket, {
+      const { getByRole } = renderContainer(abletonState, socket, {
         index: 3,
         djMode: true,
         isConnected: true,
       });
 
       fireEvent.click(getByRole('button', { name: 'Select sample' }));
-      fireEvent.click(getByText(firstClip.clipName).closest('button') as HTMLButtonElement);
+      fireEvent.click(getByRole('button', { name: queueChipLabel(firstClip.clipName, 4) }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
       fireEvent.click(getByRole('button', { name: `Play ${firstClip.clipName}` }));
 
       expect(socket.emit).toHaveBeenCalledTimes(1);
@@ -271,61 +300,108 @@ describe('PillarCardContainer', () => {
       const abletonState = createAbletonState();
       const firstClip = catalogue[0];
 
-      const { getByRole, getByText, queryByRole } = renderContainer(abletonState, socket, {
+      const { getByRole, queryByRole } = renderContainer(abletonState, socket, {
         index: 0,
         djMode: true,
         isConnected: true,
       });
 
       fireEvent.click(getByRole('button', { name: 'Select sample' }));
-      fireEvent.click(getByText(firstClip.clipName).closest('button') as HTMLButtonElement);
+      fireEvent.click(getByRole('button', { name: queueChipLabel(firstClip.clipName, 1) }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
       fireEvent.click(getByRole('button', { name: `Play ${firstClip.clipName}` }));
 
       expect(queryByRole('button', { name: `Play ${firstClip.clipName}` })).not.toBeInTheDocument();
     });
 
-    it('Remove on the pending row clears the hold locally without emitting, not confirm-gated', () => {
+    it('tapping the same pillar’s chip again (now filled/pressed) removes the hold locally without emitting', () => {
       const socket = createSocket(true);
       const abletonState = createAbletonState();
       const firstClip = catalogue[0];
 
-      const { getByRole, getByText, queryByText } = renderContainer(abletonState, socket, {
-        index: 1,
-        djMode: true,
-        isConnected: true,
-      });
+      const { getByRole, queryByRole, onPendingPickChangeSpy } = renderContainer(
+        abletonState,
+        socket,
+        { index: 1, djMode: true, isConnected: true },
+      );
 
       fireEvent.click(getByRole('button', { name: 'Select sample' }));
-      fireEvent.click(getByText(firstClip.clipName).closest('button') as HTMLButtonElement);
+      fireEvent.click(getByRole('button', { name: queueChipLabel(firstClip.clipName, 2) }));
 
-      // Single tap — no "Confirm remove" step, unlike the backend-queued row.
-      fireEvent.click(getByRole('button', { name: `Remove ${firstClip.clipName}` }));
+      const pendingChip = getByRole('button', { name: removeChipLabel(firstClip.clipName, 2) });
+      expect(pendingChip).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(pendingChip);
 
       expect(socket.emit).not.toHaveBeenCalled();
-      expect(queryByText(firstClip.clipName)).not.toBeInTheDocument();
-      expect(getByRole('button', { name: 'Select sample' })).toBeInTheDocument();
+      // Identity-match by rfid/name: the container's catalogue entry also
+      // carries the frontend-joined `instrument`, which this test's local
+      // rebuild deliberately doesn't replicate.
+      expect(onPendingPickChangeSpy).toHaveBeenNthCalledWith(
+        1,
+        1,
+        expect.objectContaining({ rfid: firstClip.rfid, clipName: firstClip.clipName }),
+      );
+      expect(onPendingPickChangeSpy).toHaveBeenNthCalledWith(2, 1, null);
+      fireEvent.click(getByRole('button', { name: /close/i }));
+      expect(queryByRole('button', { name: `Play ${firstClip.clipName}` })).not.toBeInTheDocument();
     });
 
-    it('picking a new sample replaces the existing pending pick', () => {
+    it('tapping a DIFFERENT pillar’s chip moves the hold: clears the old pillar, then sets the new one, in order', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState();
+      const firstClip = catalogue[0];
+
+      const { getByRole, queryByRole, onPendingPickChangeSpy } = renderContainer(
+        abletonState,
+        socket,
+        { index: 0, djMode: true, isConnected: true },
+      );
+
+      fireEvent.click(getByRole('button', { name: 'Select sample' }));
+      // Queue on pillar 1 (this pillar, index 0). The pending row it creates
+      // is behind the still-open modal, so `hidden: true` looks past Headless
+      // UI's aria-hidden on background content while the Dialog is open.
+      fireEvent.click(getByRole('button', { name: queueChipLabel(firstClip.clipName, 1) }));
+      expect(
+        getByRole('button', { name: `Play ${firstClip.clipName}`, hidden: true }),
+      ).toBeInTheDocument();
+
+      // Tap pillar 2's chip on the same still-open row — a move, not a queue.
+      fireEvent.click(getByRole('button', { name: queueChipLabel(firstClip.clipName, 2) }));
+
+      expect(onPendingPickChangeSpy).toHaveBeenCalledTimes(3);
+      expect(onPendingPickChangeSpy).toHaveBeenNthCalledWith(1, 0, firstClip); // queue on pillar 1
+      expect(onPendingPickChangeSpy).toHaveBeenNthCalledWith(2, 0, null); // clear pillar 1
+      expect(onPendingPickChangeSpy).toHaveBeenNthCalledWith(3, 1, firstClip); // set pillar 2
+      // This pillar (index 0) no longer shows the pending row — it moved away.
+      expect(
+        queryByRole('button', { name: `Play ${firstClip.clipName}`, hidden: true }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('picking a different sample on the same pillar replaces the existing pending pick', () => {
       const socket = createSocket(true);
       const abletonState = createAbletonState();
       const [firstClip, secondClip] = catalogue;
       expect(secondClip).toBeDefined();
 
-      const { getByRole, getByText, queryByText } = renderContainer(abletonState, socket, {
+      const { getByRole, queryByRole } = renderContainer(abletonState, socket, {
         index: 0,
         djMode: true,
         isConnected: true,
       });
 
       fireEvent.click(getByRole('button', { name: 'Select sample' }));
-      fireEvent.click(getByText(firstClip.clipName).closest('button') as HTMLButtonElement);
-      expect(getByRole('button', { name: `Play ${firstClip.clipName}` })).toBeInTheDocument();
+      fireEvent.click(getByRole('button', { name: queueChipLabel(firstClip.clipName, 1) }));
+      // Behind the still-open modal — see the `hidden: true` note above.
+      expect(
+        getByRole('button', { name: `Play ${firstClip.clipName}`, hidden: true }),
+      ).toBeInTheDocument();
 
-      fireEvent.click(getByRole('button', { name: 'Select sample' }));
-      fireEvent.click(getByText(secondClip.clipName).closest('button') as HTMLButtonElement);
+      fireEvent.click(getByRole('button', { name: queueChipLabel(secondClip.clipName, 1) }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
 
-      expect(queryByText(firstClip.clipName)).not.toBeInTheDocument();
+      expect(queryByRole('button', { name: `Play ${firstClip.clipName}` })).not.toBeInTheDocument();
       expect(getByRole('button', { name: `Play ${secondClip.clipName}` })).toBeInTheDocument();
     });
   });

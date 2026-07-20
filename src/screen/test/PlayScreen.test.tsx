@@ -62,6 +62,17 @@ function renderPlayScreen(options: { abletonState?: AbletonContextState; socket?
 }
 
 describe('PlayScreen (WOW-007B live wiring)', () => {
+  // Mode and baseline-key both initialise from localStorage (WOW-007B
+  // persistence) — clear it before and after every test in this file so no
+  // test leaks a stored value into another.
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
   it('renders the ceremonial wordmark as the single h1', () => {
     const { getByRole } = renderPlayScreen();
     expect(getByRole('heading', { level: 1, name: 'HEXOLOGY' })).toBeInTheDocument();
@@ -207,5 +218,80 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     // the new baseline — Reset disables again at the new baseline.
     rerender(ui({ ...abletonState, masterKey: '5A' }));
     expect(getByRole('button', { name: 'Reset key' })).toBeDisabled();
+  });
+
+  describe('mode persistence (WOW-007B localStorage)', () => {
+    it('restores DJ mode on mount from a stored hexology.mode, without opening Settings', () => {
+      window.localStorage.setItem('hexology.mode', 'dj');
+
+      const { getByRole } = renderPlayScreen();
+
+      expect(getByRole('button', { name: 'EXIT DJ' })).toBeInTheDocument();
+    });
+
+    it('falls back to play mode when hexology.mode holds anything other than "dj"', () => {
+      window.localStorage.setItem('hexology.mode', 'bogus');
+
+      const { queryByRole } = renderPlayScreen();
+
+      expect(queryByRole('button', { name: 'EXIT DJ' })).not.toBeInTheDocument();
+    });
+
+    it('persists the mode to localStorage on every change, including EXIT DJ', () => {
+      const { getByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
+      expect(window.localStorage.getItem('hexology.mode')).toBe('dj');
+
+      fireEvent.click(getByRole('button', { name: 'EXIT DJ' }));
+      expect(window.localStorage.getItem('hexology.mode')).toBe('play');
+    });
+  });
+
+  describe('baseline key persistence (WOW-007B localStorage)', () => {
+    it('initialises the baseline from a stored key, enabling Reset immediately when it differs from the live master key', () => {
+      window.localStorage.setItem('hexology.baselineKey', '7A');
+      // Fixture masterKey is '8A' — differs from the stored baseline, so
+      // Reset must already be usable before any interaction happens.
+      const { getByRole, abletonState } = renderPlayScreen();
+
+      const reset = getByRole('button', { name: 'Reset key' });
+      expect(reset).toBeEnabled();
+
+      fireEvent.click(reset);
+      expect(abletonState.changeMasterKey).toHaveBeenCalledWith('7A');
+    });
+
+    it('does not overwrite a stored baseline with whatever key happens to be live at mount', () => {
+      window.localStorage.setItem('hexology.baselineKey', '7A');
+
+      renderPlayScreen();
+
+      // The mount-time masterKey ('8A') must not have clobbered storage.
+      expect(window.localStorage.getItem('hexology.baselineKey')).toBe('7A');
+    });
+
+    it('persists the baseline whenever an organic key change updates it', () => {
+      const abletonState = createAbletonState();
+      const socket = createSocket(true);
+      const ui = (state: AbletonContextState) => (
+        <SocketContext.Provider value={socket}>
+          <AbletonContext.Provider value={state}>
+            <PlayScreen />
+          </AbletonContext.Provider>
+        </SocketContext.Provider>
+      );
+      const { rerender } = render(ui(abletonState));
+
+      // Mount itself is the first (organic) observation with no stored
+      // baseline yet, so it persists '8A'.
+      expect(window.localStorage.getItem('hexology.baselineKey')).toBe('8A');
+
+      // A later organic change persists the new value too.
+      rerender(ui({ ...abletonState, masterKey: '5A' }));
+      expect(window.localStorage.getItem('hexology.baselineKey')).toBe('5A');
+    });
   });
 });

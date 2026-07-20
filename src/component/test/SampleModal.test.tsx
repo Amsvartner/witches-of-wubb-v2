@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { ClipTypes } from 'backend/type/ClipTypes';
 import { SampleModal, type ActiveByRfid, type SelectableClip } from '~/component/SampleModal';
@@ -21,6 +21,7 @@ const CLIPS: SelectableClip[] = [
     artist: 'DJ Cauldron',
     bpm: 128,
     key: '4A',
+    instrument: 'Vox',
   },
   {
     rfid: 'rfid-melody-1',
@@ -29,6 +30,7 @@ const CLIPS: SelectableClip[] = [
     songTitle: 'Wandering Star',
     bpm: 122,
     key: '10A',
+    instrument: 'Electric Guitar',
   },
   {
     rfid: 'rfid-bass-1',
@@ -36,33 +38,39 @@ const CLIPS: SelectableClip[] = [
     type: ClipTypes.Bass,
     bpm: 140,
     key: '2A',
+    instrument: 'Bass Guitar',
   },
   {
     rfid: 'rfid-drums-1',
     clipName: 'Zephyr Drums',
     type: ClipTypes.Drums,
-    // No bpm/key on purpose — must always sort last on bpm/key sorts.
+    // No bpm/key/instrument on purpose — must always sort last on those
+    // columns' sorts.
   },
 ];
 
 const renderModal = (overrides: Partial<Parameters<typeof SampleModal>[0]> = {}) => {
   const onClose = vi.fn();
-  const onPick = vi.fn();
+  const onTogglePillar = vi.fn();
   const utils = render(
     <SampleModal
       open
       onClose={onClose}
       pillarNumber={1}
       clips={CLIPS}
-      onPick={onPick}
+      onTogglePillar={onTogglePillar}
       activeByRfid={{}}
       {...overrides}
     />,
   );
-  return { ...utils, onClose, onPick };
+  return { ...utils, onClose, onTogglePillar };
 };
 
-describe('SampleModal (WOW-007B search/filter/sort/pillar columns)', () => {
+/** The `<li>` row for a given clip name — scopes chip queries to one row. */
+const getRow = (getByText: (text: string) => HTMLElement, clipName: string): HTMLElement =>
+  getByText(clipName).closest('li') as HTMLElement;
+
+describe('SampleModal (WOW-007B search/filter/sort/instrument/pillar-chip columns)', () => {
   it('narrows the list by clip name', () => {
     const { getByLabelText, getByText, queryByText } = renderModal();
 
@@ -200,6 +208,30 @@ describe('SampleModal (WOW-007B search/filter/sort/pillar columns)', () => {
       expect(orderedNames[3]).toContain('Zephyr Drums'); // Drums
     });
 
+    it('renders each clip’s instrument and sorts alphabetically with missing instrument last, both directions', () => {
+      const { getByText, getByRole, getAllByRole } = renderModal();
+
+      expect(getByText('Electric Guitar')).toBeInTheDocument();
+
+      fireEvent.click(getByRole('columnheader', { name: /Instrument/ }));
+      let orderedNames = getAllByRole('listitem').map((item) => item.textContent);
+      expect(orderedNames[0]).toContain('Basement Growl'); // Bass Guitar
+      expect(orderedNames[1]).toContain('Astral Melody Loop'); // Electric Guitar
+      expect(orderedNames[2]).toContain('Vocal Hook 07'); // Vox
+      expect(orderedNames[3]).toContain('Zephyr Drums'); // no instrument, last
+
+      fireEvent.click(getByRole('columnheader', { name: /Instrument/ }));
+      expect(getByRole('columnheader', { name: /Instrument/ })).toHaveAttribute(
+        'aria-sort',
+        'descending',
+      );
+      orderedNames = getAllByRole('listitem').map((item) => item.textContent);
+      expect(orderedNames[0]).toContain('Vocal Hook 07'); // Vox
+      expect(orderedNames[1]).toContain('Astral Melody Loop'); // Electric Guitar
+      expect(orderedNames[2]).toContain('Basement Growl'); // Bass Guitar
+      expect(orderedNames[3]).toContain('Zephyr Drums'); // still last
+    });
+
     it('sorts by Pillar — active clips ordered by pillar number, inactive ones last (stable by name)', () => {
       const activeByRfid: ActiveByRfid = {
         'rfid-bass-1': { pillarNumber: 1, state: 'playing' },
@@ -217,68 +249,107 @@ describe('SampleModal (WOW-007B search/filter/sort/pillar columns)', () => {
     });
   });
 
-  describe('active/pending state — disabled rows and the Pillar cell', () => {
-    it('shows a dash in the Pillar column for every clip when none are active', () => {
-      // Missing bpm/key also render '—', so this checks the Pillar cell
-      // specifically (each row's button's last column) rather than counting
-      // '—' text anywhere on the page.
-      const { getAllByRole } = renderModal();
-      const pillarCells = getAllByRole('listitem').map(
-        (row) => row.querySelector('button')?.lastElementChild?.textContent,
-      );
-      expect(pillarCells).toEqual(['—', '—', '—', '—']);
+  describe('pillar chips (WOW-007B queueing replaces row-tap picking)', () => {
+    it('renders 4 enabled, outlined, unpressed chips per row when a clip is not active anywhere', () => {
+      const { getByText } = renderModal();
+      const row = getRow(getByText, 'Zephyr Drums');
+
+      [1, 2, 3, 4].forEach((pillarNumber) => {
+        const chip = within(row).getByRole('button', {
+          name: `Queue Zephyr Drums on pillar ${pillarNumber}`,
+        });
+        expect(chip).toBeEnabled();
+        expect(chip).toHaveAttribute('aria-pressed', 'false');
+      });
     });
 
-    it('disables a row active on another pillar and shows its pillar + state hint', () => {
+    it('tapping an outlined chip calls onTogglePillar with the 0-based pillar index and the clip', () => {
+      const { getByRole, onTogglePillar } = renderModal();
+
+      fireEvent.click(getByRole('button', { name: 'Queue Vocal Hook 07 on pillar 3' }));
+
+      expect(onTogglePillar).toHaveBeenCalledTimes(1);
+      expect(onTogglePillar).toHaveBeenCalledWith(2, CLIPS[0]);
+    });
+
+    it('does not close the modal when a chip is tapped', () => {
+      const { getByRole, onClose } = renderModal();
+
+      fireEvent.click(getByRole('button', { name: 'Queue Vocal Hook 07 on pillar 1' }));
+
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('renders the pending-on-this-pillar chip filled and pressed, and tapping it calls onTogglePillar to remove it', () => {
+      const activeByRfid: ActiveByRfid = {
+        'rfid-vox-1': { pillarNumber: 1, state: 'pending' },
+      };
+      const { getByRole, onTogglePillar } = renderModal({ activeByRfid, pillarNumber: 1 });
+
+      const chip = getByRole('button', { name: 'Remove Vocal Hook 07 from pillar 1 queue' });
+      expect(chip).toHaveAttribute('aria-pressed', 'true');
+      expect(chip).toBeEnabled();
+
+      fireEvent.click(chip);
+
+      expect(onTogglePillar).toHaveBeenCalledWith(0, CLIPS[0]);
+    });
+
+    it('leaves the other 3 chips outlined and tappable while one chip is pending on this pillar (supports moving)', () => {
+      const activeByRfid: ActiveByRfid = {
+        'rfid-vox-1': { pillarNumber: 1, state: 'pending' },
+      };
+      const { getByRole, onTogglePillar } = renderModal({ activeByRfid, pillarNumber: 1 });
+
+      const otherChip = getByRole('button', { name: 'Queue Vocal Hook 07 on pillar 2' });
+      expect(otherChip).toBeEnabled();
+
+      fireEvent.click(otherChip);
+
+      expect(onTogglePillar).toHaveBeenCalledWith(1, CLIPS[0]);
+    });
+
+    it('disables the backend-active chip with a state title, and disables every other chip on that row', () => {
       const activeByRfid: ActiveByRfid = {
         'rfid-vox-1': { pillarNumber: 2, state: 'queued' },
       };
-      const { getByText } = renderModal({ activeByRfid, pillarNumber: 1 });
-
-      expect(getByText('P2 ·q')).toBeInTheDocument();
-      const row = getByText('Vocal Hook 07').closest('button');
-      expect(row).toBeDisabled();
-    });
-
-    it('shows the stopping hint for a stopping clip', () => {
-      const activeByRfid: ActiveByRfid = {
-        'rfid-bass-1': { pillarNumber: 3, state: 'stopping' },
-      };
       const { getByText } = renderModal({ activeByRfid });
-      expect(getByText('P3 ·s')).toBeInTheDocument();
+      const row = getRow(getByText, 'Vocal Hook 07');
+
+      const activeChip = within(row).getByRole('button', { name: 'P2' });
+      expect(activeChip).toBeDisabled();
+      expect(activeChip).toHaveAttribute('title', 'Queued on pillar 2');
+
+      [1, 3, 4].forEach((pillarNumber) => {
+        const otherChip = within(row).getByRole('button', { name: `P${pillarNumber}` });
+        expect(otherChip).toBeDisabled();
+      });
     });
 
-    it('shows the playing pillar with no suffix', () => {
+    it('shows a Playing title on the active chip for a playing clip', () => {
       const activeByRfid: ActiveByRfid = {
         'rfid-bass-1': { pillarNumber: 3, state: 'playing' },
       };
       const { getByText } = renderModal({ activeByRfid });
-      expect(getByText('P3')).toBeInTheDocument();
+      const row = getRow(getByText, 'Basement Growl');
+
+      expect(within(row).getByRole('button', { name: 'P3' })).toHaveAttribute(
+        'title',
+        'Playing on pillar 3',
+      );
     });
 
-    it('does not disable a clip pending on THIS SAME pillar and allows re-picking it', () => {
+    it('shows a Stopping title on the active chip for a stopping clip', () => {
       const activeByRfid: ActiveByRfid = {
-        'rfid-vox-1': { pillarNumber: 1, state: 'pending' },
+        'rfid-bass-1': { pillarNumber: 3, state: 'stopping' },
       };
-      const { getByText, onPick } = renderModal({ activeByRfid, pillarNumber: 1 });
+      const { getByText } = renderModal({ activeByRfid });
+      const row = getRow(getByText, 'Basement Growl');
 
-      expect(getByText('P1 ·hold')).toBeInTheDocument();
-      const row = getByText('Vocal Hook 07').closest('button') as HTMLButtonElement;
-      expect(row).toBeEnabled();
-
-      fireEvent.click(row);
-      expect(onPick).toHaveBeenCalledWith(CLIPS[0]);
-    });
-
-    it('disables a clip pending on a DIFFERENT pillar', () => {
-      const activeByRfid: ActiveByRfid = {
-        'rfid-vox-1': { pillarNumber: 2, state: 'pending' },
-      };
-      const { getByText } = renderModal({ activeByRfid, pillarNumber: 1 });
-
-      const row = getByText('Vocal Hook 07').closest('button');
-      expect(row).toBeDisabled();
-      expect(getByText('P2 ·hold')).toBeInTheDocument();
+      expect(within(row).getByRole('button', { name: 'P3' })).toHaveAttribute(
+        'title',
+        'Stopping on pillar 3',
+      );
     });
   });
 
@@ -297,16 +368,6 @@ describe('SampleModal (WOW-007B search/filter/sort/pillar columns)', () => {
     expect(getByText('4 samples')).toBeInTheDocument();
   });
 
-  it('calls onPick with the full clip object exactly once when a row is tapped', () => {
-    const { getByText, onPick } = renderModal();
-
-    const clipButton = getByText('Vocal Hook 07').closest('button');
-    fireEvent.click(clipButton as HTMLButtonElement);
-
-    expect(onPick).toHaveBeenCalledTimes(1);
-    expect(onPick).toHaveBeenCalledWith(CLIPS[0]);
-  });
-
   it('resets search/filter/sort state when the modal reopens', () => {
     const { getByLabelText, getByRole, rerender } = renderModal();
 
@@ -320,7 +381,7 @@ describe('SampleModal (WOW-007B search/filter/sort/pillar columns)', () => {
         onClose={() => {}}
         pillarNumber={1}
         clips={CLIPS}
-        onPick={() => {}}
+        onTogglePillar={() => {}}
         activeByRfid={{}}
       />,
     );
@@ -330,7 +391,7 @@ describe('SampleModal (WOW-007B search/filter/sort/pillar columns)', () => {
         onClose={() => {}}
         pillarNumber={1}
         clips={CLIPS}
-        onPick={() => {}}
+        onTogglePillar={() => {}}
         activeByRfid={{}}
       />,
     );

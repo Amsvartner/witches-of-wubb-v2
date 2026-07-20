@@ -25,7 +25,25 @@ csv.forEach((row) => {
   }
 });
 
+// WOW-007B: the CSV also has an Instrument column (e.g. "Electric Guitar",
+// "Drums (standard kit)"), but neither CsvUtil.parseCsv nor
+// backend/type/ClipMetadataType know about it — same reasoning as the BPM
+// enrichment above: the parser is shared with the live backend, and adding a
+// field there would leak into contract-frozen event payloads (needs
+// audio-ableton sign-off). This map is frontend-only, keyed by rfid, and
+// built straight from the raw rows. Rows with no Instrument value are
+// skipped entirely (no key) rather than stored as an empty string, so a
+// missing instrument reads as `undefined` via plain lookup.
+const rfidToInstrumentMap: Record<string, string> = {};
+csv.forEach((row) => {
+  const rfid = row['RFID'];
+  const instrument = row['Instrument']?.trim();
+  if (!rfid || !instrument) return;
+  rfidToInstrumentMap[rfid] = instrument;
+});
+
 export const ClipDatabaseUtil = {
   rfidToClipMap,
   clipNameToInfoMap,
+  rfidToInstrumentMap,
 };

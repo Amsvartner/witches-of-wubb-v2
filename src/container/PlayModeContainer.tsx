@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Wordmark } from '~/component/Wordmark';
 import { TopControls } from '~/component/TopControls';
 import { PillarCardContainer } from '~/container/PillarCardContainer';
@@ -143,6 +143,29 @@ export const PlayModeContainer = (): JSX.Element => {
   const tempoSlider = useSliderEmit(tempo, changeTempo);
   const keyQuality = KeyUtil.keyQuality(masterKey);
 
+  // Baseline-key tracking for Reset (WOW-007B): the contract has no key-reset
+  // event, so Reset re-emits `set_master-key` with the last key the backend
+  // set ORGANICALLY (clip placement / phrase-leader), undoing manual
+  // Raise/Lower transposition. Organic vs manual is told apart by remembering
+  // the value each manual request asked for: a `masterKey` change that
+  // doesn't match the last request came from the backend itself and becomes
+  // the new baseline. Frontend-held: a mid-show page reload re-seeds the
+  // baseline from whatever key is current (prior adjustments become baseline).
+  const lastRequestedKeyRef = useRef<string | null>(null);
+  const [baselineKey, setBaselineKey] = useState('');
+  useEffect(() => {
+    if (!masterKey) return;
+    if (masterKey !== lastRequestedKeyRef.current) {
+      setBaselineKey(masterKey);
+    }
+  }, [masterKey]);
+
+  const requestKey = (key: string): void => {
+    if (!key) return;
+    lastRequestedKeyRef.current = key;
+    changeMasterKey(key);
+  };
+
   return (
     <div className='mx-auto flex min-h-screen max-w-[1024px] flex-col px-8 py-4'>
       {!isConnected && (
@@ -236,8 +259,10 @@ export const PlayModeContainer = (): JSX.Element => {
           onAutoAdjustKeyChange={changeKeylock}
           currentKey={masterKey}
           keyQuality={keyQuality}
-          onRaiseKey={() => changeMasterKey(KeyUtil.nextKey(masterKey))}
-          onLowerKey={() => changeMasterKey(KeyUtil.prevKey(masterKey))}
+          onRaiseKey={() => requestKey(KeyUtil.nextKey(masterKey))}
+          onLowerKey={() => requestKey(KeyUtil.prevKey(masterKey))}
+          onResetKey={() => requestKey(baselineKey)}
+          canResetKey={Boolean(baselineKey) && masterKey !== baselineKey}
         />
       </div>
 

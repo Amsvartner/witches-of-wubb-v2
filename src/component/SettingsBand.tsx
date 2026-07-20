@@ -17,6 +17,10 @@ type Props = {
   keyQuality: string;
   onRaiseKey: () => void;
   onLowerKey: () => void;
+  /** Re-emits the tracked baseline key (undo manual transposition). */
+  onResetKey: () => void;
+  /** False while the key is already at its baseline (nothing to undo). */
+  canResetKey: boolean;
 };
 
 const KeyControlButton = ({
@@ -73,6 +77,8 @@ export const SettingsBand = ({
   keyQuality,
   onRaiseKey,
   onLowerKey,
+  onResetKey,
+  canResetKey,
 }: Props): JSX.Element => {
   const displayBpm = Math.round(tempoBpm);
   const fraction = Math.max(0, Math.min(1, (displayBpm - tempoMin) / (tempoMax - tempoMin)));
@@ -193,12 +199,14 @@ export const SettingsBand = ({
             onClick={onLowerKey}
             disabled={!currentKey}
           />
-          {/* Reset stays a real disabled button: the socket contract has no
-              key-reset event (WOW-007B decision — revisit when one exists). */}
+          {/* Reset re-emits set_master-key with the tracked baseline key
+              (the last organically-set key, undoing manual Raise/Lower — see
+              PlayModeContainer); disabled while already at the baseline. */}
           <KeyControlButton
             glyph={<path d='M4 12a8 8 0 1 0 2.3-5.6M4 4v3h3' />}
             label='Reset'
-            disabled
+            onClick={onResetKey}
+            disabled={!canResetKey}
           />
         </div>
       </div>

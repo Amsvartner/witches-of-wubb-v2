@@ -175,4 +175,37 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     const { queryByText } = renderPlayScreen({ socket: createSocket(true) });
     expect(queryByText(/connecting to the cauldron/i)).not.toBeInTheDocument();
   });
+
+  it('resets the key to the tracked baseline, undoing manual transposition', () => {
+    const abletonState = createAbletonState(); // masterKey '8A' — becomes the baseline
+    const socket = createSocket(true);
+    const ui = (state: AbletonContextState) => (
+      <SocketContext.Provider value={socket}>
+        <AbletonContext.Provider value={state}>
+          <PlayScreen />
+        </AbletonContext.Provider>
+      </SocketContext.Provider>
+    );
+    const { getByRole, rerender } = render(ui(abletonState));
+
+    // At the baseline: nothing to undo.
+    expect(getByRole('button', { name: 'Reset key' })).toBeDisabled();
+
+    // Manual raise requests 8B; the backend echoes it back as masterKey.
+    fireEvent.click(getByRole('button', { name: 'Raise key' }));
+    expect(abletonState.changeMasterKey).toHaveBeenCalledWith(KeyUtil.nextKey('8A'));
+    rerender(ui({ ...abletonState, masterKey: KeyUtil.nextKey('8A') }));
+
+    // The echo of a manual request must NOT move the baseline — Reset is now
+    // live and re-emits the original organic key.
+    const reset = getByRole('button', { name: 'Reset key' });
+    expect(reset).toBeEnabled();
+    fireEvent.click(reset);
+    expect(abletonState.changeMasterKey).toHaveBeenLastCalledWith('8A');
+
+    // An ORGANIC key change (differs from the last manual request) becomes
+    // the new baseline — Reset disables again at the new baseline.
+    rerender(ui({ ...abletonState, masterKey: '5A' }));
+    expect(getByRole('button', { name: 'Reset key' })).toBeDisabled();
+  });
 });

@@ -2,10 +2,14 @@ import { useCallback } from 'react';
 import { Dialog } from '@headlessui/react';
 import { IdleTimeoutConfigType } from 'backend/type/IdleTimeoutConfigType';
 import { useSliderEmit } from '~/hook/useSliderEmit';
+import { VOLUME_MAX } from '~/util/PillarViewUtil';
 
-/** Live volume range from the socket contract (same ceiling as pillar volume
- * sliders — see PillarCardContainer/PillarViewUtil VOLUME_MAX). */
-const VOLUME_MAX = 0.7;
+// NOTE (general review, PR #56): hosting useSliderEmit — a stateful,
+// throttled-emission hook — in this presentational component is a deliberate,
+// documented exception to the container/component split: the cauldron slider
+// is the modal's only socket-coupled control, and threading its drag state
+// through PlayModeContainer would triple the prop surface for no isolation
+// gain. VOLUME_MAX is imported from the shared source rather than copied.
 
 const toPercent = (volume: number): number =>
   Math.round((Math.max(0, Math.min(volume, VOLUME_MAX)) / VOLUME_MAX) * 100);

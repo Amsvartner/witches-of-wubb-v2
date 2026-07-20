@@ -9,8 +9,7 @@ import { SampleModal, type ActiveByRfid, type SelectableClip } from '~/component
 import { PillarView } from '~/type/PillarView';
 import { Logger } from '~/util/Logger';
 
-/** Live volume range from the socket contract (see PillarViewUtil). */
-const VOLUME_MAX = 0.7;
+import { VOLUME_MAX } from '~/util/PillarViewUtil';
 
 /** Unmute fallback when nothing was captured pre-mute (WOW-007B human decision). */
 const DEFAULT_UNMUTE_VOLUME = 0.6;

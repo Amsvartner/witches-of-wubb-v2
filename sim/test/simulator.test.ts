@@ -516,10 +516,10 @@ describe('Simulator', () => {
       },
     );
 
-    it('accepts the exact bounds (30s and 60min)', () => {
-      expect(simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: 30_000 })).toEqual({
+    it('accepts the exact bounds (60s and 60min)', () => {
+      expect(simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 })).toEqual({
         enabled: true,
-        timeoutMs: 30_000,
+        timeoutMs: 60_000,
       });
       expect(simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60 * 60 * 1000 })).toEqual({
         enabled: true,

@@ -220,7 +220,7 @@ function addSocketEventsHandlers(socket: Socket) {
       callback(volume);
     } catch (err) {
       Logger.error(err, 'Error getting cauldron volume');
-      callback(0.6);
+      callback(AbletonAdapter.DEFAULT_TRACK_VOLUME);
     }
   });
   socket.on('set_cauldron_volume', async ({ volume }: SetCauldronVolumeInputType) => {
@@ -236,7 +236,11 @@ function addSocketEventsHandlers(socket: Socket) {
     try {
       callback(AbletonAdapter.getIdleTimeoutConfig());
     } catch (err) {
+      // Same posture as get_cauldron_volume above: ack a sane default rather
+      // than leaving the UI hanging on a callback that never fires (general
+      // review, PR #56 — the two sibling handlers previously diverged).
       Logger.error(err, 'Error getting idle timeout config');
+      callback({ enabled: true, timeoutMs: 3 * 60 * 1000 });
     }
   });
   socket.on(

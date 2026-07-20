@@ -30,6 +30,7 @@ beforeAll(async () => {
       trackVolumes: [] as DeviceParameter[],
       // WOW-007C
       triggerRandomDrumSample: vi.fn(() => Promise.resolve()),
+      DEFAULT_TRACK_VOLUME: 0.6,
       getCauldronVolume: vi.fn(),
       setCauldronVolume: vi.fn(() => Promise.resolve()),
       getIdleTimeoutConfig: vi.fn(),
@@ -353,7 +354,7 @@ describe('get_idle_timeout (WOW-007C, WOW-014 crash-hardening)', () => {
     expect(callback).toHaveBeenCalledWith({ enabled: true, timeoutMs: 180000 });
   });
 
-  it('logs and does not throw when AbletonAdapter.getIdleTimeoutConfig throws', () => {
+  it('logs and acks the default config when AbletonAdapter.getIdleTimeoutConfig throws', () => {
     const error = new Error('boom');
     vi.mocked(AbletonAdapter.getIdleTimeoutConfig).mockImplementationOnce(() => {
       throw error;
@@ -364,7 +365,9 @@ describe('get_idle_timeout (WOW-007C, WOW-014 crash-hardening)', () => {
       createHandlerRegistry().get('get_idle_timeout')!(undefined, callback),
     ).not.toThrow();
 
-    expect(callback).not.toHaveBeenCalled();
+    // Same posture as get_cauldron_volume: the UI gets a sane default rather
+    // than a callback that never fires (general review, PR #56).
+    expect(callback).toHaveBeenCalledWith({ enabled: true, timeoutMs: 3 * 60 * 1000 });
     expect(errorSpy).toHaveBeenCalledWith(error, 'Error getting idle timeout config');
   });
 });

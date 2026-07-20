@@ -35,20 +35,25 @@ export const TIMEOUT_IN_MILISECONDS = 60 * 3 * 1000;
 export const TIMEOUT_WARNING_IN_MILISECONDS = 30 * 1000;
 // WOW-007C: mirrors MIN_IDLE_TIMEOUT_MS / MAX_IDLE_TIMEOUT_MS
 // (backend/adapter/AbletonAdapter.ts) — bounds accepted by setIdleTimeoutConfig.
-export const MIN_IDLE_TIMEOUT_MS = 30 * 1000;
+// The minimum sits ABOVE the warning offset so the warning timer can never
+// arm with a zero/negative delay (audio-ableton review, PR #56).
+export const MIN_IDLE_TIMEOUT_MS = 60 * 1000;
 export const MAX_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
 
 const PILLAR_COUNT = 4;
 
 // WOW-007C: mirrors PILLAR_VOLUME_CEILING / clampVolume
-// (backend/adapter/AbletonAdapter.ts) — same 0..0.7 ceiling, applied to the
-// cauldron (drum-rack track) volume only; regular pillar volumes are left
-// unclamped here, matching this sim's pre-existing behaviour.
-const CAULDRON_VOLUME_CEILING = 0.7;
-const clampCauldronVolume = (volume: number): number => {
+// (backend/adapter/AbletonAdapter.ts) — same 0..0.7 ceiling, applied to BOTH
+// the cauldron (drum-rack track) volume and regular pillar volumes: the
+// backend now clamps pillar volumes too, so the sim's volume_changed echoes
+// must never carry a value the real backend couldn't emit (general review,
+// PR #56).
+const VOLUME_CEILING = 0.7;
+const clampVolume = (volume: number): number => {
   if (!Number.isFinite(volume)) return 0;
-  return Math.min(CAULDRON_VOLUME_CEILING, Math.max(0, volume));
+  return Math.min(VOLUME_CEILING, Math.max(0, volume));
 };
+const clampCauldronVolume = clampVolume;
 
 // WOW-007C: deterministic stand-in for a randomly-picked drum-rack clip name
 // — the sim has no Live set / drum rack to pick from, so every cauldron tap
@@ -192,12 +197,17 @@ export class Simulator {
     this.timeoutId = null;
     this.timeoutWarningId = null;
     if (!this.idleTimeoutEnabled) return;
-    this.timeoutWarningId = setTimeout(() => {
-      if (this.shouldShowTimeout()) {
-        this.logger.warn('Timeout warning');
-        this.emit('timeout_warning', undefined, false);
-      }
-    }, this.timeoutMs - this.timeoutWarningMs);
+    // Mirrors the backend's guard: never arm the warning with a
+    // zero/negative delay (audio-ableton review, PR #56).
+    const warningDelay = this.timeoutMs - this.timeoutWarningMs;
+    if (warningDelay > 0) {
+      this.timeoutWarningId = setTimeout(() => {
+        if (this.shouldShowTimeout()) {
+          this.logger.warn('Timeout warning');
+          this.emit('timeout_warning', undefined, false);
+        }
+      }, warningDelay);
+    }
     this.timeoutId = setTimeout(() => {
       if (this.shouldShowTimeout()) {
         this.logger.warn('Timeout exceeded, restarting the UI');
@@ -434,13 +444,16 @@ export class Simulator {
       this.logger.warn(`Ignoring set_track_volume with invalid pillar index: ${pillar}`);
       return;
     }
-    this.logger.info(`Setting volume for pillar ${pillar + 1} to ${volume}`);
-    this.trackVolumes[pillar] = volume;
+    // Clamped exactly like the backend's setTrackVolume (general review,
+    // PR #56 — the echoes must match what the real backend would emit).
+    const clampedVolume = clampVolume(volume);
+    this.logger.info(`Setting volume for pillar ${pillar + 1} to ${clampedVolume}`);
+    this.trackVolumes[pillar] = clampedVolume;
     // WOW-007C (human request): remember what was explicitly asked for on
     // this pillar so the next clip that starts here restores it — mirrors
     // AbletonAdapter.setTrackVolume's desiredVolumes bookkeeping.
-    this.desiredVolumes[pillar] = volume;
-    this.emit('volume_changed', { pillar, volume });
+    this.desiredVolumes[pillar] = clampedVolume;
+    this.emit('volume_changed', { pillar, volume: clampedVolume });
   }
 
   getKeyLockState(): boolean {

@@ -281,10 +281,11 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
   vi.doMock('ableton-js/ns/device-parameter', () => {
     class DeviceParameter {
       raw: { value: number };
-      set = vi.fn(async (_key: string, value: number) => {
-        this.raw.value = value;
-        return null;
-      });
+      // Deliberately does NOT mutate raw.value: real ableton-js keeps
+      // raw.value as the fetch-time snapshot, so a self-updating fake would
+      // let tests "prove" read-back freshness the production code doesn't
+      // have (general review, PR #56).
+      set = vi.fn(async (_key: string, _value: number) => null);
       constructor(_ableton: unknown, raw: { value: number }) {
         this.raw = raw;
       }
@@ -382,10 +383,12 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
       expect(Fresh.isDrumRackTrackIndexValid).toBe(false);
     });
 
-    it('logs a startup warning when disabled', async () => {
-      const { Logger: FreshLogger } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: undefined });
-      expect(FreshLogger.warn).toBeDefined();
-    });
+    // NOTE: the module-eval startup warning itself is not asserted — this
+    // file deliberately leaves the pino Logger unmocked, and the warn fires
+    // during dynamic import, before any spy could attach. The previous
+    // "expect(warn).toBeDefined()" test was vacuous (general review, PR #56)
+    // and was removed; the observable disabled-state contract is covered by
+    // the isDrumRackTrackIndexValid assertions in this describe block.
 
     it('enables the feature for a valid non-negative integer index', async () => {
       const { AbletonAdapter: Fresh } = await loadAdapter({ DRUM_RACK_TRACK_INDEX: '4' });
@@ -644,7 +647,11 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
       expect(OutgoingEvents.emitEvent).toHaveBeenCalledWith('cauldron_volume_changed', {
         volume: 0.7,
       });
-      await expect(Fresh.getCauldronVolume()).resolves.toBeCloseTo(0.7);
+      // Read-back returns the fetch-time SNAPSHOT (0.4), not the value just
+      // set — raw.value is not a live read in ableton-js. Clients get
+      // freshness from the cauldron_volume_changed broadcast asserted above,
+      // not from re-fetching (general review, PR #56).
+      await expect(Fresh.getCauldronVolume()).resolves.toBeCloseTo(0.4);
     });
 
     it('setCauldronVolume warns and does not throw when the track is missing', async () => {
@@ -670,7 +677,12 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
       expect(Fresh.getIdleTimeoutConfig()).toEqual({ enabled: true, timeoutMs: 3 * 60 * 1000 });
     });
 
-    it('accepts a valid config, arms two timers, and broadcasts idle_timeout_changed', async () => {
+    // Behavioural assertions rather than vi.getTimerCount(): the global
+    // fake-timer count picks up stray environment timers (pino, throttle
+    // internals, worker reuse) and flaked in review (general review, PR #56
+    // — "expected 3 to be 2"). What matters is what FIRES, not how many
+    // timers exist.
+    it('accepts a valid config, broadcasts it, and the warning fires on schedule', async () => {
       vi.useFakeTimers();
       try {
         const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
@@ -679,34 +691,48 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
 
         expect(result).toEqual({ enabled: true, timeoutMs: 60_000 });
         expect(Fresh.getIdleTimeoutConfig()).toEqual({ enabled: true, timeoutMs: 60_000 });
-        expect(vi.getTimerCount()).toBe(2);
         expect(OutgoingEvents.emitEventWithoutResettingTimeout).toHaveBeenCalledWith(
           'idle_timeout_changed',
           { enabled: true, timeoutMs: 60_000 },
+        );
+
+        // The timers only act while something is playing (shouldShowTimeout).
+        Fresh.playingClips[0] = { clipName: 'Idle Test Clip', pillar: 0 } as never;
+        OutgoingEvents.emitEventWithoutResettingTimeout.mockClear();
+        // Warning arms at timeoutMs - 30s = 30s with this config.
+        vi.advanceTimersByTime(30_000);
+        expect(OutgoingEvents.emitEventWithoutResettingTimeout).toHaveBeenCalledWith(
+          'timeout_warning',
         );
       } finally {
         vi.useRealTimers();
       }
     });
 
-    it('disabling clears any armed timers', async () => {
+    it('disabling clears any armed timers (nothing fires after the deadline)', async () => {
       vi.useFakeTimers();
       try {
-        const { AbletonAdapter: Fresh } = await loadAdapter();
+        const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
         Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 });
-        expect(vi.getTimerCount()).toBe(2);
 
         Fresh.setIdleTimeoutConfig({ enabled: false, timeoutMs: 60_000 });
-
-        expect(vi.getTimerCount()).toBe(0);
         expect(Fresh.getIdleTimeoutConfig().enabled).toBe(false);
+
+        // With clips playing and the full timeout elapsed twice over, a stale
+        // armed timer would emit timeout_warning — nothing may fire.
+        Fresh.playingClips[0] = { clipName: 'Idle Test Clip', pillar: 0 } as never;
+        OutgoingEvents.emitEventWithoutResettingTimeout.mockClear();
+        vi.advanceTimersByTime(120_000);
+        expect(OutgoingEvents.emitEventWithoutResettingTimeout).not.toHaveBeenCalledWith(
+          'timeout_warning',
+        );
       } finally {
         vi.useRealTimers();
       }
     });
 
     it.each([
-      ['below the 30s minimum', 29_999],
+      ['below the 60s minimum', 59_999],
       ['above the 60min maximum', 60 * 60 * 1000 + 1],
       ['non-integer', 60_000.5],
     ])(
@@ -724,11 +750,11 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
       },
     );
 
-    it('accepts the exact bounds (30s and 60min)', async () => {
+    it('accepts the exact bounds (60s and 60min)', async () => {
       const { AbletonAdapter: Fresh } = await loadAdapter();
-      expect(Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 30_000 })).toEqual({
+      expect(Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 })).toEqual({
         enabled: true,
-        timeoutMs: 30_000,
+        timeoutMs: 60_000,
       });
       expect(Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60 * 60 * 1000 })).toEqual({
         enabled: true,

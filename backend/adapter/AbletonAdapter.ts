@@ -38,7 +38,11 @@ const sockets: socketio.Socket[] = [];
 let idleTimeoutMs = 60 * 3 * 1000; // three minutes
 let idleTimeoutEnabled = true;
 const TIMEOUT_WARNING_IN_MILLISECONDS = 30 * 1000; // thirty seconds
-const MIN_IDLE_TIMEOUT_MS = 30 * 1000; // thirty seconds
+// One minute, deliberately ABOVE TIMEOUT_WARNING_IN_MILLISECONDS: at a
+// timeout equal to the warning offset the warning timer would arm with a
+// zero/negative delay and fire immediately after every activity reset
+// (audio-ableton review, PR #56). startTimeoutTimer also guards the arm.
+const MIN_IDLE_TIMEOUT_MS = 60 * 1000;
 const MAX_IDLE_TIMEOUT_MS = 60 * 60 * 1000; // one hour
 
 // WOW-007C: the drum-rack "cauldron sample" track, after the four pillar
@@ -60,6 +64,11 @@ if (!isDrumRackTrackIndexValid) {
 // client, malformed socket payload) can't push a track louder than the
 // installation's own volume ceiling (AGENTS.md "Volume" safety rule).
 const PILLAR_VOLUME_CEILING = 0.7;
+// The original hardcoded clip-start default, now also the cauldron-volume
+// fallback — one named source so the backend's uses can't drift (general
+// review, PR #56). The frontend and sim keep mirrored copies per the
+// established contract-mirroring pattern.
+const DEFAULT_TRACK_VOLUME = 0.6;
 function clampVolume(volume: number): number {
   if (!Number.isFinite(volume)) return 0;
   return Math.min(PILLAR_VOLUME_CEILING, Math.max(0, volume));
@@ -327,12 +336,17 @@ function startTimeoutTimer() {
       stoppingClips.filter((clip) => clip).length === 0
     );
   }
-  timeoutWarningId = setTimeout(() => {
-    if (shouldShowTimeout()) {
-      Logger.warn('Timeout warning');
-      OutgoingEvents.emitEventWithoutResettingTimeout('timeout_warning');
-    }
-  }, idleTimeoutMs - TIMEOUT_WARNING_IN_MILLISECONDS);
+  // Belt-and-braces with MIN_IDLE_TIMEOUT_MS: never arm the warning with a
+  // zero/negative delay (it would fire instantly on every activity reset).
+  const warningDelay = idleTimeoutMs - TIMEOUT_WARNING_IN_MILLISECONDS;
+  if (warningDelay > 0) {
+    timeoutWarningId = setTimeout(() => {
+      if (shouldShowTimeout()) {
+        Logger.warn('Timeout warning');
+        OutgoingEvents.emitEventWithoutResettingTimeout('timeout_warning');
+      }
+    }, warningDelay);
+  }
   timeoutId = setTimeout(() => {
     if (shouldShowTimeout()) {
       Logger.warn('Timeout exceeded, restarting the UI');
@@ -619,6 +633,12 @@ const getTracksAndClips = async () => {
   // above (never reassigned, only mutated - that's why it's `const`).
   tracks.length = 0;
   tracks.push(...fetchedTracks);
+  // The freshly-fetched tracks invalidate anything cached off the OLD track
+  // objects: the cauldron volume DeviceParameter and the drum-rack clip
+  // cache both refetch lazily on next use (audio-ableton + general reviews,
+  // PR #56 — previously a getTracksAndClips re-run left them stale forever).
+  cauldronVolumeParam = undefined;
+  drumRackClips = null;
 
   for (let pillar = 0; pillar < 4; pillar++) {
     const track = tracks[pillar];
@@ -796,7 +816,7 @@ async function setTrackVolume(pillar: number, volume: number) {
 // original hardcoded default, now only used until a pillar's volume has ever
 // been explicitly set.
 function resolveClipStartVolume(pillar: number): number {
-  return desiredVolumes[pillar] ?? 0.6;
+  return desiredVolumes[pillar] ?? DEFAULT_TRACK_VOLUME;
 }
 
 // --- WOW-007C: cauldron drum-rack sample + volume -------------------------
@@ -912,7 +932,9 @@ async function getCauldronVolumeParam(): Promise<DeviceParameter | undefined> {
 
 async function getCauldronVolume(): Promise<number> {
   const param = await getCauldronVolumeParam();
-  return param?.raw.value ?? 0.6;
+  // NOTE: raw.value is the snapshot from when the param was fetched, not a
+  // live read — same limitation as get_track_volumes (see IncomingEvents).
+  return param?.raw.value ?? DEFAULT_TRACK_VOLUME;
 }
 
 async function setCauldronVolume(volume: number): Promise<void> {
@@ -922,7 +944,17 @@ async function setCauldronVolume(volume: number): Promise<void> {
     Logger.warn(`Cannot set cauldron volume to ${clampedVolume}: drum rack track unavailable`);
     return;
   }
-  await param.set('value', clampedVolume);
+  try {
+    await param.set('value', clampedVolume);
+  } catch (err) {
+    // Same stale-recovery posture as the drum-rack clip cache: a failed set
+    // usually means the cached DeviceParameter no longer matches the Live
+    // set, so drop it and let the next call refetch (audio-ableton +
+    // general reviews, PR #56).
+    cauldronVolumeParam = undefined;
+    Logger.error(err, 'Error setting cauldron volume - cleared cached volume parameter');
+    return;
+  }
   OutgoingEvents.emitEvent('cauldron_volume_changed', { volume: clampedVolume });
 }
 
@@ -1022,6 +1054,7 @@ export const AbletonAdapter = {
   TRIGGER_ORDER,
   ABLETON_START_TIMEOUT_MS,
   DRUM_RACK_TRACK_INDEX,
+  DEFAULT_TRACK_VOLUME,
   isDrumRackTrackIndexValid,
   parseRemoteScriptVersion,
   ensureServerPortFile,

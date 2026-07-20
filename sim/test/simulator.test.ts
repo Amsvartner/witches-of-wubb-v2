@@ -483,7 +483,8 @@ describe('Simulator', () => {
       simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
       events = [];
 
-      // MIN_IDLE_TIMEOUT_MS (30s) is the shortest allowed value.
+      // MIN_IDLE_TIMEOUT_MS (60s — deliberately above the 30s warning offset)
+      // is the shortest allowed value.
       simulator.setIdleTimeoutConfig({ enabled: true, timeoutMs: MIN_IDLE_TIMEOUT_MS });
       events = [];
       vi.advanceTimersByTime(MIN_IDLE_TIMEOUT_MS);
@@ -501,7 +502,7 @@ describe('Simulator', () => {
     });
 
     it.each([
-      ['below the 30s minimum', 29_999],
+      ['below the 60s minimum', 59_999],
       ['above the 60min maximum', 60 * 60 * 1000 + 1],
       ['non-integer', 60_000.5],
     ])(

@@ -56,7 +56,7 @@ New socket events (frozen contract additions):
 The previously-fixed 3-minute idle timeout / 30-second warning offset (`TIMEOUT_IN_MILLISECONDS`/`TIMEOUT_WARNING_IN_MILLISECONDS`) is now runtime-configurable via socket events, so the DJ can tune or disable the idle handover from the Settings modal without a redeploy:
 
 - The warning offset (30s) stays fixed and un-configurable — only the overall timeout duration and whether it's enabled at all are exposed.
-- Bounds: `timeoutMs` must be an integer in `[30_000, 3_600_000]` (30s–60min); an out-of-bounds value is ignored (warned, config unchanged) rather than clamped or guessed.
+- Bounds: `timeoutMs` must be an integer in `[60_000, 3_600_000]` (60s–60min); an out-of-bounds value is ignored (warned, config unchanged) rather than clamped or guessed. The 60s floor sits deliberately ABOVE the fixed 30s warning offset — at a lower floor the warning timer would arm with a zero/negative delay and fire instantly on every activity reset (do not "restore" a 30s minimum).
 - **Disabling the timeout means spells loop indefinitely and the Live-set attractor never engages** — the pause-music toggle in the Settings modal is exactly this enable/disable switch. This only controls the backend's own idle-timeout handover (`stop_all_clips` + master-key reset); it does not know about or change the Live-side attractor clip (`Wicked Casting`) itself, which is a separate, still-TBD piece of the Live set (see "How samples are triggered" above).
 - Same three-minute default as before if never configured.
 

@@ -710,6 +710,14 @@ const getTracksAndClips = async () => {
               }
 
               playingClips[pillar] = { ...clipInfo, clip };
+              // A clip STARTING on this pillar means nothing is stopping on
+              // it anymore — clear any stale stoppingClips entry. Without
+              // this, an old->new slot transition that skips the interim -1
+              // (same-boundary replace, now the routine Apply gesture) left
+              // the entry set forever, and shouldShowTimeout then returned
+              // false permanently — silently disabling the idle handover to
+              // the attractor (audio-ableton delta review, PR #56, finding 4).
+              stoppingClips[pillar] = null;
 
               const newPhraseLeader = PhraseLeaderService.findNextPhraseLeader(playingClips);
               if (newPhraseLeader?.clipName === clipName) {
@@ -754,6 +762,25 @@ const getTracksAndClips = async () => {
     }
 
     await rebuildPillarPlayingState(pillar, track, allAbletonClips[pillar]);
+  }
+
+  // Audio-ableton delta review (PR #56, finding 1): a rebuild that restores
+  // playingClips but leaves phraseLeader unset DEADLOCKS the queue — both
+  // queued-clip firing paths need a leader (the leader's playing_position
+  // listener, and stopOrRemoveClipFromQueue's promotion branch, which is
+  // skipped when !phraseLeader), so the first placement after a
+  // restart-over-music would queue forever. addPhraseLeader is state-only in
+  // the relevant sense (a loop_end read + listener registration; no
+  // emissions, no volume/tempo/key writes) — exactly the state the
+  // playing_slot_index listener would have built had it been alive, selected
+  // by the same TRIGGER_ORDER rule.
+  if (!phraseLeader) {
+    const rebuiltLeader = PhraseLeaderService.findNextPhraseLeader(playingClips);
+    if (rebuiltLeader) {
+      await addPhraseLeader(rebuiltLeader).catch((err) =>
+        Logger.error(err, 'Error re-establishing phrase leader after playing-state rebuild'),
+      );
+    }
   }
   Logger.info('Tracks and clips from Ableton fetched');
 

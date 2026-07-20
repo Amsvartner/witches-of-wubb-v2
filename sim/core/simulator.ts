@@ -360,6 +360,10 @@ export class Simulator {
       if (clipInfo.key) this.setMasterKey(clipInfo.key);
     }
     this.playingClips[pillar] = clipInfo;
+    // Mirrors the backend's stale-stoppingClips hardening (audio-ableton
+    // delta review, PR #56, finding 4): a clip starting here means nothing
+    // is stopping here anymore.
+    this.stoppingClips[pillar] = null;
   }
 
   private stopOrRemoveClipFromQueue(clipName: string, pillar: number) {

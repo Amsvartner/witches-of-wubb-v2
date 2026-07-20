@@ -74,6 +74,12 @@ New socket events:
 
 Previously every clip start on a pillar hard-reset that pillar's volume to a hardcoded `0.6`. Now the backend remembers the last volume a caller explicitly asked for on each pillar (`desiredVolumes`, via `setTrackVolume`) and restores that instead (`resolveClipStartVolume`), falling back to `0.6` only for a pillar whose volume has never been explicitly set. This lets a DJ pre-set a pillar's level (including an empty one, in DJ mode) before anything plays there, without it being clobbered on the next clip start.
 
+## Startup playing-state rebuild (WOW-007C, human bug report)
+
+A backend restart over a still-looping Live set (nodemon restarts on file changes and crashes) used to leave `playingClips` empty until the next slot transition, so a UI reload showed empty pillars over audible music. `getTracksAndClips` now reads each pillar's current `playing_slot_index` and rebuilds the state (`rebuildPillarPlayingState`) — state-only: no emissions, no volume writes, no tempo/key adoption. It also re-establishes the phrase leader over the rebuilt clips (`findNextPhraseLeader` + `addPhraseLeader`, listener registration only) — without a leader, queued clips have no firing path and the first post-restart placement would queue forever (audio-ableton review, PR #56).
+
+Audible caveat: after a restart the master key is empty, so the **first placed clip's key is adopted** and key-lock then transposes every rebuilt clip to it — a mid-loop `pitch_coarse` jump on any rebuilt clip not already in that key. Same class of event as normal key adoption; expected, not a bug.
+
 ## Sample categories
 
 Canonical (`ClipTypes`, confirmed by ADR-002): `Vox`, `Melody`, `Bass`, `Drums`.

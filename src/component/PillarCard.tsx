@@ -97,8 +97,13 @@ export const PillarCard = ({
 
   // PillarMedallion's props are a discriminated union: a categorised medallion
   // requires the tint + fill trio together. Branch here so `tokens` is narrowed
-  // to a real value before it is passed (an empty pillar renders the empty ring),
-  // rather than forwarding possibly-undefined colours (the WOW-007A build break).
+  // to a real value before it is passed, rather than forwarding
+  // possibly-undefined colours (the WOW-007A build break).
+  //
+  // An EMPTY pillar's medallion (the dashed + ring) is a DJ-only surface
+  // (human direction 2026-07-20): in play mode you can't add samples manually,
+  // so it renders nothing at all; in DJ mode it doubles as the Add-sample
+  // button.
   const medallion =
     category && tokens ? (
       <PillarMedallion
@@ -109,14 +114,14 @@ export const PillarCard = ({
         dimmed={status === 'paused' || muted}
         animated={animationsEnabled}
       />
-    ) : (
+    ) : dj ? (
       <PillarMedallion
         status={status}
         dimmed={status === 'paused' || muted}
         animated={animationsEnabled}
-        onAddSample={dj?.onSelectSample}
+        onAddSample={dj.onSelectSample}
       />
-    );
+    ) : null;
 
   return (
     <PillarFrame className='h-full' borderHex={tokens?.fillHex} accentHex={tokens?.tintHex}>

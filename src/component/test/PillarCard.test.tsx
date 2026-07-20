@@ -70,9 +70,11 @@ describe('PillarCard', () => {
       expect(queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('renders the empty medallion as a non-interactive element (no Add sample button)', () => {
-      const { queryByRole } = render(<PillarCard pillar={emptyPillar} />);
+    it('renders no empty medallion at all in play mode (samples cannot be added manually there)', () => {
+      // Human direction 2026-07-20: the dashed + ring is a DJ-only surface.
+      const { queryByRole, queryByText } = render(<PillarCard pillar={emptyPillar} />);
       expect(queryByRole('button', { name: 'Add sample' })).not.toBeInTheDocument();
+      expect(queryByText('+')).not.toBeInTheDocument();
     });
   });
 

@@ -12,6 +12,14 @@ import { AbletonProvider } from '~/context/AbletonProvider';
 // production build too) and should be removed once the new UI has run a show.
 const isLegacy = window.location.hash.replace(/^#\/?/, '') === 'legacy';
 
+// The hash is only read once, above — typing "#legacy" into the address bar of
+// the RUNNING app fires a hashchange but no page load, so nothing would switch
+// until some unrelated reload happened minutes later (human bug report
+// 2026-07-20). Reload on every hash change so the fallback switch is instant.
+window.addEventListener('hashchange', () => {
+  window.location.reload();
+});
+
 const app = (
   <SocketProvider>
     <AbletonProvider>{isLegacy ? <MainScreen /> : <PlayScreen />}</AbletonProvider>

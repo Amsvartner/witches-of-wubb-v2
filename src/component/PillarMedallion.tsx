@@ -77,18 +77,12 @@ export const PillarMedallion = ({
   const size: CSSProperties = { width: DIAMETER, height: DIAMETER };
 
   if (!category || status === 'empty') {
+    // Just the plus glyph — the little decorative ✦ sparkle it once had was
+    // removed (human direction 2026-07-20).
     const emptyContent = (
-      <>
-        <span className='font-data text-5xl font-light text-[#5a5560]' aria-hidden='true'>
-          +
-        </span>
-        <span
-          className='absolute left-[6%] top-[30%] text-xs text-gold-bright/70'
-          aria-hidden='true'
-        >
-          ✦
-        </span>
-      </>
+      <span className='font-data text-5xl font-light text-[#5a5560]' aria-hidden='true'>
+        +
+      </span>
     );
 
     if (onAddSample) {

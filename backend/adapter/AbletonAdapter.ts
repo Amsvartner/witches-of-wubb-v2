@@ -752,11 +752,59 @@ const getTracksAndClips = async () => {
       const clip = await cs.get('clip');
       allAbletonClips[pillar].push(clip);
     }
+
+    await rebuildPillarPlayingState(pillar, track, allAbletonClips[pillar]);
   }
   Logger.info('Tracks and clips from Ableton fetched');
 
   return { allAbletonClips, tracks };
 };
+
+/**
+ * WOW-007C (human bug report 2026-07-20): rebuilds one pillar's playing
+ * state from Ableton's CURRENT playing_slot_index at getTracksAndClips time.
+ * The playing_slot_index listener only sees FUTURE slot changes, so a
+ * backend restart while Ableton kept looping (nodemon restarts on file
+ * changes and crashes) left playingClips empty until the next transition —
+ * a UI (re)load then showed empty pillars over audible music.
+ *
+ * State-only reconstruction, deliberately: no event emissions, no volume
+ * writes, no tempo/key adoption, no phrase-leader changes — those are
+ * live-transition concerns owned by the listener; get_playing_clips fetches
+ * simply serve the rebuilt state. Never clobbers state a listener already
+ * built (re-run safety), and never throws (startup must not be blocked).
+ * Exported as a seam (same pattern as calculateBpmFromWarpMarkers) so the
+ * behaviour is testable without the full getTracksAndClips machinery.
+ */
+async function rebuildPillarPlayingState(
+  pillar: number,
+  track: Track,
+  pillarClips: (Clip | null)[],
+): Promise<void> {
+  try {
+    const currentSlotIndex = await track.get('playing_slot_index');
+    if (typeof currentSlotIndex !== 'number' || currentSlotIndex < 0) return;
+    if (playingClips[pillar]) return;
+
+    const clip = pillarClips[currentSlotIndex];
+    const clipName = clip?.raw.name;
+    if (!clipName) return;
+
+    const clipMetadata =
+      MusicDatabaseService.clipNameToInfoMap[ClipNameUtil.normalizeClipName(clipName)];
+    if (!clipMetadata) {
+      Logger.warn(`Pillar ${pillar + 1} is playing unknown clip "${clipName}" - state not rebuilt`);
+      return;
+    }
+
+    playingClips[pillar] = { ...clipMetadata, clipName, pillar, clip };
+    Logger.info(
+      `Rebuilt playing state for pillar ${pillar + 1}: "${clipName}" was already playing`,
+    );
+  } catch (err) {
+    Logger.error(err, `Error rebuilding playing state on pillar ${pillar + 1}`);
+  }
+}
 
 async function getTempo() {
   Logger.info('Getting tempo');
@@ -1056,6 +1104,7 @@ export const AbletonAdapter = {
   DRUM_RACK_TRACK_INDEX,
   DEFAULT_TRACK_VOLUME,
   isDrumRackTrackIndexValid,
+  rebuildPillarPlayingState,
   parseRemoteScriptVersion,
   ensureServerPortFile,
   clampVolume,

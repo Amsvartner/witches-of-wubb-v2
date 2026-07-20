@@ -811,4 +811,75 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
       expect(Fresh.resolveClipStartVolume(3)).toBe(0.6);
     });
   });
+
+  describe('rebuildPillarPlayingState (WOW-007C — restart amnesia fix)', () => {
+    // A real clip name from Music Database.csv so the metadata lookup
+    // succeeds without mocking MusicDatabaseService.
+    const KNOWN_CLIP_NAME = 'Mizbiz vox 3B 86';
+
+    function trackWithPlayingSlot(slotIndex: number | undefined) {
+      return {
+        raw: { name: 'Pillar 1' },
+        get: vi.fn(async (prop: string) => (prop === 'playing_slot_index' ? slotIndex : undefined)),
+      } as never;
+    }
+
+    it('rebuilds playingClips from the current slot index, state-only (no emissions, no volume writes)', async () => {
+      const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+      const clip = fakeClip(KNOWN_CLIP_NAME);
+
+      await Fresh.rebuildPillarPlayingState(0, trackWithPlayingSlot(0), [clip]);
+
+      expect(Fresh.playingClips[0]).toMatchObject({ clipName: KNOWN_CLIP_NAME, pillar: 0 });
+      expect(OutgoingEvents.emitEvent).not.toHaveBeenCalled();
+      expect(OutgoingEvents.emitEventWithoutResettingTimeout).not.toHaveBeenCalled();
+    });
+
+    it('leaves state untouched when nothing is playing (slot index -1)', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+
+      await Fresh.rebuildPillarPlayingState(0, trackWithPlayingSlot(-1), [
+        fakeClip(KNOWN_CLIP_NAME),
+      ]);
+
+      expect(Fresh.playingClips[0]).toBeFalsy();
+    });
+
+    it('never clobbers state a listener already built (re-run safety)', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+      const existing = { clipName: 'Listener Built', pillar: 0 } as never;
+      Fresh.playingClips[0] = existing;
+
+      await Fresh.rebuildPillarPlayingState(0, trackWithPlayingSlot(0), [
+        fakeClip(KNOWN_CLIP_NAME),
+      ]);
+
+      expect(Fresh.playingClips[0]).toBe(existing);
+    });
+
+    it('warns and leaves state empty for a clip name missing from the database', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+
+      await Fresh.rebuildPillarPlayingState(0, trackWithPlayingSlot(0), [
+        fakeClip('Not In The CSV At All'),
+      ]);
+
+      expect(Fresh.playingClips[0]).toBeFalsy();
+    });
+
+    it('catches a failing track read without throwing (startup must not be blocked)', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+      const failingTrack = {
+        raw: { name: 'Pillar 1' },
+        get: vi.fn(async () => {
+          throw new Error('ableton unreachable');
+        }),
+      } as never;
+
+      await expect(
+        Fresh.rebuildPillarPlayingState(0, failingTrack, [fakeClip(KNOWN_CLIP_NAME)]),
+      ).resolves.toBeUndefined();
+      expect(Fresh.playingClips[0]).toBeFalsy();
+    });
+  });
 });

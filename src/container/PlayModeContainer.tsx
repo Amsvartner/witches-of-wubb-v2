@@ -15,8 +15,8 @@ import { Logger } from '~/util/Logger';
 import { PillarViewUtil } from '~/util/PillarViewUtil';
 import { type SelectableClip } from '~/component/SampleModal';
 
-/** One pending-pick slot per pillar, all unset at mount. */
-const NO_PENDING_PICKS: (SelectableClip | null)[] = [null, null, null, null];
+/** One pending-picks list per pillar (max 2 each, WOW-007C), all empty at mount. */
+const NO_PENDING_PICKS: SelectableClip[][] = [[], [], [], []];
 
 /** Legacy TempoSliderContainer bounds — carried over unchanged (WOW-007B). */
 const TEMPO_MIN = 75;
@@ -103,18 +103,19 @@ export const PlayModeContainer = (): JSX.Element => {
   const [mode, setMode] = useState<Mode>(() =>
     LocalStorageUtil.get(MODE_STORAGE_KEY) === 'dj' ? 'dj' : 'play',
   );
-  // Pending DJ picks (WOW-007B pending-pick queue): a clip a DJ has chosen
-  // from the sample picker but not yet started. Held here (not inside
-  // PillarCardContainer) rather than emitted immediately, because the
-  // backend starts an idle pillar's clip immediately on `/new/tag` and even
-  // a backend-"queued" clip auto-fires at the next phrase boundary (see
-  // sim/core/simulator.ts) — so a mere pick can't reach the socket at all.
-  // Lifted to this shared parent (rather than local per-card state) so every
-  // pillar's SampleModal can build its `activeByRfid` map from every other
-  // pillar's pending pick too, not just its own. Deliberately persists across
-  // DJ exit/re-entry (human decision — a held pick shouldn't evaporate just
-  // because the DJ closed the extended controls).
-  const [pendingPicks, setPendingPicks] = useState<(SelectableClip | null)[]>(NO_PENDING_PICKS);
+  // Pending DJ picks (WOW-007B pending-pick queue; WOW-007C: up to 2 per
+  // pillar, applied from the sample modal's draft): clips a DJ has chosen
+  // but not yet started. Held here (not inside PillarCardContainer) rather
+  // than emitted immediately, because the backend starts an idle pillar's
+  // clip immediately on `/new/tag` and even a backend-"queued" clip
+  // auto-fires at the next phrase boundary (see sim/core/simulator.ts) — so
+  // a mere pick can't reach the socket at all. Lifted to this shared parent
+  // (rather than local per-card state) so every pillar's SampleModal can
+  // build its draft baseline from every other pillar's pending picks too,
+  // not just its own. Deliberately persists across DJ exit/re-entry (human
+  // decision — a held pick shouldn't evaporate just because the DJ closed
+  // the extended controls).
+  const [pendingPicks, setPendingPicks] = useState<SelectableClip[][]>(NO_PENDING_PICKS);
   // WOW-007C: DJ auto-exit duration, DJ-adjustable via the Settings modal and
   // persisted across reloads — replaces the old fixed DJ_AUTO_EXIT_MS const.
   const [djAutoExitMs, setDjAutoExitMsState] = useState<number>(() =>
@@ -125,8 +126,8 @@ export const PlayModeContainer = (): JSX.Element => {
     LocalStorageUtil.set(DJ_AUTO_EXIT_MS_STORAGE_KEY, String(ms));
   }, []);
 
-  const handlePendingPickChange = useCallback((index: number, clip: SelectableClip | null) => {
-    setPendingPicks((current) => current.map((existing, i) => (i === index ? clip : existing)));
+  const handlePendingPickChange = useCallback((index: number, picks: SelectableClip[]) => {
+    setPendingPicks((current) => current.map((existing, i) => (i === index ? picks : existing)));
   }, []);
 
   useEffect(() => {
@@ -351,6 +352,7 @@ export const PlayModeContainer = (): JSX.Element => {
         open={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         mode={mode}
+        djActive={mode === 'dj'}
         onModeChange={setMode}
         animationsEnabled={animationsEnabled}
         onAnimationsEnabledChange={setAnimationsEnabled}

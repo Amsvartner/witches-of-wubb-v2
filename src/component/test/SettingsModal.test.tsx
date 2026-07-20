@@ -11,11 +11,15 @@ class ResizeObserverStub {
 }
 global.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
 
+// djActive true by default: most tests exercise the DJ-only sections
+// (cauldron loudness / pause music / DJ auto-exit), which only render for a
+// DJ (WOW-007C human safety decision 2026-07-20).
 const defaultProps = {
   open: true,
   onClose: vi.fn(),
   mode: 'play' as const,
   onModeChange: vi.fn(),
+  djActive: true,
   animationsEnabled: true,
   onAnimationsEnabledChange: vi.fn(),
   cauldronVolume: 0.42,
@@ -27,6 +31,31 @@ const defaultProps = {
 };
 
 describe('SettingsModal (WOW-007C)', () => {
+  describe('DJ gating (human safety decision 2026-07-20)', () => {
+    it('hides cauldron loudness, pause music, and DJ auto-exit when djActive is false (visitor view)', () => {
+      const { queryByText, queryByRole, getByText, getByRole } = render(
+        <SettingsModal {...defaultProps} djActive={false} />,
+      );
+
+      expect(queryByText('Cauldron loudness')).not.toBeInTheDocument();
+      expect(queryByRole('slider', { name: 'Cauldron loudness' })).not.toBeInTheDocument();
+      expect(queryByText('Pause music')).not.toBeInTheDocument();
+      expect(queryByText('DJ auto-exit')).not.toBeInTheDocument();
+
+      // Visitors keep Mode + Animations.
+      expect(getByText('Mode')).toBeInTheDocument();
+      expect(getByRole('button', { name: 'Animations' })).toBeInTheDocument();
+    });
+
+    it('shows all three sections when djActive is true', () => {
+      const { getByText } = render(<SettingsModal {...defaultProps} djActive />);
+
+      expect(getByText('Cauldron loudness')).toBeInTheDocument();
+      expect(getByText('Pause music')).toBeInTheDocument();
+      expect(getByText('DJ auto-exit')).toBeInTheDocument();
+    });
+  });
+
   it('renders all three new sections: cauldron loudness, pause music, DJ auto-exit', () => {
     const { getByText, getByRole } = render(<SettingsModal {...defaultProps} />);
 

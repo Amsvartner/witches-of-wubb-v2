@@ -29,6 +29,13 @@ type Props = {
   onClose: () => void;
   mode: 'play' | 'dj';
   onModeChange: (mode: 'play' | 'dj') => void;
+  /**
+   * True while DJ mode is active (WOW-007C human safety decision
+   * 2026-07-20): the installation-behaviour sections — cauldron loudness,
+   * pause music, DJ auto-exit — render only for a DJ. Visitors keep just
+   * Mode + Animations.
+   */
+  djActive: boolean;
   animationsEnabled: boolean;
   onAnimationsEnabledChange: (value: boolean) => void;
   /** WOW-007C: cauldron (drum-rack track) loudness, raw 0..0.7. */
@@ -50,13 +57,17 @@ type Props = {
  * 2026-07-17), and three WOW-007C sections — cauldron loudness, pause music
  * (idle-timeout enable + duration), and DJ auto-exit duration — so all of
  * this previously-fixed installation behaviour is DJ-tunable on the fly.
- * Near-opaque overlay per DESIGN_PROPOSAL_001 §3.1 (surface/overlay).
+ * The three WOW-007C sections are DJ-gated via `djActive` (human safety
+ * decision 2026-07-20): a visitor opening Settings in play mode sees only
+ * Mode + Animations. Near-opaque overlay per DESIGN_PROPOSAL_001 §3.1
+ * (surface/overlay).
  */
 export const SettingsModal = ({
   open,
   onClose,
   mode,
   onModeChange,
+  djActive,
   animationsEnabled,
   onAnimationsEnabledChange,
   cauldronVolume,
@@ -148,125 +159,133 @@ export const SettingsModal = ({
             Disable if the show machine needs the GPU headroom.
           </p>
 
-          {/* WOW-007C: cauldron loudness — plain 0-100 range input, mapped to
+          {/* The three WOW-007C installation-behaviour sections below are
+              DJ-only (djActive gating, human safety decision 2026-07-20) —
+              visitors must not be able to change loudness or show timing. */}
+          {djActive && (
+            <>
+              {/* WOW-007C: cauldron loudness — plain 0-100 range input, mapped to
               the raw 0..VOLUME_MAX volume the socket contract expects. */}
-          <div className='mt-6'>
-            <div className='flex items-center justify-between'>
-              <span className='font-data text-[15px] text-parchment/90'>Cauldron loudness</span>
-              <span className='font-number text-sm tabular-nums text-parchment/70'>
-                {cauldronSlider.value}%
-              </span>
-            </div>
-            <input
-              type='range'
-              min={0}
-              max={100}
-              value={cauldronSlider.value}
-              aria-label='Cauldron loudness'
-              onChange={(event) => cauldronSlider.onValue(Number(event.target.value))}
-              onPointerDown={cauldronSlider.onDragStart}
-              onPointerUp={cauldronSlider.onDragEnd}
-              onPointerCancel={cauldronSlider.onDragEnd}
-              className='mt-2 h-[44px] w-full accent-gold-bright'
-            />
-          </div>
+              <div className='mt-6'>
+                <div className='flex items-center justify-between'>
+                  <span className='font-data text-[15px] text-parchment/90'>Cauldron loudness</span>
+                  <span className='font-number text-sm tabular-nums text-parchment/70'>
+                    {cauldronSlider.value}%
+                  </span>
+                </div>
+                <input
+                  type='range'
+                  min={0}
+                  max={100}
+                  value={cauldronSlider.value}
+                  aria-label='Cauldron loudness'
+                  onChange={(event) => cauldronSlider.onValue(Number(event.target.value))}
+                  onPointerDown={cauldronSlider.onDragStart}
+                  onPointerUp={cauldronSlider.onDragEnd}
+                  onPointerCancel={cauldronSlider.onDragEnd}
+                  className='mt-2 h-[44px] w-full accent-gold-bright'
+                />
+              </div>
 
-          {/* WOW-007C: pause music — idle-timeout enable/disable + duration.
+              {/* WOW-007C: pause music — idle-timeout enable/disable + duration.
               Disabling means spells loop indefinitely and the Live-set
               attractor ("Wicked Casting") never engages (see
               docs/ABLETON_INTEGRATION.md). */}
-          <div className='mt-6'>
-            <div className='flex min-h-[44px] items-center justify-between gap-4'>
-              <span className='font-data text-[15px] text-parchment/90'>Pause music</span>
-              <button
-                type='button'
-                aria-pressed={idleTimeout.enabled}
-                aria-label='Pause music'
-                onClick={() =>
-                  onIdleTimeoutChange({
-                    enabled: !idleTimeout.enabled,
-                    timeoutMs: idleTimeout.timeoutMs,
-                  })
-                }
-                className='-my-2 flex min-h-[44px] min-w-[56px] items-center justify-center'
-              >
-                <span
-                  className={`relative block h-7 w-14 rounded-full border transition-colors ${
-                    idleTimeout.enabled
-                      ? 'border-gold-bright/70 bg-gold-line/70'
-                      : 'border-gold-line/30 bg-ink-btn'
+              <div className='mt-6'>
+                <div className='flex min-h-[44px] items-center justify-between gap-4'>
+                  <span className='font-data text-[15px] text-parchment/90'>Pause music</span>
+                  <button
+                    type='button'
+                    aria-pressed={idleTimeout.enabled}
+                    aria-label='Pause music'
+                    onClick={() =>
+                      onIdleTimeoutChange({
+                        enabled: !idleTimeout.enabled,
+                        timeoutMs: idleTimeout.timeoutMs,
+                      })
+                    }
+                    className='-my-2 flex min-h-[44px] min-w-[56px] items-center justify-center'
+                  >
+                    <span
+                      className={`relative block h-7 w-14 rounded-full border transition-colors ${
+                        idleTimeout.enabled
+                          ? 'border-gold-bright/70 bg-gold-line/70'
+                          : 'border-gold-line/30 bg-ink-btn'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-parchment shadow ${
+                          idleTimeout.enabled ? 'left-[calc(100%-22px)]' : 'left-1'
+                        }`}
+                      />
+                    </span>
+                  </button>
+                </div>
+                <p className='mt-1 font-data text-[15px] text-parchment/60'>
+                  After this long without interaction, all pillars stop and the pause music takes
+                  over.
+                </p>
+                <div
+                  className={`mt-2 flex flex-wrap gap-2 ${
+                    idleTimeout.enabled ? '' : 'pointer-events-none opacity-40'
                   }`}
                 >
-                  <span
-                    className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-parchment shadow ${
-                      idleTimeout.enabled ? 'left-[calc(100%-22px)]' : 'left-1'
-                    }`}
-                  />
-                </span>
-              </button>
-            </div>
-            <p className='mt-1 font-data text-[15px] text-parchment/60'>
-              After this long without interaction, all pillars stop and the pause music takes over.
-            </p>
-            <div
-              className={`mt-2 flex flex-wrap gap-2 ${
-                idleTimeout.enabled ? '' : 'pointer-events-none opacity-40'
-              }`}
-            >
-              {IDLE_TIMEOUT_MINUTES_CHOICES.map((minutes) => (
-                <button
-                  key={minutes}
-                  type='button'
-                  disabled={!idleTimeout.enabled}
-                  aria-pressed={idleTimeout.enabled && idleTimeoutMinutes === minutes}
-                  // Disambiguated from the DJ auto-exit choices below, which
-                  // share the same "N min" visible text for overlapping
-                  // values (1/5/10 appear in both lists).
-                  aria-label={`Pause music after ${minutes} min`}
-                  onClick={() =>
-                    onIdleTimeoutChange({
-                      enabled: idleTimeout.enabled,
-                      timeoutMs: minutes * MINUTE_MS,
-                    })
-                  }
-                  className={`min-h-[44px] min-w-[44px] flex-1 rounded-lg border font-data text-sm tracking-wide ${
-                    idleTimeout.enabled && idleTimeoutMinutes === minutes
-                      ? 'border-gold-bright/70 bg-gold-line/70 text-ink-deep'
-                      : 'border-gold-line/30 bg-ink-btn text-parchment/90'
-                  }`}
-                >
-                  {minutes} min
-                </button>
-              ))}
-            </div>
-          </div>
+                  {IDLE_TIMEOUT_MINUTES_CHOICES.map((minutes) => (
+                    <button
+                      key={minutes}
+                      type='button'
+                      disabled={!idleTimeout.enabled}
+                      aria-pressed={idleTimeout.enabled && idleTimeoutMinutes === minutes}
+                      // Disambiguated from the DJ auto-exit choices below, which
+                      // share the same "N min" visible text for overlapping
+                      // values (1/5/10 appear in both lists).
+                      aria-label={`Pause music after ${minutes} min`}
+                      onClick={() =>
+                        onIdleTimeoutChange({
+                          enabled: idleTimeout.enabled,
+                          timeoutMs: minutes * MINUTE_MS,
+                        })
+                      }
+                      className={`min-h-[44px] min-w-[44px] flex-1 rounded-lg border font-data text-sm tracking-wide ${
+                        idleTimeout.enabled && idleTimeoutMinutes === minutes
+                          ? 'border-gold-bright/70 bg-gold-line/70 text-ink-deep'
+                          : 'border-gold-line/30 bg-ink-btn text-parchment/90'
+                      }`}
+                    >
+                      {minutes} min
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* WOW-007C: DJ auto-exit — frontend-only setting (localStorage),
+              {/* WOW-007C: DJ auto-exit — frontend-only setting (localStorage),
               not part of the socket contract. */}
-          <div className='mt-6'>
-            <span className='font-data text-[15px] text-parchment/90'>DJ auto-exit</span>
-            <p className='mt-1 font-data text-[15px] text-parchment/60'>
-              DJ mode returns to play mode after this long without touches.
-            </p>
-            <div className='mt-2 flex flex-wrap gap-2'>
-              {DJ_AUTO_EXIT_MINUTES_CHOICES.map((minutes) => (
-                <button
-                  key={minutes}
-                  type='button'
-                  aria-pressed={djAutoExitMinutes === minutes}
-                  aria-label={`DJ auto-exit after ${minutes} min`}
-                  onClick={() => onDjAutoExitMsChange(minutes * MINUTE_MS)}
-                  className={`min-h-[44px] min-w-[44px] flex-1 rounded-lg border font-data text-sm tracking-wide ${
-                    djAutoExitMinutes === minutes
-                      ? 'border-gold-bright/70 bg-gold-line/70 text-ink-deep'
-                      : 'border-gold-line/30 bg-ink-btn text-parchment/90'
-                  }`}
-                >
-                  {minutes} min
-                </button>
-              ))}
-            </div>
-          </div>
+              <div className='mt-6'>
+                <span className='font-data text-[15px] text-parchment/90'>DJ auto-exit</span>
+                <p className='mt-1 font-data text-[15px] text-parchment/60'>
+                  DJ mode returns to play mode after this long without touches.
+                </p>
+                <div className='mt-2 flex flex-wrap gap-2'>
+                  {DJ_AUTO_EXIT_MINUTES_CHOICES.map((minutes) => (
+                    <button
+                      key={minutes}
+                      type='button'
+                      aria-pressed={djAutoExitMinutes === minutes}
+                      aria-label={`DJ auto-exit after ${minutes} min`}
+                      onClick={() => onDjAutoExitMsChange(minutes * MINUTE_MS)}
+                      className={`min-h-[44px] min-w-[44px] flex-1 rounded-lg border font-data text-sm tracking-wide ${
+                        djAutoExitMinutes === minutes
+                          ? 'border-gold-bright/70 bg-gold-line/70 text-ink-deep'
+                          : 'border-gold-line/30 bg-ink-btn text-parchment/90'
+                      }`}
+                    >
+                      {minutes} min
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           <div className='mt-6 flex justify-end'>
             <button

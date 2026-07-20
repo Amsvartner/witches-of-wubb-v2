@@ -320,6 +320,31 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
   });
 
   describe('WOW-007C: Settings modal — cauldron loudness, pause music, DJ auto-exit', () => {
+    // The three sections are DJ-gated (human safety decision 2026-07-20):
+    // visitors in play mode only get Mode + Animations, so every test below
+    // switches to DJ mode inside the open Settings modal first.
+    it('hides the cauldron loudness, pause music, and DJ auto-exit sections in play mode', () => {
+      const { getByRole, queryByText, queryByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+
+      expect(queryByText('Cauldron loudness')).not.toBeInTheDocument();
+      expect(queryByRole('slider', { name: 'Cauldron loudness' })).not.toBeInTheDocument();
+      expect(queryByText('Pause music')).not.toBeInTheDocument();
+      expect(queryByText('DJ auto-exit')).not.toBeInTheDocument();
+    });
+
+    it('reveals the three sections as soon as DJ mode is switched on inside the modal', () => {
+      const { getByRole, getByText } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+
+      expect(getByText('Cauldron loudness')).toBeInTheDocument();
+      expect(getByText('Pause music')).toBeInTheDocument();
+      expect(getByText('DJ auto-exit')).toBeInTheDocument();
+    });
+
     it('renders the cauldron loudness slider at the fixture value and emits the mapped raw volume on change', () => {
       // 0.35 / 0.7 ceiling = 50%
       const { getByRole, abletonState } = renderPlayScreen({
@@ -327,6 +352,7 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       });
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
       const slider = getByRole('slider', { name: 'Cauldron loudness' });
       expect(slider).toHaveValue('50');
 
@@ -346,6 +372,7 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       });
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
       fireEvent.click(getByRole('button', { name: 'Pause music' }));
 
       expect(abletonState.changeIdleTimeout).toHaveBeenCalledWith({
@@ -362,6 +389,7 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       });
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
       fireEvent.click(getByRole('button', { name: 'Pause music after 5 min' }));
 
       expect(abletonState.changeIdleTimeout).toHaveBeenCalledWith({
@@ -376,6 +404,7 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       });
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
 
       expect(getByRole('button', { name: 'Pause music after 1 min' })).toBeDisabled();
     });
@@ -384,6 +413,7 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       const { getByRole } = renderPlayScreen();
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
       // Default is 5 min (DEFAULT_DJ_AUTO_EXIT_MS) — pick a different one.
       fireEvent.click(getByRole('button', { name: 'DJ auto-exit after 10 min' }));
 
@@ -396,6 +426,8 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
 
     it('restores a persisted DJ auto-exit duration on mount', () => {
       window.localStorage.setItem('hexology.djAutoExitMs', String(30 * 60 * 1000));
+      // Restore DJ mode too — the section only renders for a DJ.
+      window.localStorage.setItem('hexology.mode', 'dj');
 
       const { getByRole } = renderPlayScreen();
       fireEvent.click(getByRole('button', { name: /settings/i }));

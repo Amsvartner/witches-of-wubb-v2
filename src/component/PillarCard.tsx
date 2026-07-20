@@ -25,10 +25,11 @@ type Props = {
     muted?: boolean;
     onToggleMute?: () => void;
     /**
-     * Rows to render in the Queued section (WOW-007B pending-pick queue):
-     * the container composes at most one backend-queued row (remove only)
-     * and, last, the pillar's pending pick (play + remove). Same 2-row cap
-     * as before, applied here rather than upstream.
+     * Rows to render in the Queued section (WOW-007B pending-pick queue;
+     * WOW-007C: up to 2 pending picks per pillar): the container composes at
+     * most one backend-queued row (remove only) followed by the pillar's
+     * pending picks (play + remove each). Same 2-row display cap as before,
+     * applied here rather than upstream.
      */
     queueRows: { id: string; name: string; onPlay?: () => void; onRemove?: () => void }[];
   };

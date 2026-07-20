@@ -97,9 +97,98 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     expect(getAllByText(/awaiting ingredient/i)).toHaveLength(2);
   });
 
-  it('exposes a disabled Help affordance', () => {
-    const { getByRole } = renderPlayScreen();
-    expect(getByRole('button', { name: /help/i })).toBeDisabled();
+  describe('WOW-007D: Help overlay', () => {
+    it('toggles the Help button pressed state and opens/closes the overlay', () => {
+      const { getByRole, queryByRole } = renderPlayScreen();
+      // Keep this one reference and click/assert on it directly throughout —
+      // once the overlay opens, Headless UI's Dialog marks the rest of the
+      // page inert (aria-hidden) for focus containment, which would drop the
+      // button out of a fresh `getByRole` query (same pattern as
+      // MainScreen's debug modal). A direct DOM reference sidesteps that.
+      const helpButton = getByRole('button', { name: 'HELP' });
+      expect(helpButton).toHaveAttribute('aria-pressed', 'false');
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+
+      fireEvent.click(helpButton);
+
+      expect(helpButton).toHaveAttribute('aria-pressed', 'true');
+      expect(getByRole('dialog', { name: 'Help' })).toBeInTheDocument();
+
+      fireEvent.click(helpButton);
+
+      expect(helpButton).toHaveAttribute('aria-pressed', 'false');
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+    });
+
+    it('renders its callout copy once open', () => {
+      const { getByRole, getByText } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+
+      expect(
+        getByText('Tap the cauldron — it loves attention (and makes noises)'),
+      ).toBeInTheDocument();
+      expect(getByText('Deeper magicks hide behind the Settings sigil')).toBeInTheDocument();
+    });
+
+    it('closes via Escape', () => {
+      const { getByRole, queryByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+      expect(getByRole('dialog', { name: 'Help' })).toBeInTheDocument();
+
+      fireEvent.keyDown(getByRole('dialog', { name: 'Help' }), { key: 'Escape' });
+
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+    });
+
+    it('closes via the explicit ✕ close button', () => {
+      const { getByRole, queryByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+      fireEvent.click(getByRole('button', { name: 'Close help' }));
+
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+    });
+
+    it('closes via tapping the scrim', () => {
+      const { getByRole, getByTestId, queryByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+      fireEvent.click(getByTestId('help-scrim'));
+
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+    });
+
+    it('forces every otherwise-hidden volume tube visible while Help is open', () => {
+      // Default fixture: pillar 1 plays (tube always visible), pillar 2 is
+      // queued, pillars 3 & 4 are empty — the latter three all hide their
+      // tube in plain play mode (WOW-007D hiding rule: nothing audible yet)
+      // but must stay pointed-at while Help is open. The two empty pillars'
+      // tubes render display-only (no assetSlug, no DJ handler) — queried by
+      // their empty-tube art asset rather than role, since a display-only
+      // tube exposes no accessible role/name.
+      const { getByRole, getAllByRole, container } = renderPlayScreen();
+      const emptyTubeImages = () =>
+        container.querySelectorAll('img[src="/images/slider-background-empty.png"]');
+
+      // Only the playing pillar's tube is interactive before Help opens; the
+      // queued and both empty pillars' tubes are hidden entirely.
+      expect(getAllByRole('slider', { name: 'Volume' })).toHaveLength(1);
+      expect(emptyTubeImages()).toHaveLength(0);
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+
+      // The queued pillar's tube becomes visible and interactive (it was
+      // already handler-eligible, just hidden); both empty pillars' tubes
+      // become visible too, display-only. `hidden: true`: the open Help
+      // overlay marks the rest of the page inert (Headless UI's focus
+      // containment, same as MainScreen's debug modal) — expected while a
+      // full-screen dialog is up, and orthogonal to whether the tubes
+      // themselves are rendered, which is what this test is actually about.
+      expect(getAllByRole('slider', { name: 'Volume', hidden: true })).toHaveLength(2);
+      expect(emptyTubeImages()).toHaveLength(2);
+    });
   });
 
   it('opens the Settings modal with a Play/DJ segmented control and an enabled Animations toggle', () => {
@@ -316,6 +405,85 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       fireEvent.click(getByRole('button', { name: 'Cauldron' }));
 
       expect(abletonState.triggerCauldronSample).not.toHaveBeenCalled();
+    });
+  });
+
+  // WOW-007D: cauldron raised + re-stacked so its wrapper sits above the
+  // top-row cards but below the bottom-row cards (human spec 2026-07-20).
+  // Deliberately light — asserting the z-index classes exist on the right
+  // ancestors, not the full Tailwind class string.
+  describe('WOW-007D: pillar/cauldron z-order', () => {
+    it('places the cauldron wrapper above the top-row cards and below the bottom-row cards', () => {
+      const { getByRole, getAllByText } = renderPlayScreen();
+
+      const cauldronWrapper = getByRole('button', { name: 'Cauldron' }).closest('.z-20');
+      expect(cauldronWrapper).not.toBeNull();
+
+      // Pillar 1 (VOCALS) is top row; pillars 3 & 4 ("awaiting ingredient",
+      // both empty in the default fixture) are bottom row.
+      const topRowWrapper = getByRole('heading', { level: 2, name: 'VOCALS' }).closest('.z-10');
+      expect(topRowWrapper).not.toBeNull();
+
+      const bottomRowWrapper = getAllByText(/awaiting ingredient/i)[0].closest('.z-30');
+      expect(bottomRowWrapper).not.toBeNull();
+    });
+  });
+
+  // WOW-007D: the "place an ingredient" nudge, shown only when the whole
+  // board has nothing going on.
+  describe('WOW-007D: EmptyStateOverlay', () => {
+    const allEmptyState = () =>
+      createAbletonState({
+        playingClips: [null, null, null, null],
+        queuedClips: [null, null, null, null],
+        stoppingClips: [null, null, null, null],
+      });
+
+    it('appears when every pillar is empty in play mode', () => {
+      const { getByText } = renderPlayScreen({ abletonState: allEmptyState() });
+
+      expect(
+        getByText(/place an ingredient upon a pillar to begin the spell/i),
+      ).toBeInTheDocument();
+    });
+
+    it('is absent when the default fixture has active/queued pillars', () => {
+      const { queryByText } = renderPlayScreen();
+
+      expect(
+        queryByText(/place an ingredient upon a pillar to begin the spell/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('is absent in DJ mode even with every pillar empty', () => {
+      const { getByRole, queryByText } = renderPlayScreen({ abletonState: allEmptyState() });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
+
+      expect(
+        queryByText(/place an ingredient upon a pillar to begin the spell/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('is absent while Help is open even with every pillar empty', () => {
+      const { getByRole, queryByText } = renderPlayScreen({ abletonState: allEmptyState() });
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+
+      expect(
+        queryByText(/place an ingredient upon a pillar to begin the spell/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('is pointer-events-none so it never blocks the pillars/cauldron beneath it', () => {
+      const { getByText } = renderPlayScreen({ abletonState: allEmptyState() });
+
+      const overlayText = getByText(/place an ingredient upon a pillar to begin the spell/i);
+      const overlayRoot = overlayText.closest('.pointer-events-none');
+
+      expect(overlayRoot).not.toBeNull();
     });
   });
 

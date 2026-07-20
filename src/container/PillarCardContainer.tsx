@@ -87,6 +87,14 @@ type Props = {
   pendingPicks: SelectableClip[][];
   /** Replaces pillar `index`'s whole pending-picks array. */
   onPendingPickChange: (index: number, picks: SelectableClip[]) => void;
+  /**
+   * True while the Help overlay is open (human spec 2026-07-20). Overrides
+   * the play-mode volume-tube hiding below — a visitor reading Help must
+   * still see every tube it points at, even on an otherwise-hidden empty/
+   * queued pillar. Defaults false so existing call sites/tests are
+   * unaffected.
+   */
+  helpActive?: boolean;
 };
 
 /**
@@ -126,6 +134,7 @@ export const PillarCardContainer = ({
   isConnected,
   pendingPicks,
   onPendingPickChange,
+  helpActive = false,
 }: Props): JSX.Element => {
   const socket = useSocketContext();
   const { changeTrackVolume, playingClips, queuedClips, stoppingClips, trackVolume } =
@@ -171,6 +180,15 @@ export const PillarCardContainer = ({
   // outside DJ mode). A non-empty pillar stays interactive in both modes, as
   // before.
   const showVolumeControls = pillar.status !== 'empty' || djMode;
+
+  // WOW-007D: in play mode, a pillar with nothing audible (status 'empty' or
+  // 'queued' — a queued clip hasn't started sounding yet) has no meaningful
+  // volume to show, so its tube is hidden entirely and the card centers its
+  // remaining content instead. DJ mode always shows tubes (DJing ahead —
+  // pre-setting levels), and an open Help overlay forces them visible too,
+  // since Help points at a tube that must actually be there to point at.
+  const hideVolume =
+    !djMode && !helpActive && pillar.status !== 'playing' && pillar.status !== 'paused';
 
   // Render the drag-local slider value instead of the derived percent so a
   // drag tracks the finger exactly (useSliderEmit's contract) — only while
@@ -360,6 +378,7 @@ export const PillarCardContainer = ({
         onVolumePercentChange={showVolumeControls ? volumeSlider.onValue : undefined}
         onVolumeDragStart={showVolumeControls ? volumeSlider.onDragStart : undefined}
         onVolumeDragEnd={showVolumeControls ? volumeSlider.onDragEnd : undefined}
+        hideVolume={hideVolume}
       />
       <SampleModal
         open={isSampleModalOpen}

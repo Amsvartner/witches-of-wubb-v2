@@ -93,7 +93,7 @@ const liveFixture = (pillar: number, clip: SelectableClip): BrowserClipInfo =>
 function renderContainer(
   abletonState: AbletonContextState,
   socket: Socket,
-  containerProps: { index: number; djMode: boolean; isConnected: boolean },
+  containerProps: { index: number; djMode: boolean; isConnected: boolean; helpActive?: boolean },
 ) {
   const pillars = PillarViewUtil.derivePillars(
     abletonState.playingClips,
@@ -121,6 +121,7 @@ function renderContainer(
             isConnected={containerProps.isConnected}
             pendingPicks={pendingPicks}
             onPendingPickChange={onPendingPickChange}
+            helpActive={containerProps.helpActive}
           />
         </AbletonContext.Provider>
       </SocketContext.Provider>
@@ -817,6 +818,95 @@ describe('PillarCardContainer', () => {
 
         expect(getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
       });
+    });
+  });
+
+  // WOW-007D: play-mode tube hiding for a pillar with nothing audible
+  // (status 'empty' or 'queued'). DJ mode and an open Help overlay both
+  // override the hiding.
+  describe('play-mode tube hiding (WOW-007D)', () => {
+    it('hides the tube for an empty pillar in play mode', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState();
+
+      const { queryByRole } = renderContainer(abletonState, socket, {
+        index: 0,
+        djMode: false,
+        isConnected: true,
+      });
+
+      expect(queryByRole('slider')).not.toBeInTheDocument();
+    });
+
+    it('hides the tube for a queued (not-yet-audible) pillar in play mode', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState({
+        queuedClips: [
+          clipFixture(0, 'Melody Loop', ClipTypes.Melody, 'rfid-queued-hide'),
+          null,
+          null,
+          null,
+        ],
+      });
+
+      const { queryByRole } = renderContainer(abletonState, socket, {
+        index: 0,
+        djMode: false,
+        isConnected: true,
+      });
+
+      expect(queryByRole('slider')).not.toBeInTheDocument();
+    });
+
+    it('keeps the tube visible for a playing pillar in play mode', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState({
+        playingClips: [
+          clipFixture(0, 'Vocal Hook 07', ClipTypes.Vox, 'rfid-playing-show'),
+          null,
+          null,
+          null,
+        ],
+      });
+
+      const { getByRole } = renderContainer(abletonState, socket, {
+        index: 0,
+        djMode: false,
+        isConnected: true,
+      });
+
+      expect(getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
+    });
+
+    it('always shows the tube in DJ mode, even for an empty pillar', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState();
+
+      const { getByRole } = renderContainer(abletonState, socket, {
+        index: 0,
+        djMode: true,
+        isConnected: true,
+      });
+
+      expect(getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
+    });
+
+    it('forces the tube visible for an empty pillar when helpActive is true, even in play mode', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState();
+
+      const { container } = renderContainer(abletonState, socket, {
+        index: 0,
+        djMode: false,
+        isConnected: true,
+        helpActive: true,
+      });
+
+      // Display-only (no handler on an empty pillar outside DJ mode): no
+      // accessible slider role, so assert via the tube's own art asset.
+      expect(
+        container.querySelector('img[src="/images/slider-background-empty.png"]'),
+      ).toBeInTheDocument();
     });
   });
 });

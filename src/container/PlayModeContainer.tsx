@@ -5,6 +5,8 @@ import { PillarCardContainer } from '~/container/PillarCardContainer';
 import { Cauldron } from '~/component/Cauldron';
 import { SettingsBand } from '~/component/SettingsBand';
 import { SettingsModal } from '~/component/SettingsModal';
+import { HelpOverlay } from '~/component/HelpOverlay';
+import { EmptyStateOverlay } from '~/component/EmptyStateOverlay';
 import { Legend } from '~/component/Legend';
 import { useAbletonContext } from '~/context/hook/useAbletonContext';
 import { useSocketContext } from '~/context/hook/useSocketContext';
@@ -97,6 +99,11 @@ export const PlayModeContainer = (): JSX.Element => {
   // DebugModalContainer's identical guard — Copilot review, PR #24).
   const [isConnected, setIsConnected] = useState(Boolean(socket.connected));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // WOW-007D: the Help overlay — forces every pillar's volume tube visible
+  // while open (overriding the play-mode empty/queued hiding rule below) and
+  // suppresses the all-empty EmptyStateOverlay so the two don't compete for
+  // the same screen space.
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   // Restores DJ mode across a reload (WOW-007B persistence) — any other
   // stored value (or none) falls back to 'play', the safe default.
@@ -244,6 +251,15 @@ export const PlayModeContainer = (): JSX.Element => {
     triggerCauldronSample();
   };
 
+  // WOW-007D: shows the EmptyStateOverlay's "place an ingredient" nudge only
+  // when there is truly nothing to see anywhere (every pillar's own status
+  // is 'empty' — a queued or playing pillar, even without sound yet reaching
+  // the speakers, still means a visitor found their way in), only in play
+  // mode (DJ mode has its own extended controls to look at), and never while
+  // Help is already occupying the screen with its own overlay.
+  const allPillarsEmpty = pillars.every((pillar) => pillar.status === 'empty');
+  const showEmptyState = mode === 'play' && !isHelpOpen && allPillarsEmpty;
+
   return (
     <div className='mx-auto flex min-h-screen max-w-[1024px] flex-col px-8 py-4'>
       {!isConnected && (
@@ -262,6 +278,8 @@ export const PlayModeContainer = (): JSX.Element => {
             onOpenSettings={() => setIsSettingsOpen(true)}
             djActive={mode === 'dj'}
             onExitDj={() => setMode('play')}
+            helpActive={isHelpOpen}
+            onToggleHelp={() => setIsHelpOpen((open) => !open)}
           />
         </div>
         {/* Raised into the Help/Settings row so the logo keeps clear air above
@@ -272,6 +290,9 @@ export const PlayModeContainer = (): JSX.Element => {
       </header>
 
       <div className='mt-3 grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_180px_1fr] lg:grid-rows-2'>
+        {/* Top-row cards (pillars 1 & 2): z-10 — below the cauldron (z-20),
+            per the stacking order the human specified 2026-07-20 (see the
+            cauldron comment below for the full z-index map). */}
         <div className='relative z-10 min-w-0 lg:col-start-1 lg:row-start-1'>
           <PillarCardContainer
             index={0}
@@ -281,6 +302,7 @@ export const PlayModeContainer = (): JSX.Element => {
             isConnected={isConnected}
             pendingPicks={pendingPicks}
             onPendingPickChange={handlePendingPickChange}
+            helpActive={isHelpOpen}
           />
         </div>
         <div className='relative z-10 min-w-0 lg:col-start-3 lg:row-start-1'>
@@ -292,16 +314,27 @@ export const PlayModeContainer = (): JSX.Element => {
             isConnected={isConnected}
             pendingPicks={pendingPicks}
             onPendingPickChange={handlePendingPickChange}
+            helpActive={isHelpOpen}
           />
         </div>
-        {/* Oversized focal cauldron — deliberately extends behind the pillar
-            cards (human, 2026-07-17); cards layer above via z-10. */}
-        <div className='relative z-0 flex items-center justify-center lg:col-start-2 lg:row-span-2 lg:row-start-1'>
-          <div className='w-full max-w-[320px] lg:absolute lg:left-1/2 lg:top-1/2 lg:w-[405px] lg:max-w-none lg:-translate-x-1/2 lg:-translate-y-1/2'>
+        {/* Oversized focal cauldron, raised ~20% closer to the top of its
+            column (lg:top-[30%], was lg:top-1/2 — human, 2026-07-20) so it
+            reads less like it's sinking into the settings band below.
+            Deliberately overlaps the pillar cards (human, 2026-07-17): its
+            wrapper sits at z-20, ABOVE the top-row cards (1 & 2, z-10) but
+            BELOW the bottom-row cards (3 & 4, z-30) — the human's spec is
+            that its handles overlap the top row but tuck under the bottom
+            row. The one-shot click ring can't be capped by this stacking
+            context, though: Cauldron portals it straight to document.body at
+            z-50 (see Cauldron.tsx) so it always renders in front of every
+            card regardless of this z-20. */}
+        <div className='relative z-20 flex items-center justify-center lg:col-start-2 lg:row-span-2 lg:row-start-1'>
+          <div className='w-full max-w-[320px] lg:absolute lg:left-1/2 lg:top-[30%] lg:w-[405px] lg:max-w-none lg:-translate-x-1/2 lg:-translate-y-1/2'>
             <Cauldron animated={animationsEnabled} onTrigger={handleCauldronTrigger} />
           </div>
         </div>
-        <div className='relative z-10 min-w-0 lg:col-start-1 lg:row-start-2'>
+        {/* Bottom-row cards (pillars 3 & 4): z-30 — above the cauldron. */}
+        <div className='relative z-30 min-w-0 lg:col-start-1 lg:row-start-2'>
           <PillarCardContainer
             index={2}
             pillar={pillars[2]}
@@ -310,9 +343,10 @@ export const PlayModeContainer = (): JSX.Element => {
             isConnected={isConnected}
             pendingPicks={pendingPicks}
             onPendingPickChange={handlePendingPickChange}
+            helpActive={isHelpOpen}
           />
         </div>
-        <div className='relative z-10 min-w-0 lg:col-start-3 lg:row-start-2'>
+        <div className='relative z-30 min-w-0 lg:col-start-3 lg:row-start-2'>
           <PillarCardContainer
             index={3}
             pillar={pillars[3]}
@@ -321,9 +355,17 @@ export const PlayModeContainer = (): JSX.Element => {
             isConnected={isConnected}
             pendingPicks={pendingPicks}
             onPendingPickChange={handlePendingPickChange}
+            helpActive={isHelpOpen}
           />
         </div>
       </div>
+
+      {/* All four pillars empty, play mode, Help closed: a non-blocking nudge
+          (human spec 2026-07-20) — z-30, same layer as the bottom-row cards
+          but painted after them in DOM order so it sits visually on top;
+          pointer-events-none (baked into the component) so it can never
+          intercept a touch meant for a card or the cauldron beneath it. */}
+      {showEmptyState && <EmptyStateOverlay animated={animationsEnabled} />}
 
       <div className='mt-4'>
         <SettingsBand
@@ -363,6 +405,8 @@ export const PlayModeContainer = (): JSX.Element => {
         djAutoExitMs={djAutoExitMs}
         onDjAutoExitMsChange={changeDjAutoExitMs}
       />
+
+      <HelpOverlay open={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </div>
   );
 };

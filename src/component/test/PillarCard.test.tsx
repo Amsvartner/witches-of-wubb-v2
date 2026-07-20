@@ -55,6 +55,23 @@ describe('PillarCard', () => {
       expect(queryByRole('slider')).not.toBeInTheDocument();
     });
 
+    // WOW-007D: a pillar with nothing audible hides its tube entirely in
+    // play mode; PillarCardContainer computes when that applies, PillarCard
+    // just obeys the prop.
+    it('hides the volume tube entirely when hideVolume is true, even with a handler supplied', () => {
+      const { queryByRole } = render(
+        <PillarCard pillar={playingVocals} onVolumePercentChange={vi.fn()} hideVolume />,
+      );
+      expect(queryByRole('slider')).not.toBeInTheDocument();
+    });
+
+    it('still renders the volume slider when hideVolume is false (default)', () => {
+      const { getByRole } = render(
+        <PillarCard pillar={playingVocals} onVolumePercentChange={vi.fn()} hideVolume={false} />,
+      );
+      expect(getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
+    });
+
     // WOW-007C: VolumeTube no longer gates interactivity on `assetSlug` — an
     // empty pillar's volume becomes interactive too, once given a handler
     // (DJ mode pre-setting a pillar's level before anything's placed there).

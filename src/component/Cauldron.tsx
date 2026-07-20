@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type Props = {
   /** Global animations switch (Settings kill-switch); fully static when false. */
@@ -20,6 +21,13 @@ const BLOBS = [
   { left: '56%', size: 32, delay: 3400, duration: 4900 },
 ];
 
+/** Viewport-space anchor for the portal-rendered ring — mirrors the button's
+ * old in-place geometry (centred, 105% of the button's width, square) but
+ * expressed as fixed-position coordinates so it lands identically once
+ * rendered outside the button's own stacking context (see Cauldron doc
+ * comment below). */
+type RingRect = { left: number; top: number; size: number };
+
 /**
  * Central cauldron focal point — the bespoke black-background art
  * (human-supplied 2026-07-17), edge-feathered in processing and sat on a thick
@@ -31,10 +39,22 @@ const BLOBS = [
  * cauldron clickable — SFX arrives with live wiring). All layers are
  * transform/opacity-only (compositor-cheap), gated behind `motion-safe`
  * (§7.4 reduced-motion) and the Settings animations kill-switch.
+ *
+ * The click ring is portalled to `document.body` (human spec 2026-07-20):
+ * PlayModeContainer stacks the cauldron's own wrapper at z-20 (above the
+ * top-row pillar cards, below the bottom-row ones), which caps anything
+ * rendered inside this component's own subtree at that same stacking
+ * context. A ring meant to sweep in front of every card can't live inside
+ * it, so on spawn we measure the button's `getBoundingClientRect` and render
+ * the ring as a `position: fixed`, `pointer-events-none`, z-50 node on body
+ * instead — same one-shot animation, same reduced-motion/kill-switch gating,
+ * same `onAnimationEnd` cleanup, just rendered outside the DOM subtree.
  */
 export const Cauldron = ({ animated = true, onTrigger }: Props): JSX.Element => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [ringKey, setRingKey] = useState(0);
   const [ringVisible, setRingVisible] = useState(false);
+  const [ringRect, setRingRect] = useState<RingRect | null>(null);
 
   const spawnRing = (): void => {
     // No ring under reduced motion: the animation would never run, so
@@ -45,6 +65,16 @@ export const Cauldron = ({ animated = true, onTrigger }: Props): JSX.Element => 
     if (!animated || reducedMotion) {
       return;
     }
+    const buttonRect = buttonRef.current?.getBoundingClientRect();
+    if (!buttonRect) {
+      return;
+    }
+    const size = buttonRect.width * 1.05;
+    setRingRect({
+      left: buttonRect.left + buttonRect.width / 2,
+      top: buttonRect.top + buttonRect.height / 2,
+      size,
+    });
     setRingKey((k) => k + 1);
     setRingVisible(true);
   };
@@ -65,6 +95,7 @@ export const Cauldron = ({ animated = true, onTrigger }: Props): JSX.Element => 
       />
 
       <button
+        ref={buttonRef}
         type='button'
         aria-label='Cauldron'
         onClick={handleClick}
@@ -78,16 +109,31 @@ export const Cauldron = ({ animated = true, onTrigger }: Props): JSX.Element => 
           draggable={false}
           className='pointer-events-none w-full'
         />
-        {ringVisible && animated && (
+      </button>
+
+      {ringVisible &&
+        animated &&
+        ringRect &&
+        createPortal(
           <span
             key={ringKey}
+            data-testid='cauldron-ring'
             aria-hidden='true'
             onAnimationEnd={() => setRingVisible(false)}
-            className='absolute left-1/2 top-1/2 aspect-square w-[105%] rounded-full border-2 border-[#e879f9] opacity-0 motion-safe:animate-cauldron-ring'
-            style={{ boxShadow: '0 0 24px #e879f966, inset 0 0 16px #e879f944' }}
-          />
+            className='fixed z-50 rounded-full border-2 border-[#e879f9] opacity-0 motion-safe:animate-cauldron-ring pointer-events-none'
+            style={{
+              left: ringRect.left,
+              top: ringRect.top,
+              width: ringRect.size,
+              height: ringRect.size,
+              // Faint static glow (human spec 2026-07-20): a subtle, non-pulsing
+              // extra outer layer on top of the existing animated-opacity glow
+              // — always the same value, it just fades with the ring itself.
+              boxShadow: '0 0 24px #e879f966, inset 0 0 16px #e879f944, 0 0 46px 8px #e879f933',
+            }}
+          />,
+          document.body,
         )}
-      </button>
 
       {animated && (
         <div

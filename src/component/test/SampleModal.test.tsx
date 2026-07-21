@@ -303,7 +303,7 @@ describe('SampleModal (WOW-007B list + WOW-007C draft/apply chips)', () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('renders a draft "queued" entry as a amber pressed chip labelled "Set … to play", and tapping it advances the cycle', () => {
+    it('renders a draft "queued" entry as an amber pressed chip labelled "Set … to play", and tapping it advances the cycle', () => {
       const draft = emptyDraft();
       draft[0].entries.push({ clip: CLIPS[0], state: 'queued' });
       const { getByRole, onTapChip } = renderModal({ draft });

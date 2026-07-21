@@ -217,10 +217,13 @@ function addSocketEventsHandlers(socket: Socket) {
   socket.on('get_cauldron_volume', async (_, callback) => {
     try {
       const volume = await AbletonAdapter.getCauldronVolume();
-      callback(volume);
+      // Optional-chained like the sim and set_idle_timeout below (Copilot
+      // review, PR #56): a client emitting without an ack must not throw
+      // inside the handler (WOW-014 crash-hardening posture).
+      callback?.(volume);
     } catch (err) {
       Logger.error(err, 'Error getting cauldron volume');
-      callback(AbletonAdapter.DEFAULT_TRACK_VOLUME);
+      callback?.(AbletonAdapter.DEFAULT_TRACK_VOLUME);
     }
   });
   socket.on('set_cauldron_volume', async ({ volume }: SetCauldronVolumeInputType) => {
@@ -234,13 +237,13 @@ function addSocketEventsHandlers(socket: Socket) {
   // WOW-007C: idle-timeout ("pause music"/attractor handover) config.
   socket.on('get_idle_timeout', (_, callback) => {
     try {
-      callback(AbletonAdapter.getIdleTimeoutConfig());
+      callback?.(AbletonAdapter.getIdleTimeoutConfig());
     } catch (err) {
       // Same posture as get_cauldron_volume above: ack a sane default rather
       // than leaving the UI hanging on a callback that never fires (general
       // review, PR #56 — the two sibling handlers previously diverged).
       Logger.error(err, 'Error getting idle timeout config');
-      callback({ enabled: true, timeoutMs: 3 * 60 * 1000 });
+      callback?.({ enabled: true, timeoutMs: 3 * 60 * 1000 });
     }
   });
   socket.on(

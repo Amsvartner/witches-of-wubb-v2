@@ -559,8 +559,12 @@ export class Simulator {
   // Fire-and-forget in the real contract — no ack callback (mirrors
   // set_dj_mode's handler in backend/event/IncomingEvents.ts). A non-boolean
   // payload is ignored (warn, no change) rather than coerced — same "no
-  // surprises" posture as setIdleTimeoutConfig's out-of-bounds guard.
-  setDjModeActive({ active }: SetDjModeInputType): boolean {
+  // surprises" posture as setIdleTimeoutConfig's out-of-bounds guard. The
+  // payload is destructured in the BODY, not the parameter list (Copilot
+  // review, PR #58): a null/missing payload must fall into the non-boolean
+  // guard below, not throw on destructuring before any validation runs.
+  setDjModeActive(payload: SetDjModeInputType | null | undefined): boolean {
+    const active = payload?.active;
     if (typeof active !== 'boolean') {
       this.logger.warn(`Ignoring setDjModeActive: ${JSON.stringify(active)} is not a boolean`);
       return this.djModeActive;

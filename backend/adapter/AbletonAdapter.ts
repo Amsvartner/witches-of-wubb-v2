@@ -426,7 +426,7 @@ function getDjModeActive(): boolean {
 // out-of-bounds guard. No ack (frozen per the ticket - the frontend doesn't
 // need to read this back, only broadcast listeners like the lighting/other
 // UI instances do via `dj_mode_changed`).
-function setDjModeActive(active: boolean): boolean {
+function setDjModeActive(active: boolean | undefined): boolean {
   if (typeof active !== 'boolean') {
     Logger.warn(`Ignoring setDjModeActive(${JSON.stringify(active)}): not a boolean`);
     return djModeActive;

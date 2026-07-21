@@ -575,6 +575,14 @@ describe('Simulator', () => {
       expect(simulator.getDjModeActive()).toBe(before);
     });
 
+    // Copilot review, PR #58: a null/missing payload must fall into the
+    // non-boolean guard, not throw on parameter destructuring.
+    it('ignores a null or missing payload without throwing', () => {
+      expect(() => simulator.setDjModeActive(null)).not.toThrow();
+      expect(() => simulator.setDjModeActive(undefined)).not.toThrow();
+      expect(simulator.getDjModeActive()).toBe(false);
+    });
+
     // Mirrors AbletonAdapter.handleLastWebClientDisconnected (audio-ableton
     // delta review finding 1): a dead last UI must not leave the timeout
     // suppressed forever.

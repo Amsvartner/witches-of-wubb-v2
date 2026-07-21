@@ -433,4 +433,17 @@ describe('set_dj_mode (WOW-007C item 4, WOW-014 crash-hardening)', () => {
 
     expect(errorSpy).toHaveBeenCalledWith(error, 'Error setting DJ mode');
   });
+
+  // Copilot review, PR #58: parameter-position destructuring would throw on
+  // a null/missing payload BEFORE the try/catch — the payload is now pulled
+  // apart inside the handler, so the adapter's non-boolean guard sees
+  // undefined instead.
+  it('does not throw on a null or missing payload; forwards undefined to the adapter guard', () => {
+    const registry = createHandlerRegistry();
+
+    expect(() => registry.get('set_dj_mode')!(null)).not.toThrow();
+    expect(() => registry.get('set_dj_mode')!(undefined)).not.toThrow();
+
+    expect(AbletonAdapter.setDjModeActive).toHaveBeenCalledWith(undefined);
+  });
 });

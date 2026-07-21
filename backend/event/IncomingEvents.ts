@@ -262,10 +262,14 @@ function addSocketEventsHandlers(socket: Socket) {
   // WOW-007C item 4: DJ mode active/inactive - suppresses (or restores) the
   // idle timeout's handover to the Live-set attractor while a DJ is
   // supervising the installation. No ack (frozen contract addition, fire-
-  // and-forget like set_track_volume/set_master-key above).
-  socket.on('set_dj_mode', ({ active }: SetDjModeInputType) => {
+  // and-forget like set_track_volume/set_master-key above). The payload is
+  // destructured INSIDE the try (Copilot review, PR #58): parameter-position
+  // destructuring throws on a null/missing payload before the catch could
+  // see it, against the WOW-014 crash-hardening posture. setDjModeActive's
+  // own non-boolean guard then warns-and-ignores whatever falls out.
+  socket.on('set_dj_mode', (payload: SetDjModeInputType | null | undefined) => {
     try {
-      AbletonAdapter.setDjModeActive(active);
+      AbletonAdapter.setDjModeActive(payload?.active);
     } catch (err) {
       Logger.error(err, 'Error setting DJ mode');
     }

@@ -353,8 +353,8 @@ export const SampleModal = ({
             <Dialog.Title className='font-display text-2xl tracking-[0.14em] text-gold-bright'>
               Sample selector
             </Dialog.Title>
-            {/* Cross in the top-right replaces the footer Close button
-                (human, 2026-07-21). */}
+            {/* Cross in the top-right, alongside the footer Close button —
+                two ways to close (human, 2026-07-21). */}
             <button
               type='button'
               aria-label='Close sample selector'
@@ -540,10 +540,20 @@ export const SampleModal = ({
           )}
 
           <div className='mt-4 flex shrink-0 justify-end gap-2'>
-            {/* Revert discards the draft back to the live baseline; Apply
-                sends its diff to the backend. Both stay disabled until the
-                draft actually differs from reality (WOW-007C) — the modal
-                never stays open on a no-op tap of either. */}
+            {/* Close in the footer AND the ✕ top-right — two ways out
+                (human, 2026-07-21). Revert discards the draft back to the
+                live baseline; Apply sends its diff to the backend. Those two
+                stay disabled until the draft actually differs from reality
+                (WOW-007C) — the modal never stays open on a no-op tap of
+                either. */}
+            <button
+              type='button'
+              onClick={onClose}
+              aria-label='Close'
+              className='mr-auto flex min-h-[44px] items-center rounded-lg border border-gold-line/50 bg-ink-btn px-5 font-data text-sm tracking-wide text-parchment/90'
+            >
+              Close
+            </button>
             <button
               type='button'
               onClick={onRevert}

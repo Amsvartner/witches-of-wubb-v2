@@ -18,8 +18,8 @@ describe('HelpOverlay', () => {
     expect(queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('renders the dialog with all five callouts and their copy when open', () => {
-    const { getByRole, getByText } = render(<HelpOverlay open onClose={vi.fn()} />);
+  it('renders the dialog with all four callouts and their copy when open', () => {
+    const { getByRole, getByText, queryByText } = render(<HelpOverlay open onClose={vi.fn()} />);
 
     expect(getByRole('dialog', { name: 'Help' })).toBeInTheDocument();
     expect(
@@ -32,7 +32,15 @@ describe('HelpOverlay', () => {
     expect(
       getByText('The lower grimoire bends time and key — twist the tempo, raise the pitch'),
     ).toBeInTheDocument();
-    expect(getByText('Deeper magicks hide behind the Settings sigil')).toBeInTheDocument();
+    // Settings-button callout removed (human, 2026-07-21).
+    expect(queryByText('Deeper magicks hide behind the Settings sigil')).not.toBeInTheDocument();
+  });
+
+  // Human, 2026-07-21: the scrim must not dim the screen — the callouts
+  // point at real controls the visitor needs to SEE.
+  it('the scrim is transparent (no dimming background)', () => {
+    const { getByTestId } = render(<HelpOverlay open onClose={vi.fn()} />);
+    expect(getByTestId('help-scrim').className).toContain('bg-transparent');
   });
 
   it('closes via the explicit ✕ close button', () => {

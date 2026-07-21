@@ -6,6 +6,7 @@ import { Cauldron } from '~/component/Cauldron';
 import { SettingsBand } from '~/component/SettingsBand';
 import { SettingsModal } from '~/component/SettingsModal';
 import { HelpOverlay } from '~/component/HelpOverlay';
+import { ConnectingOverlay } from '~/component/ConnectingOverlay';
 import { EmptyStateOverlay } from '~/component/EmptyStateOverlay';
 import { Legend } from '~/component/Legend';
 import { useAbletonContext } from '~/context/hook/useAbletonContext';
@@ -282,20 +283,13 @@ export const PlayModeContainer = (): JSX.Element => {
   // mode (DJ mode has its own extended controls to look at), and never while
   // Help is already occupying the screen with its own overlay.
   const allPillarsEmpty = pillars.every((pillar) => pillar.status === 'empty');
-  const showEmptyState = mode === 'play' && !isHelpOpen && allPillarsEmpty;
+  // Also gated on isConnected (human, 2026-07-21): while disconnected the
+  // pillars all derive as empty, and the ConnectingOverlay below uses the
+  // same centred card — without this gate the two would stack.
+  const showEmptyState = mode === 'play' && !isHelpOpen && allPillarsEmpty && isConnected;
 
   return (
     <div className='mx-auto flex min-h-screen max-w-[1024px] flex-col px-8 py-4'>
-      {!isConnected && (
-        <div
-          role='status'
-          aria-live='polite'
-          className='mb-2 rounded-md bg-amber-900/40 py-1.5 text-center font-data text-sm text-amber-200'
-        >
-          Connecting to the cauldron…
-        </div>
-      )}
-
       <header>
         <div className='flex justify-end'>
           <TopControls
@@ -385,6 +379,9 @@ export const PlayModeContainer = (): JSX.Element => {
           none (baked into the component) so it can never intercept a touch
           meant for a card or the cauldron beneath it. */}
       {showEmptyState && <EmptyStateOverlay animated={animationsEnabled} />}
+      {/* Connection notice as a centred overlay card, same design as the
+          empty-state nudge (human, 2026-07-21 — was a top-of-screen banner). */}
+      {!isConnected && <ConnectingOverlay animated={animationsEnabled} />}
 
       <div className='mt-4'>
         <SettingsBand

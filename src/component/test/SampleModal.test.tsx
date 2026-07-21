@@ -303,6 +303,18 @@ describe('SampleModal (WOW-007B list + WOW-007C draft/apply chips)', () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
+    // Two ways to close (human, 2026-07-21): the ✕ top-right and the footer
+    // Close button both call onClose.
+    it('closes via the ✕ top-right and via the footer Close button', () => {
+      const { getByRole, onClose } = renderModal();
+
+      fireEvent.click(getByRole('button', { name: 'Close sample selector' }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(getByRole('button', { name: 'Close' }));
+      expect(onClose).toHaveBeenCalledTimes(2);
+    });
+
     it('renders a draft "queued" entry as an amber pressed chip labelled "Set … to play", and tapping it advances the cycle', () => {
       const draft = emptyDraft();
       draft[0].entries.push({ clip: CLIPS[0], state: 'queued' });

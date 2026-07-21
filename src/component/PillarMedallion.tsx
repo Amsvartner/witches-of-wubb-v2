@@ -14,6 +14,14 @@ type Props = {
   dimmed?: boolean;
   /** Global animations switch (Settings kill-switch); static when false. */
   animated?: boolean;
+  /**
+   * DJ-mode only (WOW-007B change 3): when supplied, the empty medallion
+   * renders as an interactive "Add sample" button instead of a static div —
+   * opens the same sample-selection modal as the header's Select sample
+   * control. Only meaningful on the empty-pillar branch below; play mode
+   * never supplies it (human decision 2026-07-17: no buttons outside DJ).
+   */
+  onAddSample?: () => void;
 } & (
   | {
       /** Category identity — required together with its tint + fill. */
@@ -64,24 +72,39 @@ export const PillarMedallion = ({
   fillHex,
   dimmed,
   animated = true,
+  onAddSample,
 }: Props): JSX.Element => {
   const size: CSSProperties = { width: DIAMETER, height: DIAMETER };
 
   if (!category || status === 'empty') {
+    // Just the plus glyph — the little decorative ✦ sparkle it once had was
+    // removed (human direction 2026-07-20).
+    const emptyContent = (
+      <span className='font-data text-5xl font-light text-[#5a5560]' aria-hidden='true'>
+        +
+      </span>
+    );
+
+    if (onAddSample) {
+      return (
+        <button
+          type='button'
+          aria-label='Add sample'
+          onClick={onAddSample}
+          style={size}
+          className='relative flex cursor-pointer items-center justify-center rounded-full border-2 border-dashed border-[#3a3540] bg-ink-panel/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright'
+        >
+          {emptyContent}
+        </button>
+      );
+    }
+
     return (
       <div
         style={size}
         className='relative flex items-center justify-center rounded-full border-2 border-dashed border-[#3a3540] bg-ink-panel/60'
       >
-        <span className='font-data text-5xl font-light text-[#5a5560]' aria-hidden='true'>
-          +
-        </span>
-        <span
-          className='absolute left-[6%] top-[30%] text-xs text-gold-bright/70'
-          aria-hidden='true'
-        >
-          ✦
-        </span>
+        {emptyContent}
       </div>
     );
   }

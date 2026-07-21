@@ -13,8 +13,6 @@ module.exports = {
         number: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
       },
       backgroundImage: (theme) => ({
-        'recipe-bg':
-          "radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%), url('/images/script_bg.jpg')",
         // Play-mode page ground — Palette Option A "Obsidian & Gilt"
         // (DESIGN_PROPOSAL_001 §3.1; page palette not finally decided — §8.3).
         'grimoire-page': 'radial-gradient(120% 90% at 50% 8%, #0e0b12 0%, #080609 100%)',

@@ -1,6 +1,6 @@
 # Hardware integration
 
-Status: observed from `Arduino/` sketches and backend code. **Entirely out of scope for the current frontend-only phase (ADR-004)** — kept as reference. Confirmed 2026-07-09: LEDs light up in the color of the playing clip's category (Vox/Melody/Bass/Drums), driven externally; max volume is limited on the hardware side.
+Status: observed from `Arduino/` sketches and backend code. **In scope again since the full-product phase (ADR-007, 2026-07-21; gates relaxed same day)**: firmware is editable in-ticket; a human compiles, flashes, and bench-tests; hardware-safety-reviewer is discretionary. Standing constraints: no strobe/flicker, keep brightness ceilings. Confirmed 2026-07-09: LEDs light up in the color of the playing clip's category (Vox/Melody/Bass/Drums), driven externally; max volume is limited on the hardware side.
 
 ## Rules for agents (strict)
 

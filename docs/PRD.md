@@ -2,9 +2,9 @@
 
 Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list). See ADR-001…005.
 
-## Scope decision (ADR-004)
+## Scope decision (ADR-007, supersedes ADR-004)
 
-**Work is frontend-only.** The `backend/` folder contains the real backend code but is **read-only** this phase; the only backend-adjacent work is the **offline simulator** in `sim/` (ADR-001, port 3335). End-to-end testing is not done from this repo. Definition of done: **the UI works frontend-side and sends the correct API calls** (existing socket.io contract).
+**Work is full-product** (human decision 2026-07-21): UI, `backend/`, and the offline simulator in `sim/` (ADR-001, port 3335) together. Same-day relaxation (ADR-007 amendment): specialist reviewer passes are discretionary, musical assumptions are changeable in-ticket (documented in the same PR), and the socket contract is fully ticket-managed. The Live set is still edited by a human per spec; the physical engineering constraints (volume ceilings, no strobing) stand — see `AGENTS.md` v0.7. Definition of done for backend-touching work: hardware-free tests + simulator parity; for UI work: the UI works frontend-side and sends the correct API calls.
 
 ## Display context (ADR-003)
 

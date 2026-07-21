@@ -88,6 +88,12 @@ yes
 
 ## Resolved → ADRs / owning docs
 
+**2026-07-21 (human):**
+
+- Scope: **full product from now on** — ADR-004's frontend-only phase and its per-batch exception mechanism superseded; `backend/` and `sim/` are normal work areas → ADR-007, AGENTS.md v0.6. **Same-day follow-up ("let's make it all relaxed"): the per-change approval gates lifted too** — specialist reviewer passes discretionary, musical assumptions/CSV/Arduino/socket-contract changes ticket-managed, live-connection commands runnable when a ticket calls for it; physical engineering constraints (volume ceilings, no strobing) and the human-edits-the-Live-set fact retained → ADR-007 (amended), AGENTS.md v0.7
+- DJ FX feature batch approved for ticketing: beat-phase/clip-position display, per-pillar VU meters, per-pillar filter, FX sends + echo throw, loop roll — the latter three require human-performed Live-set changes per the new spec-document process → docs/LIVE_SET_CHANGE_SPEC_001_DJ_FX.md, docs/TICKETS_003_DJ_FX.md
+- DJ FX batch decisions (blocks 1–4 in TICKETS_003): beat-phase/VU are **DJ-mode-only**; FX values **reset on both idle timeout and DJ-mode exit, plus a visible "reset FX" button** in DJ mode; loop roll is **momentary hold** with a disconnect auto-off guard; echo-throw envelope values are **agent-proposed constants, human-approved before merge**, tuned by ear on a hardware day. Block 5 (master VU meter) stays open — deferred by default, WOW-041 ships per-pillar only → docs/TICKETS_003_DJ_FX.md
+
 **2026-07-15/16 (WOW-007A pre-decisions + iteration, human):**
 
 - Typography (§8.2): **direction C — Marcellus (display) + IBM Plex Sans (UI/data) + Source Sans 3 (numbers/units)**; all three vendored as self-hosted OFL woff2 in `public/fonts/` → tailwind.config.cjs `font-display`/`font-data`/`font-number`, `src/index.css`

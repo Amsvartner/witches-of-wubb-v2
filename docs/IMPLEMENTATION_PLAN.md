@@ -1,6 +1,6 @@
 # Implementation plan
 
-Revised 2026-07-09 after scope decisions (ADR-001…004). **Frontend-only**; backend/hardware/Ableton out of scope. Every stage ends with a review gate.
+Revised 2026-07-09 after scope decisions (ADR-001…004). Originally **frontend-only**; since 2026-07-21 the phase is **full-product** (ADR-007) — the stages below predate that and describe the frontend rework line. Every stage ends with a review gate. The DJ FX batch (`docs/TICKETS_003_DJ_FX.md`, spec `docs/LIVE_SET_CHANGE_SPEC_001_DJ_FX.md`) is the first full-product batch.
 
 ## Stage 0 — Documentation and agent scaffolding ✅ (this branch)
 

@@ -42,6 +42,12 @@ const createAbletonState = (overrides: Partial<AbletonContextState> = {}): Ablet
   changeMasterKey: vi.fn(),
   changeKeylock: vi.fn(),
   getTracksAndClips: vi.fn(),
+  // WOW-007C
+  triggerCauldronSample: vi.fn(),
+  cauldronVolume: 0.6,
+  changeCauldronVolume: vi.fn(),
+  idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+  changeIdleTimeout: vi.fn(),
   ...overrides,
 });
 
@@ -91,9 +97,98 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     expect(getAllByText(/awaiting ingredient/i)).toHaveLength(2);
   });
 
-  it('exposes a disabled Help affordance', () => {
-    const { getByRole } = renderPlayScreen();
-    expect(getByRole('button', { name: /help/i })).toBeDisabled();
+  describe('WOW-007D: Help overlay', () => {
+    it('toggles the Help button pressed state and opens/closes the overlay', () => {
+      const { getByRole, queryByRole } = renderPlayScreen();
+      // Keep this one reference and click/assert on it directly throughout —
+      // once the overlay opens, Headless UI's Dialog marks the rest of the
+      // page inert (aria-hidden) for focus containment, which would drop the
+      // button out of a fresh `getByRole` query (same pattern as
+      // MainScreen's debug modal). A direct DOM reference sidesteps that.
+      const helpButton = getByRole('button', { name: 'HELP' });
+      expect(helpButton).toHaveAttribute('aria-pressed', 'false');
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+
+      fireEvent.click(helpButton);
+
+      expect(helpButton).toHaveAttribute('aria-pressed', 'true');
+      expect(getByRole('dialog', { name: 'Help' })).toBeInTheDocument();
+
+      fireEvent.click(helpButton);
+
+      expect(helpButton).toHaveAttribute('aria-pressed', 'false');
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+    });
+
+    it('renders its callout copy once open', () => {
+      const { getByRole, getByText } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+
+      expect(
+        getByText('Tap the cauldron — it loves attention (and makes noises)'),
+      ).toBeInTheDocument();
+      expect(getByText('Deeper magicks hide behind the Settings sigil')).toBeInTheDocument();
+    });
+
+    it('closes via Escape', () => {
+      const { getByRole, queryByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+      expect(getByRole('dialog', { name: 'Help' })).toBeInTheDocument();
+
+      fireEvent.keyDown(getByRole('dialog', { name: 'Help' }), { key: 'Escape' });
+
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+    });
+
+    it('closes via the explicit ✕ close button', () => {
+      const { getByRole, queryByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+      fireEvent.click(getByRole('button', { name: 'Close help' }));
+
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+    });
+
+    it('closes via tapping the scrim', () => {
+      const { getByRole, getByTestId, queryByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+      fireEvent.click(getByTestId('help-scrim'));
+
+      expect(queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
+    });
+
+    it('forces every otherwise-hidden volume tube visible while Help is open', () => {
+      // Default fixture: pillar 1 plays (tube always visible), pillar 2 is
+      // queued, pillars 3 & 4 are empty — the latter three all hide their
+      // tube in plain play mode (WOW-007D hiding rule: nothing audible yet)
+      // but must stay pointed-at while Help is open. The two empty pillars'
+      // tubes render display-only (no assetSlug, no DJ handler) — queried by
+      // their empty-tube art asset rather than role, since a display-only
+      // tube exposes no accessible role/name.
+      const { getByRole, getAllByRole, container } = renderPlayScreen();
+      const emptyTubeImages = () =>
+        container.querySelectorAll('img[src="/images/slider-background-empty.png"]');
+
+      // Only the playing pillar's tube is interactive before Help opens; the
+      // queued and both empty pillars' tubes are hidden entirely.
+      expect(getAllByRole('slider', { name: 'Volume' })).toHaveLength(1);
+      expect(emptyTubeImages()).toHaveLength(0);
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+
+      // The queued pillar's tube becomes visible and interactive (it was
+      // already handler-eligible, just hidden); both empty pillars' tubes
+      // become visible too, display-only. `hidden: true`: the open Help
+      // overlay marks the rest of the page inert (Headless UI's focus
+      // containment, same as MainScreen's debug modal) — expected while a
+      // full-screen dialog is up, and orthogonal to whether the tubes
+      // themselves are rendered, which is what this test is actually about.
+      expect(getAllByRole('slider', { name: 'Volume', hidden: true })).toHaveLength(2);
+      expect(emptyTubeImages()).toHaveLength(2);
+    });
   });
 
   it('opens the Settings modal with a Play/DJ segmented control and an enabled Animations toggle', () => {
@@ -292,6 +387,223 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       // A later organic change persists the new value too.
       rerender(ui({ ...abletonState, masterKey: '5A' }));
       expect(window.localStorage.getItem('hexology.baselineKey')).toBe('5A');
+    });
+  });
+
+  describe('WOW-007C: cauldron sample trigger', () => {
+    it('tapping the cauldron calls triggerCauldronSample when connected', () => {
+      const { getByRole, abletonState } = renderPlayScreen({ socket: createSocket(true) });
+
+      fireEvent.click(getByRole('button', { name: 'Cauldron' }));
+
+      expect(abletonState.triggerCauldronSample).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call triggerCauldronSample while disconnected (guarded, same as pillar volume)', () => {
+      const { getByRole, abletonState } = renderPlayScreen({ socket: createSocket(false) });
+
+      fireEvent.click(getByRole('button', { name: 'Cauldron' }));
+
+      expect(abletonState.triggerCauldronSample).not.toHaveBeenCalled();
+    });
+  });
+
+  // WOW-007D: cauldron raised + re-stacked so its wrapper sits above the
+  // top-row cards but below the bottom-row cards (human spec 2026-07-20).
+  // Deliberately light — asserting the z-index classes exist on the right
+  // ancestors, not the full Tailwind class string.
+  describe('WOW-007D: pillar/cauldron z-order', () => {
+    it('places the cauldron wrapper above the top-row cards and below the bottom-row cards', () => {
+      const { getByRole, getAllByText } = renderPlayScreen();
+
+      const cauldronWrapper = getByRole('button', { name: 'Cauldron' }).closest('.z-20');
+      expect(cauldronWrapper).not.toBeNull();
+
+      // Pillar 1 (VOCALS) is top row; pillars 3 & 4 ("awaiting ingredient",
+      // both empty in the default fixture) are bottom row.
+      const topRowWrapper = getByRole('heading', { level: 2, name: 'VOCALS' }).closest('.z-10');
+      expect(topRowWrapper).not.toBeNull();
+
+      const bottomRowWrapper = getAllByText(/awaiting ingredient/i)[0].closest('.z-30');
+      expect(bottomRowWrapper).not.toBeNull();
+    });
+  });
+
+  // WOW-007D: the "place an ingredient" nudge, shown only when the whole
+  // board has nothing going on.
+  describe('WOW-007D: EmptyStateOverlay', () => {
+    const allEmptyState = () =>
+      createAbletonState({
+        playingClips: [null, null, null, null],
+        queuedClips: [null, null, null, null],
+        stoppingClips: [null, null, null, null],
+      });
+
+    it('appears when every pillar is empty in play mode', () => {
+      const { getByText } = renderPlayScreen({ abletonState: allEmptyState() });
+
+      expect(
+        getByText(/place an ingredient upon a pillar to begin the spell/i),
+      ).toBeInTheDocument();
+    });
+
+    it('is absent when the default fixture has active/queued pillars', () => {
+      const { queryByText } = renderPlayScreen();
+
+      expect(
+        queryByText(/place an ingredient upon a pillar to begin the spell/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('is absent in DJ mode even with every pillar empty', () => {
+      const { getByRole, queryByText } = renderPlayScreen({ abletonState: allEmptyState() });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
+
+      expect(
+        queryByText(/place an ingredient upon a pillar to begin the spell/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('is absent while Help is open even with every pillar empty', () => {
+      const { getByRole, queryByText } = renderPlayScreen({ abletonState: allEmptyState() });
+
+      fireEvent.click(getByRole('button', { name: 'HELP' }));
+
+      expect(
+        queryByText(/place an ingredient upon a pillar to begin the spell/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('is pointer-events-none so it never blocks the pillars/cauldron beneath it', () => {
+      const { getByText } = renderPlayScreen({ abletonState: allEmptyState() });
+
+      const overlayText = getByText(/place an ingredient upon a pillar to begin the spell/i);
+      const overlayRoot = overlayText.closest('.pointer-events-none');
+
+      expect(overlayRoot).not.toBeNull();
+    });
+  });
+
+  describe('WOW-007C: Settings modal — cauldron loudness, pause music, DJ auto-exit', () => {
+    // The three sections are DJ-gated (human safety decision 2026-07-20):
+    // visitors in play mode only get Mode + Animations, so every test below
+    // switches to DJ mode inside the open Settings modal first.
+    it('hides the cauldron loudness, pause music, and DJ auto-exit sections in play mode', () => {
+      const { getByRole, queryByText, queryByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+
+      expect(queryByText('Cauldron loudness')).not.toBeInTheDocument();
+      expect(queryByRole('slider', { name: 'Cauldron loudness' })).not.toBeInTheDocument();
+      expect(queryByText('Pause music')).not.toBeInTheDocument();
+      expect(queryByText('DJ auto-exit')).not.toBeInTheDocument();
+    });
+
+    it('reveals the three sections as soon as DJ mode is switched on inside the modal', () => {
+      const { getByRole, getByText } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+
+      expect(getByText('Cauldron loudness')).toBeInTheDocument();
+      expect(getByText('Pause music')).toBeInTheDocument();
+      expect(getByText('DJ auto-exit')).toBeInTheDocument();
+    });
+
+    it('renders the cauldron loudness slider at the fixture value and emits the mapped raw volume on change', () => {
+      // 0.35 / 0.7 ceiling = 50%
+      const { getByRole, abletonState } = renderPlayScreen({
+        abletonState: createAbletonState({ cauldronVolume: 0.35 }),
+      });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+      const slider = getByRole('slider', { name: 'Cauldron loudness' });
+      expect(slider).toHaveValue('50');
+
+      fireEvent.change(slider, { target: { value: '80' } });
+
+      // Floating-point: 80% of 0.7 is 0.56, but the percent<->raw round trip
+      // isn't exact in JS float arithmetic.
+      expect(abletonState.changeCauldronVolume).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(abletonState.changeCauldronVolume).mock.calls[0][0]).toBeCloseTo(0.56);
+    });
+
+    it('toggles pause music via changeIdleTimeout, preserving the current timeoutMs', () => {
+      const { getByRole, abletonState } = renderPlayScreen({
+        abletonState: createAbletonState({
+          idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+        }),
+      });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+      fireEvent.click(getByRole('button', { name: 'Pause music' }));
+
+      expect(abletonState.changeIdleTimeout).toHaveBeenCalledWith({
+        enabled: false,
+        timeoutMs: 3 * 60 * 1000,
+      });
+    });
+
+    it('picking a pause-music minutes choice calls changeIdleTimeout with the new duration', () => {
+      const { getByRole, abletonState } = renderPlayScreen({
+        abletonState: createAbletonState({
+          idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+        }),
+      });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+      fireEvent.click(getByRole('button', { name: 'Pause music after 5 min' }));
+
+      expect(abletonState.changeIdleTimeout).toHaveBeenCalledWith({
+        enabled: true,
+        timeoutMs: 5 * 60 * 1000,
+      });
+    });
+
+    it('disables the pause-music minutes buttons when the toggle is off', () => {
+      const { getByRole } = renderPlayScreen({
+        abletonState: createAbletonState({ idleTimeout: { enabled: false, timeoutMs: 60000 } }),
+      });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+
+      expect(getByRole('button', { name: 'Pause music after 1 min' })).toBeDisabled();
+    });
+
+    it('persists a picked DJ auto-exit duration to localStorage and marks it pressed', () => {
+      const { getByRole } = renderPlayScreen();
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+      // Default is 5 min (DEFAULT_DJ_AUTO_EXIT_MS) — pick a different one.
+      fireEvent.click(getByRole('button', { name: 'DJ auto-exit after 10 min' }));
+
+      expect(window.localStorage.getItem('hexology.djAutoExitMs')).toBe(String(10 * 60 * 1000));
+      expect(getByRole('button', { name: 'DJ auto-exit after 10 min' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+
+    it('restores a persisted DJ auto-exit duration on mount', () => {
+      window.localStorage.setItem('hexology.djAutoExitMs', String(30 * 60 * 1000));
+      // Restore DJ mode too — the section only renders for a DJ.
+      window.localStorage.setItem('hexology.mode', 'dj');
+
+      const { getByRole } = renderPlayScreen();
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+
+      expect(getByRole('button', { name: 'DJ auto-exit after 30 min' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
     });
   });
 });

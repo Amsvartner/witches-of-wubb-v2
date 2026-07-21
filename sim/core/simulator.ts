@@ -21,6 +21,8 @@ import { MusicDatabase, getPillarIPAddressFromIndex } from './music-database';
 import {
   BrowserClipInfo,
   BrowserClipInfoList,
+  IdleTimeoutConfigType,
+  SetCauldronVolumeInputType,
   SetTrackVolumeInputType,
   SimEventListener,
   TagDetectionData,
@@ -31,8 +33,32 @@ import {
 // (backend/adapter/AbletonAdapter.ts:24-25)
 export const TIMEOUT_IN_MILISECONDS = 60 * 3 * 1000;
 export const TIMEOUT_WARNING_IN_MILISECONDS = 30 * 1000;
+// WOW-007C: mirrors MIN_IDLE_TIMEOUT_MS / MAX_IDLE_TIMEOUT_MS
+// (backend/adapter/AbletonAdapter.ts) — bounds accepted by setIdleTimeoutConfig.
+// The minimum sits ABOVE the warning offset so the warning timer can never
+// arm with a zero/negative delay (audio-ableton review, PR #56).
+export const MIN_IDLE_TIMEOUT_MS = 60 * 1000;
+export const MAX_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
 
 const PILLAR_COUNT = 4;
+
+// WOW-007C: mirrors PILLAR_VOLUME_CEILING / clampVolume
+// (backend/adapter/AbletonAdapter.ts) — same 0..0.7 ceiling, applied to BOTH
+// the cauldron (drum-rack track) volume and regular pillar volumes: the
+// backend now clamps pillar volumes too, so the sim's volume_changed echoes
+// must never carry a value the real backend couldn't emit (general review,
+// PR #56).
+const VOLUME_CEILING = 0.7;
+const clampVolume = (volume: number): number => {
+  if (!Number.isFinite(volume)) return 0;
+  return Math.min(VOLUME_CEILING, Math.max(0, volume));
+};
+const clampCauldronVolume = clampVolume;
+
+// WOW-007C: deterministic stand-in for a randomly-picked drum-rack clip name
+// — the sim has no Live set / drum rack to pick from, so every cauldron tap
+// reports the same clip name (shapes and acks are unaffected).
+const SIM_CAULDRON_CLIP_NAME = 'Sim Drum Hit';
 
 export type SimulatorLogger = {
   info: (message: string) => void;
@@ -74,7 +100,10 @@ export class Simulator {
   private readonly logger: SimulatorLogger;
   private readonly listeners: SimEventListener[] = [];
   private readonly phraseLengthMs: number;
-  private readonly timeoutMs: number;
+  // WOW-007C: mutable (was readonly) — setIdleTimeoutConfig re-arms the
+  // running timer against a new value, mirroring the backend's
+  // `let idleTimeoutMs` (AbletonAdapter.ts).
+  private timeoutMs: number;
   private readonly timeoutWarningMs: number;
 
   private tempo: number;
@@ -84,6 +113,18 @@ export class Simulator {
   private playingClips: ClipSlot[] = new Array(PILLAR_COUNT).fill(null);
   private queuedClips: ClipSlot[] = new Array(PILLAR_COUNT).fill(null);
   private stoppingClips: ClipSlot[] = new Array(PILLAR_COUNT).fill(null);
+  // WOW-007C: mirrors idleTimeoutEnabled (backend/adapter/AbletonAdapter.ts)
+  // — disabling means spells loop indefinitely and the Live-set attractor
+  // never engages (see restartTimeoutTimer).
+  private idleTimeoutEnabled = true;
+  // WOW-007C: mirrors cauldronVolumeParam's resolved value
+  // (backend/adapter/AbletonAdapter.ts getCauldronVolume) — same 0.6 default.
+  private cauldronVolume = 0.6;
+  // WOW-007C: mirrors desiredVolumes (backend/adapter/AbletonAdapter.ts) — the
+  // last volume a caller explicitly asked for on each pillar, so a new clip
+  // starting there restores it instead of always slamming a hardcoded 0.6
+  // (see setTrackVolume / startClip). null = never explicitly set.
+  private desiredVolumes: (number | null)[] = new Array(PILLAR_COUNT).fill(null);
 
   private phraseTimerId: ReturnType<typeof setTimeout> | null = null;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -147,14 +188,26 @@ export class Simulator {
   }
 
   private restartTimeoutTimer() {
+    // Always clear first, even when now-disabled — mirrors
+    // AbletonAdapter.restartTimeoutTimer/startTimeoutTimer (WOW-007C): a
+    // disabled timeout must not leave a stale timer armed from before it was
+    // turned off.
     if (this.timeoutId) clearTimeout(this.timeoutId);
     if (this.timeoutWarningId) clearTimeout(this.timeoutWarningId);
-    this.timeoutWarningId = setTimeout(() => {
-      if (this.shouldShowTimeout()) {
-        this.logger.warn('Timeout warning');
-        this.emit('timeout_warning', undefined, false);
-      }
-    }, this.timeoutMs - this.timeoutWarningMs);
+    this.timeoutId = null;
+    this.timeoutWarningId = null;
+    if (!this.idleTimeoutEnabled) return;
+    // Mirrors the backend's guard: never arm the warning with a
+    // zero/negative delay (audio-ableton review, PR #56).
+    const warningDelay = this.timeoutMs - this.timeoutWarningMs;
+    if (warningDelay > 0) {
+      this.timeoutWarningId = setTimeout(() => {
+        if (this.shouldShowTimeout()) {
+          this.logger.warn('Timeout warning');
+          this.emit('timeout_warning', undefined, false);
+        }
+      }, warningDelay);
+    }
     this.timeoutId = setTimeout(() => {
       if (this.shouldShowTimeout()) {
         this.logger.warn('Timeout exceeded, restarting the UI');
@@ -294,7 +347,11 @@ export class Simulator {
       this.emit('clip_playing', { ...clipInfo, bpm }, false);
     } else {
       this.emit('clip_started', { ...clipInfo, bpm });
-      this.setTrackVolume({ pillar, volume: 0.6 });
+      // WOW-007C (human request): restore the last volume explicitly asked
+      // for on this pillar instead of always slamming the pre-existing
+      // hardcoded 0.6 — mirrors resolveClipStartVolume
+      // (backend/adapter/AbletonAdapter.ts).
+      this.setTrackVolume({ pillar, volume: this.desiredVolumes[pillar] ?? 0.6 });
     }
     if (wasSilence) {
       // Coming from silence: adopt the clip's bpm and key
@@ -303,6 +360,10 @@ export class Simulator {
       if (clipInfo.key) this.setMasterKey(clipInfo.key);
     }
     this.playingClips[pillar] = clipInfo;
+    // Mirrors the backend's stale-stoppingClips hardening (audio-ableton
+    // delta review, PR #56, finding 4): a clip starting here means nothing
+    // is stopping here anymore.
+    this.stoppingClips[pillar] = null;
   }
 
   private stopOrRemoveClipFromQueue(clipName: string, pillar: number) {
@@ -387,9 +448,16 @@ export class Simulator {
       this.logger.warn(`Ignoring set_track_volume with invalid pillar index: ${pillar}`);
       return;
     }
-    this.logger.info(`Setting volume for pillar ${pillar + 1} to ${volume}`);
-    this.trackVolumes[pillar] = volume;
-    this.emit('volume_changed', { pillar, volume });
+    // Clamped exactly like the backend's setTrackVolume (general review,
+    // PR #56 — the echoes must match what the real backend would emit).
+    const clampedVolume = clampVolume(volume);
+    this.logger.info(`Setting volume for pillar ${pillar + 1} to ${clampedVolume}`);
+    this.trackVolumes[pillar] = clampedVolume;
+    // WOW-007C (human request): remember what was explicitly asked for on
+    // this pillar so the next clip that starts here restores it — mirrors
+    // AbletonAdapter.setTrackVolume's desiredVolumes bookkeeping.
+    this.desiredVolumes[pillar] = clampedVolume;
+    this.emit('volume_changed', { pillar, volume: clampedVolume });
   }
 
   getKeyLockState(): boolean {
@@ -413,5 +481,61 @@ export class Simulator {
   setMasterKey(newKey: string) {
     this.masterKey = newKey;
     this.emit('master-key_changed', { key: newKey });
+  }
+
+  // --- WOW-007C: cauldron drum-rack sample, cauldron volume, idle-timeout
+  // config (mirrors the AbletonAdapter.ts additions of the same name) -------
+
+  // Fire-and-forget in the real contract — no ack callback
+  // (backend/event/IncomingEvents.ts's `trigger_cauldron_sample` handler).
+  // The sim has no Live set to pick a random drum-rack clip from, so it
+  // always reports the same deterministic clip name — shapes/acks/ordering
+  // are what the frontend actually depends on, not which sample "played".
+  triggerCauldronSample() {
+    this.logger.info(`Triggering cauldron sample: ${SIM_CAULDRON_CLIP_NAME}`);
+    this.emit('cauldron_sample_triggered', { clipName: SIM_CAULDRON_CLIP_NAME });
+  }
+
+  getCauldronVolume(): number {
+    return this.cauldronVolume;
+  }
+
+  setCauldronVolume({ volume }: SetCauldronVolumeInputType): number {
+    const clampedVolume = clampCauldronVolume(volume);
+    this.logger.info(`Setting cauldron volume to ${clampedVolume}`);
+    this.cauldronVolume = clampedVolume;
+    this.emit('cauldron_volume_changed', { volume: clampedVolume });
+    return this.cauldronVolume;
+  }
+
+  getIdleTimeoutConfig(): IdleTimeoutConfigType {
+    return { enabled: this.idleTimeoutEnabled, timeoutMs: this.timeoutMs };
+  }
+
+  // Validates and applies a new idle-timeout config, then re-arms (or
+  // clears) the running timers immediately — mirrors
+  // AbletonAdapter.setIdleTimeoutConfig, including the "ignore invalid,
+  // don't guess" posture. Uses the without-reset emit variant deliberately:
+  // changing this setting is not itself visitor activity.
+  setIdleTimeoutConfig(config: IdleTimeoutConfigType): IdleTimeoutConfigType {
+    const { enabled, timeoutMs } = config;
+    if (
+      !Number.isInteger(timeoutMs) ||
+      timeoutMs < MIN_IDLE_TIMEOUT_MS ||
+      timeoutMs > MAX_IDLE_TIMEOUT_MS
+    ) {
+      this.logger.warn(
+        `Ignoring setIdleTimeoutConfig: timeoutMs ${timeoutMs} must be an integer in [${MIN_IDLE_TIMEOUT_MS}, ${MAX_IDLE_TIMEOUT_MS}]`,
+      );
+      return this.getIdleTimeoutConfig();
+    }
+    this.idleTimeoutEnabled = Boolean(enabled);
+    this.timeoutMs = timeoutMs;
+    this.logger.info(
+      `Idle timeout config: enabled=${this.idleTimeoutEnabled} timeoutMs=${this.timeoutMs}`,
+    );
+    this.restartTimeoutTimer();
+    this.emit('idle_timeout_changed', this.getIdleTimeoutConfig(), false);
+    return this.getIdleTimeoutConfig();
   }
 }

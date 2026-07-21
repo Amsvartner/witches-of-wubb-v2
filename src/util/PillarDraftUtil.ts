@@ -1,0 +1,292 @@
+import { BrowserClipInfo } from 'backend/type/BrowserClipInfo';
+import { BrowserClipInfoList } from 'backend/type/BrowserClipInfoList';
+import {
+  type PillarDraft,
+  type PillarDraftEntry,
+  type SelectableClip,
+} from '~/component/SampleModal';
+
+const PILLAR_COUNT = 4;
+
+/** Per-pillar draft capacity (WOW-007C human spec: up to 2 queued samples). */
+const MAX_ENTRIES_PER_PILLAR = 2;
+
+/**
+ * One socket emission the Apply diff produces — same `{rfid, pillar}` payload
+ * shape as every existing tag event (frozen contract; no new event names).
+ */
+export type DraftEmission = {
+  event: '/departed/tag' | '/new/tag';
+  rfid: string;
+  pillar: number;
+};
+
+type BuildBaselineIn = {
+  playingClips: BrowserClipInfoList;
+  stoppingClips: BrowserClipInfoList;
+  queuedClips: BrowserClipInfoList;
+  /** Frontend pending holds, per pillar (0-based), max 2 each. */
+  pendingPicks: SelectableClip[][];
+  /** Full clip catalogue — enriches live clips with bpm/key/instrument. */
+  catalogue: SelectableClip[];
+};
+
+type TapChipIn = {
+  draft: PillarDraft[];
+  /** 0-based pillar whose chip was tapped. */
+  pillarIndex: number;
+  clip: SelectableClip;
+  /** Per-pillar currently-live (playing/stopping) rfid — see `toLiveRfids`. */
+  liveRfids: (string | null)[];
+};
+
+type DiffForApplyIn = {
+  draft: PillarDraft[];
+  playingClips: BrowserClipInfoList;
+  stoppingClips: BrowserClipInfoList;
+  queuedClips: BrowserClipInfoList;
+};
+
+type DiffForApplyResult = {
+  /** Ordered: every `/departed/tag` precedes every `/new/tag`. */
+  emissions: DraftEmission[];
+  /** The frontend pending holds the draft's 'queued' entries become. */
+  nextPendingPicks: SelectableClip[][];
+};
+
+/**
+ * Per-pillar currently-live rfid: the stopping clip wins over the playing one,
+ * matching `PillarCardContainer`'s `activeClip` precedence (a stopping clip is
+ * still audible and still occupies the pillar until it actually stops).
+ */
+const toLiveRfids = (
+  playingClips: BrowserClipInfoList,
+  stoppingClips: BrowserClipInfoList,
+): (string | null)[] =>
+  Array.from(
+    { length: PILLAR_COUNT },
+    (_, pillarIndex) => stoppingClips[pillarIndex]?.rfid ?? playingClips[pillarIndex]?.rfid ?? null,
+  );
+
+/** Catalogue entry for a live clip's rfid (bpm/key/instrument enrichment),
+ * falling back to the fields the socket payload itself carries. */
+const toSelectable = (
+  info: BrowserClipInfo,
+  catalogueByRfid: Map<string, SelectableClip>,
+): SelectableClip =>
+  catalogueByRfid.get(info.rfid as string) ?? {
+    rfid: info.rfid as string,
+    clipName: info.clipName,
+    type: info.type,
+  };
+
+/**
+ * What reality currently looks like, expressed as a draft (WOW-007C): per
+ * pillar, the playing/stopping clip (if any) as a `'play'` entry, then the
+ * backend-queued clip (if any) and the frontend pending holds as `'queued'`
+ * entries, capped at 2. The modal's working draft starts as (a lazily-taken
+ * copy of) this, and the dirty check compares the working draft against the
+ * baseline recomputed live each render — reality can change while the modal
+ * is open (scenario/visitor tags) without clobbering the DJ's edits.
+ */
+const buildBaseline = (input: BuildBaselineIn): PillarDraft[] => {
+  const catalogueByRfid = new Map(input.catalogue.map((clip) => [clip.rfid, clip]));
+
+  return Array.from({ length: PILLAR_COUNT }, (_, pillarIndex) => {
+    const entries: PillarDraftEntry[] = [];
+
+    const live = input.stoppingClips[pillarIndex] ?? input.playingClips[pillarIndex];
+    if (live?.rfid) {
+      entries.push({ clip: toSelectable(live, catalogueByRfid), state: 'play' });
+    }
+
+    const queued = input.queuedClips[pillarIndex];
+    if (queued?.rfid) {
+      entries.push({ clip: toSelectable(queued, catalogueByRfid), state: 'queued' });
+    }
+
+    for (const pick of input.pendingPicks[pillarIndex] ?? []) {
+      if (entries.some((entry) => entry.clip.rfid === pick.rfid)) continue;
+      entries.push({ clip: pick, state: 'queued' });
+    }
+
+    const cappedEntries = entries.slice(0, MAX_ENTRIES_PER_PILLAR);
+    return { entries: cappedEntries };
+  });
+};
+
+/**
+ * Advances the tap cycle for `clip` on `pillarIndex` and returns a new draft
+ * (inputs never mutated). Transition table (WOW-007C human spec):
+ *
+ * - outlined -> 'queued' (gold) — first removing the clip from every OTHER
+ *   pillar's draft (one physical tag can only be one place: a move), and, at
+ *   capacity (2), evicting the pillar's OLDEST 'queued' entry (a 'play' entry
+ *   is never auto-evicted).
+ * - outlined -> 'play' (green) directly when `clip` is currently LIVE on this
+ *   very pillar: demoting a playing clip to 'queued' is physically impossible
+ *   (you can't un-play into a queue), so its chip has no gold state at all.
+ * - 'queued' -> 'play' — any existing 'play' entry on the pillar demotes to
+ *   'queued', EXCEPT when that entry is the pillar's currently-live clip,
+ *   which is removed instead (same impossibility; Apply then stops it).
+ * - 'play' -> removed.
+ *
+ * At most one 'play' entry per pillar, at most 2 entries per pillar, and a
+ * clip appears on at most one pillar across the whole draft — all invariants
+ * this function preserves.
+ */
+const tapChip = ({ draft, pillarIndex, clip, liveRfids }: TapChipIn): PillarDraft[] => {
+  const next = draft.map((pillar) => ({ entries: [...pillar.entries] }));
+  const pillar = next[pillarIndex];
+  const existingIndex = pillar.entries.findIndex((entry) => entry.clip.rfid === clip.rfid);
+
+  if (existingIndex >= 0) {
+    const existing = pillar.entries[existingIndex];
+    if (existing.state === 'play') {
+      // green -> removed.
+      pillar.entries.splice(existingIndex, 1);
+      return next;
+    }
+    // gold -> green: promote, demoting (or removing, if live) the current
+    // 'play' entry so at most one remains.
+    const playIndex = pillar.entries.findIndex((entry) => entry.state === 'play');
+    if (playIndex >= 0) {
+      const playEntry = pillar.entries[playIndex];
+      if (liveRfids[pillarIndex] === playEntry.clip.rfid) {
+        pillar.entries.splice(playIndex, 1);
+      } else {
+        pillar.entries[playIndex] = { ...playEntry, state: 'queued' };
+      }
+    }
+    const promoteIndex = pillar.entries.findIndex((entry) => entry.clip.rfid === clip.rfid);
+    pillar.entries[promoteIndex] = { ...existing, state: 'play' };
+    return next;
+  }
+
+  // outlined -> added. One tag, one pillar: adding here removes the clip from
+  // any other pillar's draft (a move).
+  for (const [otherIndex, otherPillar] of next.entries()) {
+    if (otherIndex === pillarIndex) continue;
+    otherPillar.entries = otherPillar.entries.filter((entry) => entry.clip.rfid !== clip.rfid);
+  }
+
+  if (pillar.entries.length >= MAX_ENTRIES_PER_PILLAR) {
+    // Evict the OLDEST 'queued' entry; never a 'play' entry. With a 2-entry
+    // cap and at most one 'play', at least one 'queued' entry always exists
+    // here.
+    const oldestQueuedIndex = pillar.entries.findIndex((entry) => entry.state === 'queued');
+    if (oldestQueuedIndex >= 0) {
+      pillar.entries.splice(oldestQueuedIndex, 1);
+    }
+  }
+
+  const isLiveHere = liveRfids[pillarIndex] === clip.rfid;
+  if (isLiveHere) {
+    // The currently-live clip has no gold state (see the doc above) — it
+    // re-enters straight as 'play'. Any other 'play' entry demotes to
+    // 'queued' (it cannot itself be live: the live rfid is `clip`'s).
+    const playIndex = pillar.entries.findIndex((entry) => entry.state === 'play');
+    if (playIndex >= 0) {
+      pillar.entries[playIndex] = { ...pillar.entries[playIndex], state: 'queued' };
+    }
+    pillar.entries.push({ clip, state: 'play' });
+    return next;
+  }
+
+  pillar.entries.push({ clip, state: 'queued' });
+  return next;
+};
+
+// Separators are control-character ESCAPE SEQUENCES, deliberately not literal
+// bytes: raw \x00/\x01 bytes in source made git classify this whole file as
+// BINARY, hiding its diff from every reviewer — human, agent, and Copilot
+// alike (audio-ableton delta review, PR #56, finding 5).
+const entryKey = (entry: PillarDraftEntry): string => `${entry.clip.rfid}\u0000${entry.state}`;
+
+const pillarKey = (pillar: PillarDraft): string =>
+  pillar.entries.map(entryKey).sort().join('\u0001');
+
+/**
+ * Order-insensitive equality per pillar (rfid + state pairs): entry ORDER is
+ * an eviction detail, not a semantic difference, so a draft that merely lists
+ * the same holds in a different order than the live baseline is not dirty.
+ */
+const draftsEqual = (a: PillarDraft[], b: PillarDraft[]): boolean =>
+  a.length === b.length && a.every((pillar, index) => pillarKey(pillar) === pillarKey(b[index]));
+
+/**
+ * Computes what Apply must do to make reality match `draft` (WOW-007C).
+ * Emission order is a hard guarantee — every `/departed/tag` precedes every
+ * `/new/tag`, so the backend never sees two tags racing for one pillar:
+ *
+ * 1. Pillars whose live (playing/stopping) clip has no 'play' entry for that
+ *    same clip in that pillar's draft (removed, moved away, or replaced):
+ *    `/departed/tag`.
+ * 2. Backend-queued clips no longer anywhere in their pillar's draft:
+ *    `/departed/tag`.
+ * 3. Draft 'play' entries not currently live on their pillar: `/new/tag`
+ *    (the backend starts them; whatever played there was departed in step 1).
+ * 4. No emission — draft 'queued' entries that aren't the pillar's
+ *    backend-queued clip become the new frontend pending holds
+ *    (`nextPendingPicks`): the backend can't hold a queued clip without
+ *    auto-firing it at the next phrase boundary, so holds stay frontend-side
+ *    exactly as under WOW-007B.
+ */
+const diffForApply = ({
+  draft,
+  playingClips,
+  stoppingClips,
+  queuedClips,
+}: DiffForApplyIn): DiffForApplyResult => {
+  const liveRfids = toLiveRfids(playingClips, stoppingClips);
+  const emissions: DraftEmission[] = [];
+
+  for (let pillar = 0; pillar < PILLAR_COUNT; pillar += 1) {
+    const liveRfid = liveRfids[pillar];
+    if (!liveRfid) continue;
+    const keepsPlaying = draft[pillar].entries.some(
+      (entry) => entry.state === 'play' && entry.clip.rfid === liveRfid,
+    );
+    if (!keepsPlaying) {
+      emissions.push({ event: '/departed/tag', rfid: liveRfid, pillar });
+    }
+  }
+
+  for (let pillar = 0; pillar < PILLAR_COUNT; pillar += 1) {
+    const queuedRfid = queuedClips[pillar]?.rfid;
+    if (!queuedRfid) continue;
+    const draftedAs = draft[pillar].entries.find((entry) => entry.clip.rfid === queuedRfid)?.state;
+    // Depart when dropped from the draft entirely — AND when promoted to
+    // 'play': the backend drops a `/new/tag` for an already-queued clip as a
+    // duplicate ("Clip X is already queued"), so a queued->play promotion
+    // must de-queue first for step 3's `/new/tag` to actually re-place and
+    // start it. All departeds still precede all news.
+    if (draftedAs === undefined || draftedAs === 'play') {
+      emissions.push({ event: '/departed/tag', rfid: queuedRfid, pillar });
+    }
+  }
+
+  for (let pillar = 0; pillar < PILLAR_COUNT; pillar += 1) {
+    for (const entry of draft[pillar].entries) {
+      if (entry.state === 'play' && entry.clip.rfid !== liveRfids[pillar]) {
+        emissions.push({ event: '/new/tag', rfid: entry.clip.rfid, pillar });
+      }
+    }
+  }
+
+  const nextPendingPicks = draft.map((pillarDraft, pillar) =>
+    pillarDraft.entries
+      .filter((entry) => entry.state === 'queued' && entry.clip.rfid !== queuedClips[pillar]?.rfid)
+      .map((entry) => entry.clip),
+  );
+
+  return { emissions, nextPendingPicks };
+};
+
+export const PillarDraftUtil = {
+  buildBaseline,
+  tapChip,
+  draftsEqual,
+  diffForApply,
+  toLiveRfids,
+};

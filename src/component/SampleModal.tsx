@@ -16,34 +16,59 @@ export type SelectableClip = {
 
 /**
  * Where (if anywhere) a clip is currently live, per rfid — across every
- * pillar (WOW-007B pending-pick queue). Drives both the Pillar chips' state
- * and the Pillar column's sort order. Supplied by the container from
- * playingClips/queuedClips/stoppingClips plus every pillar's local pending
- * pick (`PlayModeContainer`'s `pendingPicks`).
+ * pillar. Used only for the Pillar column's sort order (WOW-007C draft/apply
+ * model — chip rendering/interaction now comes from `PillarDraft`, not this
+ * map). Supplied by the container from playingClips/queuedClips/stoppingClips
+ * plus every pillar's local pending picks (`PlayModeContainer`'s
+ * `pendingPicks`).
  */
 export type ActiveByRfid = Record<
   string,
   { pillarNumber: number; state: 'playing' | 'queued' | 'stopping' | 'pending' }
 >;
 
+/** One held slot in a pillar's draft (WOW-007C draft/apply model). */
+export type PillarDraftEntry = {
+  clip: SelectableClip;
+  /** 'queued' = gold ("will queue on Apply"); 'play' = green ("will play on Apply"). */
+  state: 'queued' | 'play';
+};
+
+/**
+ * One pillar's editable draft (WOW-007C): up to 2 entries, at most one of
+ * which is `'play'`. Built from reality (baseline) on modal open and Revert;
+ * mutated locally by chip taps; only reconciled with the backend on Apply.
+ * See `~/util/PillarDraftUtil` for the baseline/tap/diff logic.
+ */
+export type PillarDraft = {
+  entries: PillarDraftEntry[];
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** 1-based pillar number, used only for the dialog title. */
-  pillarNumber: number;
   /** Full clip catalogue, already sorted by name (DebugModal parity). */
   clips: SelectableClip[];
+  /** Every pillar's current draft (WOW-007C), index 0-based. */
+  draft: PillarDraft[];
   /**
-   * Toggles the pillar-chip at `pillarIndex` (0-based) for `clip` — queues,
-   * removes, or moves the pending hold, per PillarCardContainer's
-   * `togglePillar`. Called from ANY of the 4 chips on a row, regardless of
-   * which pillar's modal is currently open (WOW-007B batch queueing — a DJ
-   * can open one pillar's picker and assign clips across all 4 pillars
-   * before closing it).
+   * Advances the chip's tap cycle at `pillarIndex` (0-based) for `clip`:
+   * outlined -> queued (gold) -> play (green) -> removed, per
+   * PillarCardContainer's `handleTapChip` (`~/util/PillarDraftUtil.tapChip`).
+   * Called from ANY of the 4 chips on a row, regardless of which pillar's
+   * modal is currently open (WOW-007B batch queueing, preserved under the
+   * WOW-007C draft model — a DJ can open one pillar's picker and assign
+   * clips across all 4 pillars before Applying).
    */
-  onTogglePillar: (pillarIndex: number, clip: SelectableClip) => void;
-  /** Active/pending state for every catalogue rfid, across all 4 pillars. */
+  onTapChip: (pillarIndex: number, clip: SelectableClip) => void;
+  /** Active/pending state for every catalogue rfid — Pillar column sort only. */
   activeByRfid: ActiveByRfid;
+  /** True when `draft` differs from the live baseline — gates Apply/Revert. */
+  dirty: boolean;
+  /** Sends the draft's diff against reality to the backend; stays open. */
+  onApply: () => void;
+  /** Resets the draft back to the live baseline, discarding edits. */
+  onRevert: () => void;
 };
 
 type CategoryFilter = 'All' | ClipTypes;
@@ -200,38 +225,31 @@ const sortClips = (
   return [...sortedPresent, ...missing];
 };
 
-type ChipStatus = 'outlined' | 'pendingHere' | 'activeHere' | 'activeElsewhere';
+export type DraftChipStatus = 'outlined' | 'queued' | 'play';
 
 /**
  * Which of the 4 pillar chips a clip's row renders as, for the chip at
- * `chipPillarNumber` (1-based):
- * - `activeHere` / `activeElsewhere`: the clip is genuinely live (playing,
- *   backend-queued, or stopping) somewhere — a physically-placed tag can't be
- *   re-queued elsewhere, so every chip on the row is disabled; `activeHere`
- *   is the one matching where it's actually placed.
- * - `pendingHere`: the clip is this pillar's held-but-not-started pick.
- * - `outlined`: nothing is stopping this chip from being tapped — covers
- *   both "not active anywhere" and "pending on a DIFFERENT pillar" (tapping
- *   it there is a valid move, handled by PillarCardContainer's togglePillar).
+ * `chipPillarNumber` (1-based) — driven entirely by that pillar's `draft`
+ * entry for this clip (WOW-007C draft/apply model). Chips are never disabled:
+ * every playing/queued clip stays movable between pillars (human decision
+ * 2026-07-20), so `outlined` covers both "not drafted anywhere" and "drafted
+ * on a DIFFERENT pillar" (tapping it here is a valid move).
  */
-const chipStatus = (
+const draftChipStatus = (
   clip: SelectableClip,
   chipPillarNumber: number,
-  activeByRfid: ActiveByRfid,
-): ChipStatus => {
-  const active = activeByRfid[clip.rfid];
-  if (!active) return 'outlined';
-  if (active.state === 'pending') {
-    return active.pillarNumber === chipPillarNumber ? 'pendingHere' : 'outlined';
-  }
-  return active.pillarNumber === chipPillarNumber ? 'activeHere' : 'activeElsewhere';
+  draft: PillarDraft[],
+): DraftChipStatus => {
+  const entry = draft[chipPillarNumber - 1]?.entries.find((e) => e.clip.rfid === clip.rfid);
+  return entry?.state ?? 'outlined';
 };
 
-const BACKEND_STATE_LABEL: Record<'playing' | 'queued' | 'stopping', string> = {
-  playing: 'Playing',
-  queued: 'Queued',
-  stopping: 'Stopping',
-};
+const CHIP_ARIA_LABEL: Record<DraftChipStatus, (clipName: string, pillarNumber: number) => string> =
+  {
+    outlined: (clipName, pillarNumber) => `Queue ${clipName} on pillar ${pillarNumber}`,
+    queued: (clipName, pillarNumber) => `Set ${clipName} to play on pillar ${pillarNumber}`,
+    play: (clipName, pillarNumber) => `Remove ${clipName} from pillar ${pillarNumber}`,
+  };
 
 /**
  * Dense-table exception to the installation's usual 44px hit-target rule
@@ -241,43 +259,48 @@ const BACKEND_STATE_LABEL: Record<'playing' | 'queued' | 'stopping', string> = {
  * standard control size.
  */
 const CHIP_BASE_CLASS =
-  'flex min-h-[40px] items-center justify-center rounded-md font-data text-[11px] uppercase tracking-[0.08em]';
-// Shared by the tappable "not active here" state and the disabled
-// "active on a different pillar" state — the latter adds nothing but the
-// `disabled:opacity-50` dimming (inert on the former, since it's never
-// disabled).
-const CHIP_OUTLINED_CLASS =
-  'border border-gold-line/50 text-parchment/70 bg-transparent disabled:opacity-50';
+  'flex min-h-[40px] items-center justify-center rounded-md font-data text-xs uppercase tracking-[0.08em]';
+const CHIP_OUTLINED_CLASS = 'border border-gold-line/50 text-parchment/70 bg-transparent';
 const CHIP_PENDING_CLASS = 'bg-gold-line/80 text-ink-deep border border-transparent';
-const CHIP_ACTIVE_CLASS = 'bg-parchment/25 text-ink-deep border-transparent opacity-80';
 // PLAYING gets its own green fill (human request 2026-07-20) — the same hue as
 // the pillar cards' playing status dot, so "green = audibly live" reads
-// consistently across the whole DJ surface. Queued/stopping keep the neutral
-// parchment fill above.
+// consistently across the whole DJ surface.
 const CHIP_PLAYING_CLASS = 'bg-[#22c55e]/85 text-ink-deep border-transparent';
 
+const CHIP_CLASS_BY_STATUS: Record<DraftChipStatus, string> = {
+  outlined: CHIP_OUTLINED_CLASS,
+  queued: CHIP_PENDING_CLASS,
+  play: CHIP_PLAYING_CLASS,
+};
+
 /**
- * DJ-mode sample picker (WOW-007B) — the old debug modal's per-pillar clip
- * list in grimoire styling, reworked around pillar chips: each row shows a
- * P1..P4 chip strip, and tapping an eligible chip queues/removes/moves that
- * clip's pending hold on the tapped pillar (an explicit Play on the pillar
- * card's queue row is what actually emits the tag event — see
- * PillarCardContainer's `togglePillar`/`playPending`). The modal stays open
- * across chip taps so a DJ can assign several pillars from one open picker;
- * only Close dismisses it.
+ * DJ-mode sample picker (WOW-007B, reworked around a draft/apply model in
+ * WOW-007C) — the old debug modal's per-pillar clip list in grimoire styling.
+ * Each row shows a P1..P4 chip strip; tapping an eligible chip advances that
+ * pillar's DRAFT for the clip (outlined -> queued/gold -> play/green ->
+ * removed) without touching the backend. Nothing queues or plays until the
+ * DJ taps Apply, which diffs the draft against live reality and emits the
+ * `/departed/tag` / `/new/tag` events (see PillarCardContainer's
+ * `handleApply`, `~/util/PillarDraftUtil`). The modal stays open across chip
+ * taps AND across Apply so a DJ can keep assigning pillars from one open
+ * picker; only Close dismisses it.
  *
  * Sortable column headers (Name/Key/BPM/Type/Instrument/Pillar,
  * click-to-toggle ascending/descending); search/filter/sort state resets
  * whenever `open` transitions, so a DJ opening a different pillar's (or the
- * same pillar's, next time) picker never inherits a stale search.
+ * same pillar's, next time) picker never inherits a stale search. Rows
+ * themselves are not clickable — only the pillar chips are.
  */
 export const SampleModal = ({
   open,
   onClose,
-  pillarNumber,
   clips,
-  onTogglePillar,
+  draft,
+  onTapChip,
   activeByRfid,
+  dirty,
+  onApply,
+  onRevert,
 }: Props): JSX.Element => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<CategoryFilter>('All');
@@ -322,7 +345,7 @@ export const SampleModal = ({
       <div className='fixed inset-0 flex items-center justify-center p-6'>
         <Dialog.Panel className='flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-gold-line/40 bg-ink-panel p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]'>
           <Dialog.Title className='font-display text-2xl tracking-[0.14em] text-gold-bright'>
-            Pillar {pillarNumber} — Select sample
+            Sample selector
           </Dialog.Title>
 
           <div className='mt-4 flex shrink-0 flex-col gap-3'>
@@ -457,7 +480,7 @@ export const SampleModal = ({
                       </span>
                       <span
                         style={{ color: tokens.tintHex }}
-                        className='text-center font-data text-[11px] uppercase tracking-[0.1em]'
+                        className='text-center font-data text-xs uppercase tracking-[0.1em]'
                       >
                         {tokens.label}
                       </span>
@@ -466,57 +489,16 @@ export const SampleModal = ({
                       </span>
                       <div className='grid grid-cols-4 gap-1'>
                         {([1, 2, 3, 4] as const).map((chipPillarNumber) => {
-                          const status = chipStatus(clip, chipPillarNumber, activeByRfid);
+                          const status = draftChipStatus(clip, chipPillarNumber, draft);
                           const chipIndex = chipPillarNumber - 1;
-
-                          if (status === 'activeHere') {
-                            const activeState = activeByRfid[clip.rfid]?.state as
-                              | 'playing'
-                              | 'queued'
-                              | 'stopping';
-                            return (
-                              <button
-                                key={chipPillarNumber}
-                                type='button'
-                                disabled
-                                title={`${BACKEND_STATE_LABEL[activeState]} on pillar ${chipPillarNumber}`}
-                                className={`${CHIP_BASE_CLASS} ${
-                                  activeState === 'playing' ? CHIP_PLAYING_CLASS : CHIP_ACTIVE_CLASS
-                                }`}
-                              >
-                                {`P${chipPillarNumber}`}
-                              </button>
-                            );
-                          }
-
-                          if (status === 'activeElsewhere') {
-                            return (
-                              <button
-                                key={chipPillarNumber}
-                                type='button'
-                                disabled
-                                className={`${CHIP_BASE_CLASS} ${CHIP_OUTLINED_CLASS}`}
-                              >
-                                {`P${chipPillarNumber}`}
-                              </button>
-                            );
-                          }
-
-                          const isPendingHere = status === 'pendingHere';
                           return (
                             <button
                               key={chipPillarNumber}
                               type='button'
-                              aria-pressed={isPendingHere}
-                              aria-label={
-                                isPendingHere
-                                  ? `Remove ${clip.clipName} from pillar ${chipPillarNumber} queue`
-                                  : `Queue ${clip.clipName} on pillar ${chipPillarNumber}`
-                              }
-                              onClick={() => onTogglePillar(chipIndex, clip)}
-                              className={`${CHIP_BASE_CLASS} ${
-                                isPendingHere ? CHIP_PENDING_CLASS : CHIP_OUTLINED_CLASS
-                              }`}
+                              aria-pressed={status !== 'outlined'}
+                              aria-label={CHIP_ARIA_LABEL[status](clip.clipName, chipPillarNumber)}
+                              onClick={() => onTapChip(chipIndex, clip)}
+                              className={`${CHIP_BASE_CLASS} ${CHIP_CLASS_BY_STATUS[status]}`}
                             >
                               {`P${chipPillarNumber}`}
                             </button>
@@ -530,13 +512,35 @@ export const SampleModal = ({
             </ul>
           )}
 
-          <div className='mt-4 flex shrink-0 justify-end'>
+          <div className='mt-4 flex shrink-0 justify-end gap-2'>
             <button
               type='button'
               onClick={onClose}
               className='flex min-h-[44px] items-center rounded-lg border border-gold-line/50 bg-ink-btn px-5 font-data text-sm tracking-wide text-parchment/90'
             >
               Close
+            </button>
+            {/* Revert discards the draft back to the live baseline; Apply
+                sends its diff to the backend. Both stay disabled until the
+                draft actually differs from reality (WOW-007C) — the modal
+                never stays open on a no-op tap of either. */}
+            <button
+              type='button'
+              onClick={onRevert}
+              disabled={!dirty}
+              aria-label='Revert changes'
+              className='flex min-h-[44px] items-center rounded-lg border border-gold-line/50 bg-ink-btn px-5 font-data text-sm tracking-wide text-parchment/90 disabled:opacity-40'
+            >
+              Revert
+            </button>
+            <button
+              type='button'
+              onClick={onApply}
+              disabled={!dirty}
+              aria-label='Apply changes'
+              className='flex min-h-[44px] items-center rounded-lg bg-gold-line/70 px-5 font-data text-sm tracking-wide text-ink-deep disabled:bg-ink-btn disabled:text-parchment/50 disabled:opacity-60'
+            >
+              Apply
             </button>
           </div>
         </Dialog.Panel>

@@ -15,12 +15,18 @@ import {
   Simulator,
   TagDetectionData,
   SetTrackVolumeInputType,
+  SetCauldronVolumeInputType,
+  IdleTimeoutConfigType,
   buildMusicDatabase,
   buildScenarios,
   runScenario,
 } from './core';
 
-const WS_PORT = 3335; // fixed by ADR-001; matches VITE_WS_SERVER_PORT in .env
+// 3335 per ADR-001 (matches VITE_WS_SERVER_PORT in .env). SIM_PORT overrides
+// it for side-by-side verification when 3335 is held by a live backend —
+// previously this required hand-patching the constant, and reverting that
+// patch destroyed unrelated uncommitted work in this file once (WOW-007C).
+const WS_PORT = Number(process.env.SIM_PORT) || 3335;
 
 const log = (message: string) => {
   console.log(`[sim ${new Date().toISOString()}] ${message}`);
@@ -141,6 +147,29 @@ io.on('connection', (socket) => {
   socket.on('set_master-key', (newKey: string) => {
     logReceived('set_master-key', newKey);
     simulator.setMasterKey(newKey);
+  });
+
+  // WOW-007C cauldron sample + settings — mirrors backend/event/IncomingEvents
+  // ack shapes exactly (ADR-001 sim parity).
+  socket.on('trigger_cauldron_sample', () => {
+    logReceived('trigger_cauldron_sample');
+    simulator.triggerCauldronSample();
+  });
+  socket.on('get_cauldron_volume', (_, callback) => {
+    logReceived('get_cauldron_volume');
+    callback?.(simulator.getCauldronVolume());
+  });
+  socket.on('set_cauldron_volume', (data: SetCauldronVolumeInputType) => {
+    logReceived('set_cauldron_volume', data);
+    simulator.setCauldronVolume(data);
+  });
+  socket.on('get_idle_timeout', (_, callback) => {
+    logReceived('get_idle_timeout');
+    callback?.(simulator.getIdleTimeoutConfig());
+  });
+  socket.on('set_idle_timeout', (config: IdleTimeoutConfigType, callback) => {
+    logReceived('set_idle_timeout', config);
+    callback?.(simulator.setIdleTimeoutConfig(config));
   });
 });
 

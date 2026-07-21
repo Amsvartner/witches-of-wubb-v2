@@ -58,6 +58,12 @@ const abletonStub: AbletonContextState = {
   changeMasterKey: () => {},
   keylock: true,
   changeKeylock: () => {},
+  // WOW-007C
+  triggerCauldronSample: () => {},
+  cauldronVolume: 0.6,
+  changeCauldronVolume: () => {},
+  idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+  changeIdleTimeout: () => {},
 };
 
 function renderModal(socket: Socket) {

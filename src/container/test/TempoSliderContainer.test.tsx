@@ -20,6 +20,12 @@ function buildContextValue(overrides: Partial<AbletonContextState> = {}): Ableto
     changeMasterKey: vi.fn(),
     keylock: true,
     changeKeylock: vi.fn(),
+    // WOW-007C
+    triggerCauldronSample: vi.fn(),
+    cauldronVolume: 0.6,
+    changeCauldronVolume: vi.fn(),
+    idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
+    changeIdleTimeout: vi.fn(),
     ...overrides,
   };
 }

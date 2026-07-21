@@ -5,6 +5,10 @@ type Props = {
   djActive: boolean;
   /** Drops back to play mode. */
   onExitDj: () => void;
+  /** True while the Help overlay is open — reflected via aria-pressed. */
+  helpActive: boolean;
+  /** Toggles the Help overlay open/closed. */
+  onToggleHelp: () => void;
 };
 
 /**
@@ -12,11 +16,16 @@ type Props = {
  * Mode access lives behind Settings (ADR-006 amended 2026-07-15). While DJ
  * mode is active, a persistent "EXIT DJ" control renders first in the row —
  * the clearly-labelled, always-visible exit affordance for the elevated mode
- * (DESIGN_PROPOSAL §6.2). Settings is wired to the modal; Help is disabled
- * until its content arrives with WOW-007 (a focusable no-op would confuse
- * keyboard/SR users).
+ * (DESIGN_PROPOSAL §6.2). Settings is wired to the modal; Help toggles the
+ * HelpOverlay (human spec 2026-07-20 — previously disabled pending content).
  */
-export const TopControls = ({ onOpenSettings, djActive, onExitDj }: Props): JSX.Element => (
+export const TopControls = ({
+  onOpenSettings,
+  djActive,
+  onExitDj,
+  helpActive,
+  onToggleHelp,
+}: Props): JSX.Element => (
   <div className='flex items-center gap-3'>
     {djActive && (
       <button
@@ -29,12 +38,17 @@ export const TopControls = ({ onOpenSettings, djActive, onExitDj }: Props): JSX.
     )}
     <button
       type='button'
-      disabled
-      className='flex min-h-[44px] items-center gap-2 rounded-lg border border-gold-line/50 bg-ink-btn px-4 font-data text-sm tracking-wide text-parchment/90'
+      onClick={onToggleHelp}
+      aria-pressed={helpActive}
+      className={`flex min-h-[44px] items-center gap-2 rounded-lg border px-4 font-data text-sm tracking-wide ${
+        helpActive
+          ? 'border-gold-bright/70 bg-gold-line/70 text-ink-deep'
+          : 'border-gold-line/50 bg-ink-btn text-parchment/90'
+      }`}
     >
       <svg
         viewBox='0 0 24 24'
-        className='h-4 w-4 text-gold-line'
+        className={`h-4 w-4 ${helpActive ? 'text-ink-deep' : 'text-gold-line'}`}
         fill='none'
         stroke='currentColor'
         strokeWidth={2}

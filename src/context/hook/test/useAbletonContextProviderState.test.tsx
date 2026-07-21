@@ -303,3 +303,113 @@ describe('useAbletonContextProviderState ingredient_removed pillar scoping (WOW-
     expect(result.current.queuedClips[2]).toEqual(queuedOnA);
   });
 });
+
+describe('useAbletonContextProviderState WOW-007C (cauldron sample/volume, idle timeout)', () => {
+  it('fetches cauldron volume and idle timeout config on mount, alongside the existing get_* calls', () => {
+    const fake = createFakeSocket(true);
+    renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    const getCalls = (name: string) => fake.emit.mock.calls.filter(([event]) => event === name);
+    expect(getCalls('get_cauldron_volume')).toHaveLength(1);
+    expect(getCalls('get_idle_timeout')).toHaveLength(1);
+  });
+
+  it('triggerCauldronSample emits trigger_cauldron_sample with no payload', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    act(() => {
+      result.current.triggerCauldronSample();
+    });
+
+    expect(fake.emit).toHaveBeenCalledWith('trigger_cauldron_sample');
+  });
+
+  it('changeCauldronVolume emits set_cauldron_volume with the raw volume', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    act(() => {
+      result.current.changeCauldronVolume(0.35);
+    });
+
+    expect(fake.emit).toHaveBeenCalledWith('set_cauldron_volume', { volume: 0.35 });
+  });
+
+  it('applies get_cauldron_volume ack and the cauldron_volume_changed broadcast to state', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    const ackCall = fake.emit.mock.calls.find(([event]) => event === 'get_cauldron_volume');
+    const ackCallback = ackCall?.[2] as (volume: number) => void;
+    act(() => {
+      ackCallback(0.42);
+    });
+    expect(result.current.cauldronVolume).toBeCloseTo(0.42);
+
+    act(() => {
+      fake.trigger('cauldron_volume_changed', { volume: 0.2 });
+    });
+    expect(result.current.cauldronVolume).toBeCloseTo(0.2);
+  });
+
+  it('changeIdleTimeout emits set_idle_timeout and applies the acked result to state', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    act(() => {
+      result.current.changeIdleTimeout({ enabled: false, timeoutMs: 60000 });
+    });
+
+    expect(fake.emit).toHaveBeenCalledWith(
+      'set_idle_timeout',
+      { enabled: false, timeoutMs: 60000 },
+      expect.any(Function),
+    );
+
+    const setCall = fake.emit.mock.calls.find(([event]) => event === 'set_idle_timeout');
+    const ackCallback = setCall?.[2] as (config: { enabled: boolean; timeoutMs: number }) => void;
+    act(() => {
+      ackCallback({ enabled: false, timeoutMs: 60000 });
+    });
+    expect(result.current.idleTimeout).toEqual({ enabled: false, timeoutMs: 60000 });
+  });
+
+  it('applies the idle_timeout_changed broadcast to state', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    act(() => {
+      fake.trigger('idle_timeout_changed', { enabled: true, timeoutMs: 90000 });
+    });
+
+    expect(result.current.idleTimeout).toEqual({ enabled: true, timeoutMs: 90000 });
+  });
+
+  it('unsubscribes the new listeners on unmount', () => {
+    const fake = createFakeSocket(true);
+    const { unmount } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    expect(fake.handlerCount('cauldron_volume_changed')).toBe(1);
+    expect(fake.handlerCount('idle_timeout_changed')).toBe(1);
+
+    unmount();
+
+    expect(fake.handlerCount('cauldron_volume_changed')).toBe(0);
+    expect(fake.handlerCount('idle_timeout_changed')).toBe(0);
+  });
+});

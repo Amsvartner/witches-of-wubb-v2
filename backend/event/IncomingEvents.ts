@@ -6,6 +6,8 @@ import { OutgoingEvents } from './OutgoingEvents';
 import { AbletonAdapter } from '../adapter/AbletonAdapter';
 import { BrowserClipInfo } from '../type/BrowserClipInfo';
 import { BrowserClipInfoList } from '../type/BrowserClipInfoList';
+import { IdleTimeoutConfigType } from '../type/IdleTimeoutConfigType';
+import { SetCauldronVolumeInputType } from '../type/SetCauldronVolumeInputType';
 import { SetTrackVolumeInputType } from '../type/SetTrackVolumeInputType';
 import { TagDetectionData } from '../type/TagDetectionData';
 import { TrackVolumesType } from '../type/TrackVolumesType';
@@ -199,6 +201,63 @@ function addSocketEventsHandlers(socket: Socket) {
   socket.on('set_master-key', (newKey: string) => {
     AbletonAdapter.setMasterKey(newKey);
   });
+
+  // WOW-007C: cauldron drum-rack sample trigger.
+  socket.on('trigger_cauldron_sample', async () => {
+    try {
+      await AbletonAdapter.triggerRandomDrumSample();
+    } catch (err) {
+      Logger.error(err, 'Error triggering cauldron sample');
+    }
+  });
+
+  // WOW-007C: cauldron (drum-rack track) loudness, independent of the pillar
+  // volumes - ack callback defaults to 0.6 on error so the UI has a sane
+  // display value instead of hanging on a callback that never fires.
+  socket.on('get_cauldron_volume', async (_, callback) => {
+    try {
+      const volume = await AbletonAdapter.getCauldronVolume();
+      // Optional-chained like the sim and set_idle_timeout below (Copilot
+      // review, PR #56): a client emitting without an ack must not throw
+      // inside the handler (WOW-014 crash-hardening posture).
+      callback?.(volume);
+    } catch (err) {
+      Logger.error(err, 'Error getting cauldron volume');
+      callback?.(AbletonAdapter.DEFAULT_TRACK_VOLUME);
+    }
+  });
+  socket.on('set_cauldron_volume', async ({ volume }: SetCauldronVolumeInputType) => {
+    try {
+      await AbletonAdapter.setCauldronVolume(volume);
+    } catch (err) {
+      Logger.error(err, 'Error setting cauldron volume');
+    }
+  });
+
+  // WOW-007C: idle-timeout ("pause music"/attractor handover) config.
+  socket.on('get_idle_timeout', (_, callback) => {
+    try {
+      callback?.(AbletonAdapter.getIdleTimeoutConfig());
+    } catch (err) {
+      // Same posture as get_cauldron_volume above: ack a sane default rather
+      // than leaving the UI hanging on a callback that never fires (general
+      // review, PR #56 — the two sibling handlers previously diverged).
+      Logger.error(err, 'Error getting idle timeout config');
+      callback?.({ enabled: true, timeoutMs: 3 * 60 * 1000 });
+    }
+  });
+  socket.on(
+    'set_idle_timeout',
+    (config: IdleTimeoutConfigType, callback?: (result: IdleTimeoutConfigType) => void) => {
+      try {
+        const result = AbletonAdapter.setIdleTimeoutConfig(config);
+        callback?.(result);
+      } catch (err) {
+        Logger.error(err, 'Error setting idle timeout config');
+      }
+    },
+  );
+
   return socket;
 }
 

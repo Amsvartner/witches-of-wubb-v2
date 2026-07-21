@@ -2,7 +2,13 @@ import { BrowserClipInfoList } from 'backend/type/BrowserClipInfoList';
 import { PillarView } from '~/type/PillarView';
 
 /** Live volume range from the socket contract (see VolumeSliderContainer). */
-const VOLUME_MAX = 0.7;
+/**
+ * Live volume ceiling from the socket contract (backend
+ * PILLAR_VOLUME_CEILING) — exported as the single frontend source so the
+ * percent↔raw mappings in PillarCardContainer/SettingsModal can't drift
+ * (general review, PR #56).
+ */
+export const VOLUME_MAX = 0.7;
 
 const PILLAR_COUNT = 4;
 

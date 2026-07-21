@@ -25,10 +25,11 @@ type Props = {
     muted?: boolean;
     onToggleMute?: () => void;
     /**
-     * Rows to render in the Queued section (WOW-007B pending-pick queue):
-     * the container composes at most one backend-queued row (remove only)
-     * and, last, the pillar's pending pick (play + remove). Same 2-row cap
-     * as before, applied here rather than upstream.
+     * Rows to render in the Queued section (WOW-007B pending-pick queue;
+     * WOW-007C: up to 2 pending picks per pillar): the container composes at
+     * most one backend-queued row (remove only) followed by the pillar's
+     * pending picks (play + remove each). Same 2-row display cap as before,
+     * applied here rather than upstream.
      */
     queueRows: { id: string; name: string; onPlay?: () => void; onRemove?: () => void }[];
   };
@@ -36,6 +37,15 @@ type Props = {
   onVolumePercentChange?: (percent: number) => void;
   onVolumeDragStart?: () => void;
   onVolumeDragEnd?: () => void;
+  /**
+   * Hides the volume tube entirely (human spec 2026-07-20): in play mode, a
+   * pillar with nothing audible (status 'empty' or 'queued') has no
+   * meaningful volume to show, so the card centers its remaining content
+   * instead. Computed by PillarCardContainer — DJ mode and an open Help
+   * overlay both force this false (tubes always show there). Absent/false =
+   * render the tube as before.
+   */
+  hideVolume?: boolean;
 };
 
 const STATUS_LABEL: Record<PillarStatus, string> = {
@@ -87,6 +97,7 @@ export const PillarCard = ({
   onVolumePercentChange,
   onVolumeDragStart,
   onVolumeDragEnd,
+  hideVolume = false,
 }: Props): JSX.Element => {
   const { category, status, muted, volumePercent } = pillar;
   const tokens = category ? CategoryTheme.forType(category) : undefined;
@@ -174,16 +185,24 @@ export const PillarCard = ({
           )}
         </div>
 
-        <div className='flex min-h-0 flex-1 gap-3'>
-          <VolumeTube
-            volumePercent={volumePercent}
-            assetSlug={tokens?.assetSlug}
-            onPercentChange={onVolumePercentChange}
-            onDragStart={onVolumeDragStart}
-            onDragEnd={onVolumeDragEnd}
-          />
+        <div
+          className={`flex min-h-0 flex-1 gap-3 ${hideVolume ? 'items-center justify-center' : ''}`}
+        >
+          {!hideVolume && (
+            <VolumeTube
+              volumePercent={volumePercent}
+              assetSlug={tokens?.assetSlug}
+              onPercentChange={onVolumePercentChange}
+              onDragStart={onVolumeDragStart}
+              onDragEnd={onVolumeDragEnd}
+            />
+          )}
 
-          <div className='flex min-w-0 flex-1 flex-col gap-2'>
+          <div
+            className={`flex min-w-0 flex-col gap-2 ${
+              hideVolume ? 'flex-none items-center' : 'flex-1'
+            }`}
+          >
             <div className='flex flex-col items-center gap-4 py-1'>
               {medallion}
               {tokens && (

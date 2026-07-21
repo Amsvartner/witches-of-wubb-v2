@@ -5,12 +5,17 @@ import { useAbletonContext } from '~/context/hook/useAbletonContext';
 import { useSocketContext } from '~/context/hook/useSocketContext';
 import { useSliderEmit } from '~/hook/useSliderEmit';
 import { PillarCard } from '~/component/PillarCard';
-import { SampleModal, type ActiveByRfid, type SelectableClip } from '~/component/SampleModal';
+import {
+  SampleModal,
+  type ActiveByRfid,
+  type PillarDraft,
+  type SelectableClip,
+} from '~/component/SampleModal';
 import { PillarView } from '~/type/PillarView';
+import { PillarDraftUtil } from '~/util/PillarDraftUtil';
 import { Logger } from '~/util/Logger';
 
-/** Live volume range from the socket contract (see PillarViewUtil). */
-const VOLUME_MAX = 0.7;
+import { VOLUME_MAX } from '~/util/PillarViewUtil';
 
 /** Unmute fallback when nothing was captured pre-mute (WOW-007B human decision). */
 const DEFAULT_UNMUTE_VOLUME = 0.6;
@@ -33,17 +38,19 @@ const clips: SelectableClip[] = Object.entries(ClipDatabaseUtil.rfidToClipMap)
 
 /**
  * Builds the SampleModal's `activeByRfid` map from live clip state (all 4
- * pillars) plus every pillar's local pending pick (WOW-007B pending-pick
- * queue). Precedence within a pillar is playing > stopping > queued >
- * pending, so a genuinely live clip is never masked by a stale pending hold
- * for the same rfid — not expected in practice (a tag can only be one place),
- * but keeps the mapping deterministic if it ever happens.
+ * pillars) plus every pillar's local pending picks (WOW-007C: now up to 2 per
+ * pillar). Under the draft/apply model this only drives the Pillar column's
+ * sort/state hints — chip rendering comes from the draft. Precedence within a
+ * pillar is playing > stopping > queued > pending, so a genuinely live clip
+ * is never masked by a stale pending hold for the same rfid — not expected in
+ * practice (a tag can only be one place), but keeps the mapping deterministic
+ * if it ever happens.
  */
 const buildActiveByRfid = (
   playingClips: BrowserClipInfoList,
   queuedClips: BrowserClipInfoList,
   stoppingClips: BrowserClipInfoList,
-  pendingPicks: (SelectableClip | null)[],
+  pendingPicks: SelectableClip[][],
 ): ActiveByRfid => {
   const map: ActiveByRfid = {};
 
@@ -57,7 +64,9 @@ const buildActiveByRfid = (
   };
 
   for (let i = 0; i < PILLAR_COUNT; i += 1) {
-    record(pendingPicks[i]?.rfid, i + 1, 'pending');
+    for (const pick of pendingPicks[i] ?? []) {
+      record(pick.rfid, i + 1, 'pending');
+    }
     record(queuedClips[i]?.rfid, i + 1, 'queued');
     record(stoppingClips[i]?.rfid, i + 1, 'stopping');
     record(playingClips[i]?.rfid, i + 1, 'playing');
@@ -72,12 +81,20 @@ type Props = {
   djMode: boolean;
   animationsEnabled: boolean;
   isConnected: boolean;
-  /** Every pillar's held-but-not-started pick (WOW-007B), lifted to
-   * `PlayModeContainer` so this pillar's picker can see what's pending
-   * everywhere, not just on itself. */
-  pendingPicks: (SelectableClip | null)[];
-  /** Replaces the pending pick at `index` (or clears it, with `null`). */
-  onPendingPickChange: (index: number, clip: SelectableClip | null) => void;
+  /** Every pillar's held-but-not-started picks (WOW-007C: up to 2 per
+   * pillar), lifted to `PlayModeContainer` so this pillar's picker can see
+   * what's pending everywhere, not just on itself. */
+  pendingPicks: SelectableClip[][];
+  /** Replaces pillar `index`'s whole pending-picks array. */
+  onPendingPickChange: (index: number, picks: SelectableClip[]) => void;
+  /**
+   * True while the Help overlay is open (human spec 2026-07-20). Overrides
+   * the play-mode volume-tube hiding below — a visitor reading Help must
+   * still see every tube it points at, even on an otherwise-hidden empty/
+   * queued pillar. Defaults false so existing call sites/tests are
+   * unaffected.
+   */
+  helpActive?: boolean;
 };
 
 /**
@@ -88,16 +105,20 @@ type Props = {
  * used (frozen socket contract — no new events), guarded on `isConnected` the
  * same way (Logger.warn + no-op rather than emitting into a dead socket).
  *
- * Sample picks no longer emit directly (WOW-007B pending-pick queue): the
- * backend starts an idle pillar's clip immediately on `/new/tag`, and even a
- * backend-"queued" clip auto-fires at the next phrase boundary (see
- * sim/core/simulator.ts) — so a mere pick has to be held frontend-side
- * (`pendingPicks`, owned by `PlayModeContainer`) until the DJ explicitly taps
- * Play on the pending queue row. Picking itself happens via the sample
- * modal's per-pillar chips (`togglePillar` below) rather than a row tap —
- * every chip on every row targets its own pillar index directly, so a chip
- * tap from THIS pillar's modal can queue, remove, or move a hold on ANY of
- * the 4 pillars, and the modal stays open for further taps.
+ * Sample picking is a DRAFT + APPLY flow (WOW-007C, replacing WOW-007B's
+ * instant chip toggling): chip taps in the sample modal only edit a local
+ * draft (`draftEdits`, all 4 pillars at once — `PillarDraftUtil.tapChip`),
+ * and NOTHING reaches the socket until the DJ taps Apply, which diffs the
+ * draft against live reality (`PillarDraftUtil.diffForApply`) and emits all
+ * `/departed/tag`s before all `/new/tag`s. Draft 'queued' entries that the
+ * backend isn't already holding become frontend pending picks (`pendingPicks`,
+ * owned by `PlayModeContainer`) — the backend starts an idle pillar's clip
+ * immediately on `/new/tag` and even a backend-"queued" clip auto-fires at
+ * the next phrase boundary (see sim/core/simulator.ts), so a mere hold can't
+ * reach the socket at all. While `draftEdits` is null the rendered draft IS
+ * the live baseline (recomputed every render), so Apply/Revert both "rebase"
+ * by simply clearing the edits; reality changing under an open modal updates
+ * the baseline for the dirty diff without clobbering the DJ's edits.
  *
  * Mute is the human-authorized volume-0 approach: the socket contract has no
  * mute event, so muting emits `set_track_volume` with `volume: 0` (saving the
@@ -113,11 +134,17 @@ export const PillarCardContainer = ({
   isConnected,
   pendingPicks,
   onPendingPickChange,
+  helpActive = false,
 }: Props): JSX.Element => {
   const socket = useSocketContext();
   const { changeTrackVolume, playingClips, queuedClips, stoppingClips, trackVolume } =
     useAbletonContext();
   const [isSampleModalOpen, setIsSampleModalOpen] = useState(false);
+  // The DJ's draft edits (WOW-007C), or null while no edit has been made
+  // since the modal opened / the last Apply / the last Revert — null means
+  // "track the live baseline", which is what makes Apply/Revert rebasing and
+  // live reality changes free (see the class doc above).
+  const [draftEdits, setDraftEdits] = useState<PillarDraft[] | null>(null);
   const [muted, setMuted] = useState(false);
   // Raw (0..VOLUME_MAX) volume captured at the moment of muting, so unmute
   // can restore the exact prior level rather than a guessed default.
@@ -146,12 +173,29 @@ export const PillarCardContainer = ({
   );
   const volumeSlider = useSliderEmit(pillar.volumePercent, emitVolumePercent);
 
+  // WOW-007C: an empty pillar's volume is only interactive in DJ mode (DJing
+  // ahead — pre-setting a pillar's level before anything's placed there); a
+  // play-mode visitor still can't touch an empty pillar's volume (nothing to
+  // mute either — the empty medallion isn't even DJ's Add-sample button
+  // outside DJ mode). A non-empty pillar stays interactive in both modes, as
+  // before.
+  const showVolumeControls = pillar.status !== 'empty' || djMode;
+
+  // WOW-007D: in play mode, a pillar with nothing audible (status 'empty' or
+  // 'queued' — a queued clip hasn't started sounding yet) has no meaningful
+  // volume to show, so its tube is hidden entirely and the card centers its
+  // remaining content instead. DJ mode always shows tubes (DJing ahead —
+  // pre-setting levels), and an open Help overlay forces them visible too,
+  // since Help points at a tube that must actually be there to point at.
+  const hideVolume =
+    !djMode && !helpActive && pillar.status !== 'playing' && pillar.status !== 'paused';
+
   // Render the drag-local slider value instead of the derived percent so a
-  // drag tracks the finger exactly (useSliderEmit's contract) — only for a
-  // non-empty pillar; empty pillars stay display-only (no gem/asset to drag)
-  // and have nothing to mute either.
-  const renderedPillar: PillarView =
-    pillar.status !== 'empty' ? { ...pillar, volumePercent: volumeSlider.value, muted } : pillar;
+  // drag tracks the finger exactly (useSliderEmit's contract) — only while
+  // volume is actually interactive; otherwise render the plain derived view.
+  const renderedPillar: PillarView = showVolumeControls
+    ? { ...pillar, volumePercent: volumeSlider.value, muted }
+    : pillar;
 
   const emitGuarded = (
     action: string,
@@ -167,7 +211,7 @@ export const PillarCardContainer = ({
 
   const activeClip = stoppingClips[index] ?? playingClips[index];
   const queuedClip = queuedClips[index];
-  const pendingPick = pendingPicks[index] ?? null;
+  const myPendingPicks = pendingPicks[index] ?? [];
 
   const stop = (): void => {
     if (!activeClip) return;
@@ -179,59 +223,103 @@ export const PillarCardContainer = ({
     emitGuarded('remove queued', '/departed/tag', { rfid: queuedClip.rfid, pillar: index });
   };
 
-  const openSampleModal = (): void => setIsSampleModalOpen(true);
-
-  // Live active/pending state for every catalogue rfid, across all 4
-  // pillars — shared by the SampleModal's chips (rendering + click targets)
-  // and by togglePillar's own read of "where (if anywhere) is this clip".
-  const activeByRfid = buildActiveByRfid(playingClips, queuedClips, stoppingClips, pendingPicks);
-
-  // Toggles the pillar chip at `pillarIndex` (0-based) for `clip` — no emit
-  // (see class doc above), and does not close the modal so a DJ can keep
-  // assigning clips to other pillars from the same open picker. A
-  // backend-active clip never reaches here (its chips are disabled in
-  // SampleModal), so only two cases matter: already pending somewhere, or
-  // pending nowhere.
-  const togglePillar = (pillarIndex: number, clip: SelectableClip): void => {
-    const active = activeByRfid[clip.rfid];
-    if (active?.state === 'pending') {
-      if (active.pillarNumber === pillarIndex + 1) {
-        // Tapped the chip it's already pending on — remove the hold.
-        onPendingPickChange(pillarIndex, null);
-        return;
-      }
-      // Tapped a different pillar's chip — move the hold: clear the old
-      // pillar first, then set the new one, so a single tag is never held
-      // pending on two pillars at once.
-      onPendingPickChange(active.pillarNumber - 1, null);
-      onPendingPickChange(pillarIndex, clip);
-      return;
-    }
-    onPendingPickChange(pillarIndex, clip);
+  const openSampleModal = (): void => {
+    // A fresh open always starts from reality (spec: draft := baseline copy
+    // on open) — clearing here rather than on close keeps a mid-session
+    // close+reopen honest even if a stale edit somehow survived.
+    setDraftEdits(null);
+    setIsSampleModalOpen(true);
   };
 
-  // Starts the pending pick now. Not confirm-gated: this is the DJ's first
-  // explicit "go" for a hold they already chose, not a surprise destructive
-  // action. If something is currently playing/stopping on this pillar, it's
-  // departed first so the backend doesn't end up with two tags racing for
-  // the same pillar — see the ordering caveat in the handoff report.
-  const playPending = (): void => {
-    if (!pendingPick) return;
+  // Live active/pending state for every catalogue rfid, across all 4
+  // pillars — Pillar column sort/state hints only (chips read the draft).
+  const activeByRfid = buildActiveByRfid(playingClips, queuedClips, stoppingClips, pendingPicks);
+
+  // What reality looks like right now, as a draft — recomputed every render
+  // so the dirty diff always compares against CURRENT reality (scenario or
+  // visitor tags can change it while the modal is open).
+  const baseline = PillarDraftUtil.buildBaseline({
+    playingClips,
+    stoppingClips,
+    queuedClips,
+    pendingPicks,
+    catalogue: clips,
+  });
+  const renderedDraft = draftEdits ?? baseline;
+  const isDraftDirty = !PillarDraftUtil.draftsEqual(renderedDraft, baseline);
+  const liveRfids = PillarDraftUtil.toLiveRfids(playingClips, stoppingClips);
+
+  // Advances the tapped chip's draft cycle (outlined -> queued -> play ->
+  // removed, with the live-clip exception) — local edit only, no emission,
+  // and the modal stays open so a DJ can keep assigning clips to other
+  // pillars from the same open picker.
+  const handleTapChip = (pillarIndex: number, clip: SelectableClip): void => {
+    const nextDraft = PillarDraftUtil.tapChip({
+      draft: renderedDraft,
+      pillarIndex,
+      clip,
+      liveRfids,
+    });
+    setDraftEdits(nextDraft);
+  };
+
+  // Sends the draft's diff against current reality to the backend (WOW-007C):
+  // all /departed/tag emissions first, then all /new/tag — see
+  // PillarDraftUtil.diffForApply for the full ordering contract. Guarded as a
+  // whole on isConnected (partial application against a dead socket would
+  // desync pendingPicks from what the backend actually saw). The modal stays
+  // open; clearing draftEdits rebases the draft onto reality, so Apply
+  // disables until the next edit.
+  const handleApply = (): void => {
+    if (!isConnected) {
+      Logger.warn('Ignored apply: socket not connected');
+      return;
+    }
+    const { emissions, nextPendingPicks } = PillarDraftUtil.diffForApply({
+      draft: renderedDraft,
+      playingClips,
+      stoppingClips,
+      queuedClips,
+    });
+    for (const emission of emissions) {
+      emitGuarded('apply draft', emission.event, { rfid: emission.rfid, pillar: emission.pillar });
+    }
+    for (let i = 0; i < PILLAR_COUNT; i += 1) {
+      onPendingPickChange(i, nextPendingPicks[i]);
+    }
+    setDraftEdits(null);
+  };
+
+  // Discards the edits — the rendered draft falls back to the live baseline.
+  const handleRevert = (): void => {
+    setDraftEdits(null);
+  };
+
+  // Starts the pending pick at `pickIndex` now. Not confirm-gated: this is
+  // the DJ's first explicit "go" for a hold they already chose, not a
+  // surprise destructive action. If something is currently playing/stopping
+  // on this pillar, it's departed first so the backend doesn't end up with
+  // two tags racing for the same pillar.
+  const playPending = (pickIndex: number): void => {
+    const pick = myPendingPicks[pickIndex];
+    if (!pick) return;
     if (activeClip) {
       emitGuarded('play pending (stop active)', '/departed/tag', {
         rfid: activeClip.rfid,
         pillar: index,
       });
     }
-    emitGuarded('play pending', '/new/tag', { rfid: pendingPick.rfid, pillar: index });
-    onPendingPickChange(index, null);
+    emitGuarded('play pending', '/new/tag', { rfid: pick.rfid, pillar: index });
+    const remainingPicks = myPendingPicks.filter((_, i) => i !== pickIndex);
+    onPendingPickChange(index, remainingPicks);
   };
 
-  // Drops the local hold. No emit (nothing was ever sent to the backend for
+  // Drops one local hold. No emit (nothing was ever sent to the backend for
   // a pending pick), so not confirm-gated either — reversing a hold that
   // hasn't taken effect anywhere isn't destructive.
-  const clearPending = (): void => {
-    onPendingPickChange(index, null);
+  const clearPending = (pickIndex: number): void => {
+    const remainingPicks = myPendingPicks.filter((_, i) => i !== pickIndex);
+    onPendingPickChange(index, remainingPicks);
   };
 
   const toggleMute = (): void => {
@@ -251,8 +339,9 @@ export const PillarCardContainer = ({
   };
 
   // Backend-queued clip first (self-starts at the next phrase boundary, so
-  // it only gets a remove action), pending pick last (gets both Play and a
-  // non-confirm-gated remove) — PillarCard applies the 2-row display cap.
+  // it only gets a remove action), then up to 2 pending picks (each with
+  // both Play and a non-confirm-gated remove) — PillarCard applies the
+  // 2-row display cap.
   const queueRows: { id: string; name: string; onPlay?: () => void; onRemove?: () => void }[] = [];
   if (queuedClip) {
     queueRows.push({
@@ -261,12 +350,12 @@ export const PillarCardContainer = ({
       onRemove: removeQueued,
     });
   }
-  if (pendingPick) {
+  for (const [pickIndex, pick] of myPendingPicks.entries()) {
     queueRows.push({
-      id: pendingPick.rfid,
-      name: pendingPick.clipName,
-      onPlay: playPending,
-      onRemove: clearPending,
+      id: pick.rfid,
+      name: pick.clipName,
+      onPlay: () => playPending(pickIndex),
+      onRemove: () => clearPending(pickIndex),
     });
   }
 
@@ -286,17 +375,21 @@ export const PillarCardContainer = ({
               }
             : undefined
         }
-        onVolumePercentChange={volumeSlider.onValue}
-        onVolumeDragStart={volumeSlider.onDragStart}
-        onVolumeDragEnd={volumeSlider.onDragEnd}
+        onVolumePercentChange={showVolumeControls ? volumeSlider.onValue : undefined}
+        onVolumeDragStart={showVolumeControls ? volumeSlider.onDragStart : undefined}
+        onVolumeDragEnd={showVolumeControls ? volumeSlider.onDragEnd : undefined}
+        hideVolume={hideVolume}
       />
       <SampleModal
         open={isSampleModalOpen}
         onClose={() => setIsSampleModalOpen(false)}
-        pillarNumber={index + 1}
         clips={clips}
-        onTogglePillar={togglePillar}
+        draft={renderedDraft}
+        onTapChip={handleTapChip}
         activeByRfid={activeByRfid}
+        dirty={isDraftDirty}
+        onApply={handleApply}
+        onRevert={handleRevert}
       />
     </>
   );

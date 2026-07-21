@@ -1,7 +1,12 @@
 import { fireEvent, render, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { ClipTypes } from 'backend/type/ClipTypes';
-import { SampleModal, type ActiveByRfid, type SelectableClip } from '~/component/SampleModal';
+import {
+  SampleModal,
+  type ActiveByRfid,
+  type PillarDraft,
+  type SelectableClip,
+} from '~/component/SampleModal';
 
 // jsdom doesn't implement ResizeObserver, which @headlessui/react's Dialog
 // uses internally (same stub pattern as DebugModalContainer.test.tsx /
@@ -49,28 +54,46 @@ const CLIPS: SelectableClip[] = [
   },
 ];
 
+/** A draft with nothing held on any pillar. */
+const emptyDraft = (): PillarDraft[] => [
+  { entries: [] },
+  { entries: [] },
+  { entries: [] },
+  { entries: [] },
+];
+
 const renderModal = (overrides: Partial<Parameters<typeof SampleModal>[0]> = {}) => {
   const onClose = vi.fn();
-  const onTogglePillar = vi.fn();
+  const onTapChip = vi.fn();
+  const onApply = vi.fn();
+  const onRevert = vi.fn();
   const utils = render(
     <SampleModal
       open
       onClose={onClose}
-      pillarNumber={1}
       clips={CLIPS}
-      onTogglePillar={onTogglePillar}
+      draft={emptyDraft()}
+      onTapChip={onTapChip}
       activeByRfid={{}}
+      dirty={false}
+      onApply={onApply}
+      onRevert={onRevert}
       {...overrides}
     />,
   );
-  return { ...utils, onClose, onTogglePillar };
+  return { ...utils, onClose, onTapChip, onApply, onRevert };
 };
 
 /** The `<li>` row for a given clip name — scopes chip queries to one row. */
 const getRow = (getByText: (text: string) => HTMLElement, clipName: string): HTMLElement =>
   getByText(clipName).closest('li') as HTMLElement;
 
-describe('SampleModal (WOW-007B search/filter/sort/instrument/pillar-chip columns)', () => {
+describe('SampleModal (WOW-007B list + WOW-007C draft/apply chips)', () => {
+  it('titles the dialog "Sample selector"', () => {
+    const { getByText } = renderModal();
+    expect(getByText('Sample selector')).toBeInTheDocument();
+  });
+
   it('narrows the list by clip name', () => {
     const { getByLabelText, getByText, queryByText } = renderModal();
 
@@ -249,8 +272,8 @@ describe('SampleModal (WOW-007B search/filter/sort/instrument/pillar-chip column
     });
   });
 
-  describe('pillar chips (WOW-007B queueing replaces row-tap picking)', () => {
-    it('renders 4 enabled, outlined, unpressed chips per row when a clip is not active anywhere', () => {
+  describe('pillar chips (WOW-007C draft tap cycle)', () => {
+    it('renders 4 enabled, outlined, unpressed chips per row when a clip is in no pillar’s draft', () => {
       const { getByText } = renderModal();
       const row = getRow(getByText, 'Zephyr Drums');
 
@@ -263,13 +286,13 @@ describe('SampleModal (WOW-007B search/filter/sort/instrument/pillar-chip column
       });
     });
 
-    it('tapping an outlined chip calls onTogglePillar with the 0-based pillar index and the clip', () => {
-      const { getByRole, onTogglePillar } = renderModal();
+    it('tapping an outlined chip calls onTapChip with the 0-based pillar index and the clip', () => {
+      const { getByRole, onTapChip } = renderModal();
 
       fireEvent.click(getByRole('button', { name: 'Queue Vocal Hook 07 on pillar 3' }));
 
-      expect(onTogglePillar).toHaveBeenCalledTimes(1);
-      expect(onTogglePillar).toHaveBeenCalledWith(2, CLIPS[0]);
+      expect(onTapChip).toHaveBeenCalledTimes(1);
+      expect(onTapChip).toHaveBeenCalledWith(2, CLIPS[0]);
     });
 
     it('does not close the modal when a chip is tapped', () => {
@@ -280,100 +303,97 @@ describe('SampleModal (WOW-007B search/filter/sort/instrument/pillar-chip column
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('renders the pending-on-this-pillar chip filled and pressed, and tapping it calls onTogglePillar to remove it', () => {
-      const activeByRfid: ActiveByRfid = {
-        'rfid-vox-1': { pillarNumber: 1, state: 'pending' },
-      };
-      const { getByRole, onTogglePillar } = renderModal({ activeByRfid, pillarNumber: 1 });
+    it('renders a draft "queued" entry as a gold pressed chip labelled "Set … to play", and tapping it advances the cycle', () => {
+      const draft = emptyDraft();
+      draft[0].entries.push({ clip: CLIPS[0], state: 'queued' });
+      const { getByRole, onTapChip } = renderModal({ draft });
 
-      const chip = getByRole('button', { name: 'Remove Vocal Hook 07 from pillar 1 queue' });
+      const chip = getByRole('button', { name: 'Set Vocal Hook 07 to play on pillar 1' });
       expect(chip).toHaveAttribute('aria-pressed', 'true');
       expect(chip).toBeEnabled();
+      expect(chip.className).toContain('bg-gold-line');
 
       fireEvent.click(chip);
 
-      expect(onTogglePillar).toHaveBeenCalledWith(0, CLIPS[0]);
+      expect(onTapChip).toHaveBeenCalledWith(0, CLIPS[0]);
     });
 
-    it('leaves the other 3 chips outlined and tappable while one chip is pending on this pillar (supports moving)', () => {
-      const activeByRfid: ActiveByRfid = {
-        'rfid-vox-1': { pillarNumber: 1, state: 'pending' },
-      };
-      const { getByRole, onTogglePillar } = renderModal({ activeByRfid, pillarNumber: 1 });
+    it('renders a draft "play" entry as a green pressed chip labelled "Remove …", and tapping it advances the cycle', () => {
+      const draft = emptyDraft();
+      draft[2].entries.push({ clip: CLIPS[2], state: 'play' });
+      const { getByRole, onTapChip } = renderModal({ draft });
+
+      const chip = getByRole('button', { name: 'Remove Basement Growl from pillar 3' });
+      expect(chip).toHaveAttribute('aria-pressed', 'true');
+      expect(chip).toBeEnabled();
+      expect(chip.className).toContain('bg-[#22c55e]');
+
+      fireEvent.click(chip);
+
+      expect(onTapChip).toHaveBeenCalledWith(2, CLIPS[2]);
+    });
+
+    it('leaves the other 3 chips outlined and tappable while one chip is drafted (supports moving)', () => {
+      const draft = emptyDraft();
+      draft[0].entries.push({ clip: CLIPS[0], state: 'queued' });
+      const { getByRole, onTapChip } = renderModal({ draft });
 
       const otherChip = getByRole('button', { name: 'Queue Vocal Hook 07 on pillar 2' });
       expect(otherChip).toBeEnabled();
 
       fireEvent.click(otherChip);
 
-      expect(onTogglePillar).toHaveBeenCalledWith(1, CLIPS[0]);
+      expect(onTapChip).toHaveBeenCalledWith(1, CLIPS[0]);
     });
 
-    it('disables the backend-active chip with a state title, and disables every other chip on that row', () => {
-      const activeByRfid: ActiveByRfid = {
-        'rfid-vox-1': { pillarNumber: 2, state: 'queued' },
-      };
-      const { getByText } = renderModal({ activeByRfid });
-      const row = getRow(getByText, 'Vocal Hook 07');
-
-      const activeChip = within(row).getByRole('button', { name: 'P2' });
-      expect(activeChip).toBeDisabled();
-      expect(activeChip).toHaveAttribute('title', 'Queued on pillar 2');
-
-      [1, 3, 4].forEach((pillarNumber) => {
-        const otherChip = within(row).getByRole('button', { name: `P${pillarNumber}` });
-        expect(otherChip).toBeDisabled();
-      });
-    });
-
-    it('shows a Playing title on the active chip for a playing clip', () => {
+    it('never disables chips for a clip that is live per activeByRfid — playing clips stay movable', () => {
+      // WOW-007C human decision: playing samples are movable between pillars,
+      // so activeByRfid no longer disables anything.
       const activeByRfid: ActiveByRfid = {
         'rfid-bass-1': { pillarNumber: 3, state: 'playing' },
       };
-      const { getByText } = renderModal({ activeByRfid });
+      const draft = emptyDraft();
+      draft[2].entries.push({ clip: CLIPS[2], state: 'play' });
+      const { getByText } = renderModal({ activeByRfid, draft });
       const row = getRow(getByText, 'Basement Growl');
 
-      expect(within(row).getByRole('button', { name: 'P3' })).toHaveAttribute(
-        'title',
-        'Playing on pillar 3',
-      );
+      within(row)
+        .getAllByRole('button')
+        .forEach((chip) => expect(chip).toBeEnabled());
+    });
+  });
+
+  describe('Apply / Revert (WOW-007C)', () => {
+    it('disables both Apply and Revert while the draft matches reality (not dirty)', () => {
+      const { getByRole } = renderModal({ dirty: false });
+
+      expect(getByRole('button', { name: 'Apply changes' })).toBeDisabled();
+      expect(getByRole('button', { name: 'Revert changes' })).toBeDisabled();
     });
 
-    it('fills the playing chip green, distinct from the neutral queued/stopping fill', () => {
-      // Green = audibly live (human request 2026-07-20), matching the pillar
-      // cards' playing status-dot hue. Class-level assertion: the playing chip
-      // carries the green fill; a queued chip carries the neutral one.
-      const playing: ActiveByRfid = { 'rfid-bass-1': { pillarNumber: 3, state: 'playing' } };
-      const playingRender = renderModal({ activeByRfid: playing });
-      const playingChip = within(getRow(playingRender.getByText, 'Basement Growl')).getByRole(
-        'button',
-        { name: 'P3' },
-      );
-      expect(playingChip.className).toContain('bg-[#22c55e]');
+    it('enables both Apply and Revert when dirty', () => {
+      const { getByRole } = renderModal({ dirty: true });
 
-      playingRender.unmount();
-
-      const queued: ActiveByRfid = { 'rfid-bass-1': { pillarNumber: 3, state: 'queued' } };
-      const queuedRender = renderModal({ activeByRfid: queued });
-      const queuedChip = within(getRow(queuedRender.getByText, 'Basement Growl')).getByRole(
-        'button',
-        { name: 'P3' },
-      );
-      expect(queuedChip.className).not.toContain('bg-[#22c55e]');
-      expect(queuedChip.className).toContain('bg-parchment/25');
+      expect(getByRole('button', { name: 'Apply changes' })).toBeEnabled();
+      expect(getByRole('button', { name: 'Revert changes' })).toBeEnabled();
     });
 
-    it('shows a Stopping title on the active chip for a stopping clip', () => {
-      const activeByRfid: ActiveByRfid = {
-        'rfid-bass-1': { pillarNumber: 3, state: 'stopping' },
-      };
-      const { getByText } = renderModal({ activeByRfid });
-      const row = getRow(getByText, 'Basement Growl');
+    it('Apply calls onApply without closing the modal', () => {
+      const { getByRole, onApply, onClose } = renderModal({ dirty: true });
 
-      expect(within(row).getByRole('button', { name: 'P3' })).toHaveAttribute(
-        'title',
-        'Stopping on pillar 3',
-      );
+      fireEvent.click(getByRole('button', { name: 'Apply changes' }));
+
+      expect(onApply).toHaveBeenCalledTimes(1);
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('Revert calls onRevert without closing the modal', () => {
+      const { getByRole, onRevert, onClose } = renderModal({ dirty: true });
+
+      fireEvent.click(getByRole('button', { name: 'Revert changes' }));
+
+      expect(onRevert).toHaveBeenCalledTimes(1);
+      expect(onClose).not.toHaveBeenCalled();
     });
   });
 
@@ -399,26 +419,18 @@ describe('SampleModal (WOW-007B search/filter/sort/instrument/pillar-chip column
     fireEvent.click(getByRole('button', { name: 'Bass' }));
     fireEvent.click(getByRole('columnheader', { name: /BPM/ }));
 
-    rerender(
-      <SampleModal
-        open={false}
-        onClose={() => {}}
-        pillarNumber={1}
-        clips={CLIPS}
-        onTogglePillar={() => {}}
-        activeByRfid={{}}
-      />,
-    );
-    rerender(
-      <SampleModal
-        open
-        onClose={() => {}}
-        pillarNumber={1}
-        clips={CLIPS}
-        onTogglePillar={() => {}}
-        activeByRfid={{}}
-      />,
-    );
+    const closedProps = {
+      onClose: () => {},
+      clips: CLIPS,
+      draft: emptyDraft(),
+      onTapChip: () => {},
+      activeByRfid: {},
+      dirty: false,
+      onApply: () => {},
+      onRevert: () => {},
+    };
+    rerender(<SampleModal open={false} {...closedProps} />);
+    rerender(<SampleModal open {...closedProps} />);
 
     expect(getByLabelText('Search samples')).toHaveValue('');
     expect(getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');

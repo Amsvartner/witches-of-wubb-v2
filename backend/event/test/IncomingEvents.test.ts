@@ -28,6 +28,13 @@ beforeAll(async () => {
       getTrackVolumes: vi.fn(),
       setTrackVolume: vi.fn(),
       trackVolumes: [] as DeviceParameter[],
+      // WOW-007C
+      triggerRandomDrumSample: vi.fn(() => Promise.resolve()),
+      DEFAULT_TRACK_VOLUME: 0.6,
+      getCauldronVolume: vi.fn(),
+      setCauldronVolume: vi.fn(() => Promise.resolve()),
+      getIdleTimeoutConfig: vi.fn(),
+      setIdleTimeoutConfig: vi.fn(),
     },
   }));
   vi.doMock('../OutgoingEvents', () => ({
@@ -269,5 +276,136 @@ describe('handleDepartedTag pillar guard (WOW-017)', () => {
     await expect(returnedPromise).rejects.toBe(error);
 
     expect(errorSpy).toHaveBeenCalledWith(error, expect.stringContaining('pillar 1'));
+  });
+});
+
+describe('trigger_cauldron_sample (WOW-007C, WOW-014 crash-hardening)', () => {
+  it('calls AbletonAdapter.triggerRandomDrumSample on success', async () => {
+    await createHandlerRegistry().get('trigger_cauldron_sample')!();
+
+    expect(AbletonAdapter.triggerRandomDrumSample).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs and does not throw when AbletonAdapter.triggerRandomDrumSample rejects', async () => {
+    const error = new Error('fire boom');
+    vi.mocked(AbletonAdapter.triggerRandomDrumSample).mockRejectedValueOnce(error);
+
+    await expect(
+      createHandlerRegistry().get('trigger_cauldron_sample')!(),
+    ).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalledWith(error, 'Error triggering cauldron sample');
+  });
+});
+
+describe('get_cauldron_volume (WOW-007C, WOW-014 crash-hardening)', () => {
+  it('calls back with the cauldron volume on success', async () => {
+    vi.mocked(AbletonAdapter.getCauldronVolume).mockResolvedValueOnce(0.42);
+    const callback = vi.fn();
+
+    await createHandlerRegistry().get('get_cauldron_volume')!(undefined, callback);
+
+    expect(callback).toHaveBeenCalledWith(0.42);
+  });
+
+  it('logs and calls back with the 0.6 default when AbletonAdapter.getCauldronVolume rejects', async () => {
+    const error = new Error('ableton unreachable');
+    vi.mocked(AbletonAdapter.getCauldronVolume).mockRejectedValueOnce(error);
+    const callback = vi.fn();
+
+    await expect(
+      createHandlerRegistry().get('get_cauldron_volume')!(undefined, callback),
+    ).resolves.toBeUndefined();
+
+    expect(callback).toHaveBeenCalledWith(0.6);
+    expect(errorSpy).toHaveBeenCalledWith(error, 'Error getting cauldron volume');
+  });
+});
+
+describe('set_cauldron_volume (WOW-007C, WOW-014 crash-hardening)', () => {
+  it('sets the cauldron volume on success', async () => {
+    await createHandlerRegistry().get('set_cauldron_volume')!({ volume: 0.5 });
+
+    expect(AbletonAdapter.setCauldronVolume).toHaveBeenCalledWith(0.5);
+  });
+
+  it('logs and does not throw when AbletonAdapter.setCauldronVolume rejects', async () => {
+    const error = new Error('ableton unreachable');
+    vi.mocked(AbletonAdapter.setCauldronVolume).mockRejectedValueOnce(error);
+
+    await expect(
+      createHandlerRegistry().get('set_cauldron_volume')!({ volume: 0.5 }),
+    ).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalledWith(error, 'Error setting cauldron volume');
+  });
+});
+
+describe('get_idle_timeout (WOW-007C, WOW-014 crash-hardening)', () => {
+  it('calls back with the idle timeout config on success', () => {
+    vi.mocked(AbletonAdapter.getIdleTimeoutConfig).mockReturnValueOnce({
+      enabled: true,
+      timeoutMs: 180000,
+    });
+    const callback = vi.fn();
+
+    createHandlerRegistry().get('get_idle_timeout')!(undefined, callback);
+
+    expect(callback).toHaveBeenCalledWith({ enabled: true, timeoutMs: 180000 });
+  });
+
+  it('logs and acks the default config when AbletonAdapter.getIdleTimeoutConfig throws', () => {
+    const error = new Error('boom');
+    vi.mocked(AbletonAdapter.getIdleTimeoutConfig).mockImplementationOnce(() => {
+      throw error;
+    });
+    const callback = vi.fn();
+
+    expect(() =>
+      createHandlerRegistry().get('get_idle_timeout')!(undefined, callback),
+    ).not.toThrow();
+
+    // Same posture as get_cauldron_volume: the UI gets a sane default rather
+    // than a callback that never fires (general review, PR #56).
+    expect(callback).toHaveBeenCalledWith({ enabled: true, timeoutMs: 3 * 60 * 1000 });
+    expect(errorSpy).toHaveBeenCalledWith(error, 'Error getting idle timeout config');
+  });
+});
+
+describe('set_idle_timeout (WOW-007C, WOW-014 crash-hardening)', () => {
+  it('applies the config and calls back with the result on success', () => {
+    const config = { enabled: false, timeoutMs: 60000 };
+    vi.mocked(AbletonAdapter.setIdleTimeoutConfig).mockReturnValueOnce(config);
+    const callback = vi.fn();
+
+    createHandlerRegistry().get('set_idle_timeout')!(config, callback);
+
+    expect(AbletonAdapter.setIdleTimeoutConfig).toHaveBeenCalledWith(config);
+    expect(callback).toHaveBeenCalledWith(config);
+  });
+
+  it('tolerates a missing callback (fire-and-forget callers)', () => {
+    const config = { enabled: true, timeoutMs: 90000 };
+    vi.mocked(AbletonAdapter.setIdleTimeoutConfig).mockReturnValueOnce(config);
+
+    expect(() => createHandlerRegistry().get('set_idle_timeout')!(config)).not.toThrow();
+  });
+
+  it('logs and does not throw when AbletonAdapter.setIdleTimeoutConfig throws', () => {
+    const error = new Error('boom');
+    vi.mocked(AbletonAdapter.setIdleTimeoutConfig).mockImplementationOnce(() => {
+      throw error;
+    });
+    const callback = vi.fn();
+
+    expect(() =>
+      createHandlerRegistry().get('set_idle_timeout')!(
+        { enabled: true, timeoutMs: 60000 },
+        callback,
+      ),
+    ).not.toThrow();
+
+    expect(callback).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(error, 'Error setting idle timeout config');
   });
 });

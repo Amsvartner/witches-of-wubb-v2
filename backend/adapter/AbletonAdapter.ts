@@ -423,9 +423,12 @@ function getDjModeActive(): boolean {
 // only a type: a non-boolean payload (malformed client, stale contract) is
 // ignored (warn + no change) rather than coerced, same "no surprises"
 // posture as setTempo's NaN guard (WOW-020) and setIdleTimeoutConfig's
-// out-of-bounds guard. No ack (frozen per the ticket - the frontend doesn't
-// need to read this back, only broadcast listeners like the lighting/other
-// UI instances do via `dj_mode_changed`).
+// out-of-bounds guard. No ack (frozen per the ticket - the frontend pushes
+// this state and never reads it back; it has no `dj_mode_changed` listener
+// today). The broadcast exists for OTHER clients - lighting, logging, any
+// future observer - mirroring how every sibling setter here broadcasts its
+// state change (Copilot review, PR #58: wording tightened to not imply
+// current UI consumers).
 function setDjModeActive(active: boolean | undefined): boolean {
   if (typeof active !== 'boolean') {
     Logger.warn(`Ignoring setDjModeActive(${JSON.stringify(active)}): not a boolean`);

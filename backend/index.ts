@@ -55,6 +55,11 @@ async function main() {
 
     s.on('disconnect', () => {
       Logger.info('Web client disconnected');
+      // socket.io v4 removes the socket from the namespace BEFORE emitting
+      // 'disconnect', so size === 0 here means this was the last client.
+      if (io.of('/').sockets.size === 0) {
+        AbletonAdapter.handleLastWebClientDisconnected();
+      }
     });
     AbletonAdapter.addWebSocket(s);
   });

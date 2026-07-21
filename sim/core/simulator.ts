@@ -23,6 +23,7 @@ import {
   BrowserClipInfoList,
   IdleTimeoutConfigType,
   SetCauldronVolumeInputType,
+  SetDjModeInputType,
   SetTrackVolumeInputType,
   SimEventListener,
   TagDetectionData,
@@ -117,6 +118,12 @@ export class Simulator {
   // — disabling means spells loop indefinitely and the Live-set attractor
   // never engages (see restartTimeoutTimer).
   private idleTimeoutEnabled = true;
+  // WOW-007C item 4: mirrors djModeActive (backend/adapter/AbletonAdapter.ts)
+  // — while true, the idle timeout must never hand over to the Live-set
+  // attractor. Not persisted (in-memory only, same as every other sim
+  // field) — a sim restart comes back up with DJ mode off, same failsafe
+  // posture as the real backend.
+  private djModeActive = false;
   // WOW-007C: mirrors cauldronVolumeParam's resolved value
   // (backend/adapter/AbletonAdapter.ts getCauldronVolume) — same 0.6 default.
   private cauldronVolume = 0.6;
@@ -197,6 +204,9 @@ export class Simulator {
     this.timeoutId = null;
     this.timeoutWarningId = null;
     if (!this.idleTimeoutEnabled) return;
+    // WOW-007C item 4: mirrors the backend's djModeActive guard in
+    // startTimeoutTimer — a DJ mid-set is supervised operation, never idle.
+    if (this.djModeActive) return;
     // Mirrors the backend's guard: never arm the warning with a
     // zero/negative delay (audio-ableton review, PR #56).
     const warningDelay = this.timeoutMs - this.timeoutWarningMs;
@@ -537,5 +547,46 @@ export class Simulator {
     this.restartTimeoutTimer();
     this.emit('idle_timeout_changed', this.getIdleTimeoutConfig(), false);
     return this.getIdleTimeoutConfig();
+  }
+
+  // --- WOW-007C item 4: DJ mode (mirrors AbletonAdapter's
+  // getDjModeActive/setDjModeActive) --------------------------------------
+
+  getDjModeActive(): boolean {
+    return this.djModeActive;
+  }
+
+  // Fire-and-forget in the real contract — no ack callback (mirrors
+  // set_dj_mode's handler in backend/event/IncomingEvents.ts). A non-boolean
+  // payload is ignored (warn, no change) rather than coerced — same "no
+  // surprises" posture as setIdleTimeoutConfig's out-of-bounds guard. The
+  // payload is destructured in the BODY, not the parameter list (Copilot
+  // review, PR #58): a null/missing payload must fall into the non-boolean
+  // guard below, not throw on destructuring before any validation runs.
+  setDjModeActive(payload: SetDjModeInputType | null | undefined): boolean {
+    const active = payload?.active;
+    if (typeof active !== 'boolean') {
+      this.logger.warn(`Ignoring setDjModeActive: ${JSON.stringify(active)} is not a boolean`);
+      return this.djModeActive;
+    }
+    this.djModeActive = active;
+    this.logger.info(`DJ mode: ${this.djModeActive}`);
+    this.emit('dj_mode_changed', { active: this.djModeActive }, false);
+    // Re-arms (DJ mode ending) or clears (DJ mode starting) the timers
+    // immediately — mirrors AbletonAdapter.setDjModeActive.
+    this.restartTimeoutTimer();
+    return this.djModeActive;
+  }
+
+  // Mirrors AbletonAdapter.handleLastWebClientDisconnected (audio-ableton
+  // delta review finding 1): the suppression's recovery chain lives in the
+  // frontend, so a dead last UI must not leave the idle timeout suppressed
+  // indefinitely. Called by sim/server.ts when the last client disconnects.
+  handleLastWebClientDisconnected(): void {
+    if (!this.djModeActive) return;
+    this.logger.info(
+      'Last web client disconnected while DJ mode active — lifting idle-timeout suppression',
+    );
+    this.setDjModeActive({ active: false });
   }
 }

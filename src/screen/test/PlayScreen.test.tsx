@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { Socket } from 'socket.io-client';
 import { vi } from 'vitest';
 import { BrowserClipInfo } from 'backend/type/BrowserClipInfo';
@@ -48,6 +48,7 @@ const createAbletonState = (overrides: Partial<AbletonContextState> = {}): Ablet
   changeCauldronVolume: vi.fn(),
   idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
   changeIdleTimeout: vi.fn(),
+  setDjMode: vi.fn(),
   ...overrides,
 });
 
@@ -121,14 +122,15 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     });
 
     it('renders its callout copy once open', () => {
-      const { getByRole, getByText } = renderPlayScreen();
+      const { getByRole, getByText, queryByText } = renderPlayScreen();
 
       fireEvent.click(getByRole('button', { name: 'HELP' }));
 
       expect(
         getByText('Tap the cauldron — it loves attention (and makes noises)'),
       ).toBeInTheDocument();
-      expect(getByText('Deeper magicks hide behind the Settings sigil')).toBeInTheDocument();
+      // Settings-button callout removed (human, 2026-07-21).
+      expect(queryByText('Deeper magicks hide behind the Settings sigil')).not.toBeInTheDocument();
     });
 
     it('closes via Escape', () => {
@@ -211,14 +213,14 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     expect(queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('switches to DJ mode: EXIT DJ appears, per-pillar sample selection and queue sections appear', () => {
-    const { getByRole, getAllByRole, getByText } = renderPlayScreen();
+  it('switches to DJ mode: per-pillar sample selection and queue sections appear (no EXIT DJ button — Settings is the only mode switch, human 2026-07-21)', () => {
+    const { getByRole, getAllByRole, getByText, queryByRole } = renderPlayScreen();
 
     fireEvent.click(getByRole('button', { name: /settings/i }));
     fireEvent.click(getByRole('button', { name: 'DJ' }));
     fireEvent.click(getByRole('button', { name: /close/i }));
 
-    expect(getByRole('button', { name: 'EXIT DJ' })).toBeInTheDocument();
+    expect(queryByRole('button', { name: 'EXIT DJ' })).not.toBeInTheDocument();
     // Select sample renders on every pillar, including empty ones (a DJ must
     // be able to place a first clip on an empty pillar).
     expect(getAllByRole('button', { name: 'Select sample' })).toHaveLength(4);
@@ -229,17 +231,18 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     expect(getByText('Melody Loop')).toBeInTheDocument();
   });
 
-  it('exiting DJ mode returns to play mode and hides the DJ controls', () => {
-    const { getByRole, queryByRole, queryAllByRole } = renderPlayScreen();
+  it('exiting DJ mode via Settings -> Play hides the DJ controls', () => {
+    const { getByRole, getAllByRole, queryAllByRole } = renderPlayScreen();
 
     fireEvent.click(getByRole('button', { name: /settings/i }));
     fireEvent.click(getByRole('button', { name: 'DJ' }));
     fireEvent.click(getByRole('button', { name: /close/i }));
-    expect(getByRole('button', { name: 'EXIT DJ' })).toBeInTheDocument();
+    expect(getAllByRole('button', { name: 'Select sample' })).toHaveLength(4);
 
-    fireEvent.click(getByRole('button', { name: 'EXIT DJ' }));
+    fireEvent.click(getByRole('button', { name: /settings/i }));
+    fireEvent.click(getByRole('button', { name: 'Play' }));
+    fireEvent.click(getByRole('button', { name: /close/i }));
 
-    expect(queryByRole('button', { name: 'EXIT DJ' })).not.toBeInTheDocument();
     expect(queryAllByRole('button', { name: 'Select sample' })).toHaveLength(0);
   });
 
@@ -272,14 +275,23 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     expect(abletonState.changeKeylock).toHaveBeenCalledWith(false);
   });
 
-  it('shows a connecting banner when the socket is disconnected', () => {
-    const { getByText } = renderPlayScreen({ socket: createSocket(false) });
-    expect(getByText(/connecting to the cauldron/i)).toBeInTheDocument();
+  it('shows the connecting overlay card (status region) when the socket is disconnected', () => {
+    const { getByRole } = renderPlayScreen({ socket: createSocket(false) });
+    expect(getByRole('status')).toHaveTextContent(/connecting to the cauldron/i);
   });
 
-  it('hides the connecting banner once connected', () => {
+  it('hides the connecting overlay once connected', () => {
     const { queryByText } = renderPlayScreen({ socket: createSocket(true) });
     expect(queryByText(/connecting to the cauldron/i)).not.toBeInTheDocument();
+  });
+
+  // The connecting overlay and the empty-state nudge share one visual shell
+  // and screen position (human, 2026-07-21) — while disconnected every
+  // pillar derives as empty, so without the isConnected gate they'd stack.
+  it('suppresses the empty-state nudge while the connecting overlay is up', () => {
+    const { getByRole, queryByText } = renderPlayScreen({ socket: createSocket(false) });
+    expect(getByRole('status')).toHaveTextContent(/connecting to the cauldron/i);
+    expect(queryByText(/place an ingredient upon a pillar/i)).not.toBeInTheDocument();
   });
 
   it('resets the key to the tracked baseline, undoing manual transposition', () => {
@@ -319,29 +331,90 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
     it('restores DJ mode on mount from a stored hexology.mode, without opening Settings', () => {
       window.localStorage.setItem('hexology.mode', 'dj');
 
-      const { getByRole } = renderPlayScreen();
+      const { getAllByRole } = renderPlayScreen();
 
-      expect(getByRole('button', { name: 'EXIT DJ' })).toBeInTheDocument();
+      expect(getAllByRole('button', { name: 'Select sample' })).toHaveLength(4);
     });
 
     it('falls back to play mode when hexology.mode holds anything other than "dj"', () => {
       window.localStorage.setItem('hexology.mode', 'bogus');
 
-      const { queryByRole } = renderPlayScreen();
+      const { queryAllByRole } = renderPlayScreen();
 
-      expect(queryByRole('button', { name: 'EXIT DJ' })).not.toBeInTheDocument();
+      expect(queryAllByRole('button', { name: 'Select sample' })).toHaveLength(0);
     });
 
-    it('persists the mode to localStorage on every change, including EXIT DJ', () => {
+    it('persists the mode to localStorage on every change, in both directions', () => {
       const { getByRole } = renderPlayScreen();
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
       fireEvent.click(getByRole('button', { name: 'DJ' }));
-      fireEvent.click(getByRole('button', { name: /close/i }));
       expect(window.localStorage.getItem('hexology.mode')).toBe('dj');
 
-      fireEvent.click(getByRole('button', { name: 'EXIT DJ' }));
+      fireEvent.click(getByRole('button', { name: 'Play' }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
       expect(window.localStorage.getItem('hexology.mode')).toBe('play');
+    });
+  });
+
+  // WOW-007C item 4: the idle timeout must never hand over to the Live-set
+  // attractor while DJ mode is active — PlayModeContainer tells the backend
+  // via setDjMode on every mode change and on every (re)connect (backend
+  // state isn't persisted, see AbletonAdapter.djModeActive).
+  describe('WOW-007C item 4: DJ-mode idle-timeout suppression (setDjMode)', () => {
+    it('calls setDjMode(true) on switching to DJ mode, and setDjMode(false) back to Play, while connected', () => {
+      const { getByRole, abletonState } = renderPlayScreen({ socket: createSocket(true) });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+
+      expect(abletonState.setDjMode).toHaveBeenLastCalledWith(true);
+
+      fireEvent.click(getByRole('button', { name: 'Play' }));
+
+      // Same setMode plumbing the DJ auto-exit walk-away timer uses
+      // (PlayModeContainer's setTimeout(() => setMode('play'), djAutoExitMs))
+      // — restoring the idle timeout on auto-exit is this exact chain, not a
+      // separate mechanism.
+      expect(abletonState.setDjMode).toHaveBeenLastCalledWith(false);
+    });
+
+    it('does not call setDjMode while the socket has never connected', () => {
+      const { getByRole, abletonState } = renderPlayScreen({ socket: createSocket(false) });
+
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+
+      expect(abletonState.setDjMode).not.toHaveBeenCalled();
+    });
+
+    it('re-asserts the current mode on reconnect, since backend-side DJ state is not persisted', () => {
+      const handlers: Record<string, () => void> = {};
+      const socket = {
+        on: vi.fn((event: string, cb: () => void) => {
+          handlers[event] = cb;
+        }),
+        off: vi.fn(),
+        emit: vi.fn(),
+        connected: false,
+      } as unknown as Socket;
+
+      const { getByRole, abletonState } = renderPlayScreen({ socket });
+
+      // Switched to DJ mode entirely before the backend ever connects.
+      fireEvent.click(getByRole('button', { name: /settings/i }));
+      fireEvent.click(getByRole('button', { name: 'DJ' }));
+      fireEvent.click(getByRole('button', { name: /close/i }));
+      expect(abletonState.setDjMode).not.toHaveBeenCalled();
+
+      // The backend connects — a fresh backend process has djModeActive
+      // false by default (failsafe posture), so it must be told the UI's
+      // actual current mode, not just future changes.
+      act(() => {
+        handlers.connect?.();
+      });
+
+      expect(abletonState.setDjMode).toHaveBeenCalledWith(true);
     });
   });
 
@@ -413,18 +486,18 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
   // Deliberately light — asserting the z-index classes exist on the right
   // ancestors, not the full Tailwind class string.
   describe('WOW-007D: pillar/cauldron z-order', () => {
-    it('places the cauldron wrapper above the top-row cards and below the bottom-row cards', () => {
+    it('places the cauldron wrapper behind every pillar card (its art has an opaque background — human, 2026-07-21)', () => {
       const { getByRole, getAllByText } = renderPlayScreen();
 
-      const cauldronWrapper = getByRole('button', { name: 'Cauldron' }).closest('.z-20');
+      const cauldronWrapper = getByRole('button', { name: 'Cauldron' }).closest('.z-0');
       expect(cauldronWrapper).not.toBeNull();
 
       // Pillar 1 (VOCALS) is top row; pillars 3 & 4 ("awaiting ingredient",
-      // both empty in the default fixture) are bottom row.
+      // both empty in the default fixture) are bottom row — all four at z-10.
       const topRowWrapper = getByRole('heading', { level: 2, name: 'VOCALS' }).closest('.z-10');
       expect(topRowWrapper).not.toBeNull();
 
-      const bottomRowWrapper = getAllByText(/awaiting ingredient/i)[0].closest('.z-30');
+      const bottomRowWrapper = getAllByText(/awaiting ingredient/i)[0].closest('.z-10');
       expect(bottomRowWrapper).not.toBeNull();
     });
   });
@@ -488,28 +561,29 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
   });
 
   describe('WOW-007C: Settings modal — cauldron loudness, pause music, DJ auto-exit', () => {
-    // The three sections are DJ-gated (human safety decision 2026-07-20):
-    // visitors in play mode only get Mode + Animations, so every test below
-    // switches to DJ mode inside the open Settings modal first.
-    it('hides the cauldron loudness, pause music, and DJ auto-exit sections in play mode', () => {
-      const { getByRole, queryByText, queryByRole } = renderPlayScreen();
+    // Section gating (human decision 2026-07-21, revising the all-DJ-gated
+    // 2026-07-20 decision): cauldron loudness in BOTH modes, pause music in
+    // PLAY mode only (it never plays during a DJ set), DJ auto-exit in DJ
+    // mode only.
+    it('play mode: cauldron loudness + pause music sections, no DJ auto-exit', () => {
+      const { getByRole, getByText, queryByText } = renderPlayScreen();
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
 
-      expect(queryByText('Cauldron loudness')).not.toBeInTheDocument();
-      expect(queryByRole('slider', { name: 'Cauldron loudness' })).not.toBeInTheDocument();
-      expect(queryByText('Pause music')).not.toBeInTheDocument();
+      expect(getByText('Cauldron loudness')).toBeInTheDocument();
+      expect(getByRole('slider', { name: 'Cauldron loudness' })).toBeInTheDocument();
+      expect(getByText('Pause music')).toBeInTheDocument();
       expect(queryByText('DJ auto-exit')).not.toBeInTheDocument();
     });
 
-    it('reveals the three sections as soon as DJ mode is switched on inside the modal', () => {
-      const { getByRole, getByText } = renderPlayScreen();
+    it('switching to DJ mode inside the modal swaps pause music out for DJ auto-exit, keeps cauldron loudness', () => {
+      const { getByRole, getByText, queryByText } = renderPlayScreen();
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
       fireEvent.click(getByRole('button', { name: 'DJ' }));
 
       expect(getByText('Cauldron loudness')).toBeInTheDocument();
-      expect(getByText('Pause music')).toBeInTheDocument();
+      expect(queryByText('Pause music')).not.toBeInTheDocument();
       expect(getByText('DJ auto-exit')).toBeInTheDocument();
     });
 
@@ -540,7 +614,6 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       });
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
-      fireEvent.click(getByRole('button', { name: 'DJ' }));
       fireEvent.click(getByRole('button', { name: 'Pause music' }));
 
       expect(abletonState.changeIdleTimeout).toHaveBeenCalledWith({
@@ -557,7 +630,6 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       });
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
-      fireEvent.click(getByRole('button', { name: 'DJ' }));
       fireEvent.click(getByRole('button', { name: 'Pause music after 5 min' }));
 
       expect(abletonState.changeIdleTimeout).toHaveBeenCalledWith({
@@ -572,7 +644,6 @@ describe('PlayScreen (WOW-007B live wiring)', () => {
       });
 
       fireEvent.click(getByRole('button', { name: /settings/i }));
-      fireEvent.click(getByRole('button', { name: 'DJ' }));
 
       expect(getByRole('button', { name: 'Pause music after 1 min' })).toBeDisabled();
     });

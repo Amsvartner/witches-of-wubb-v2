@@ -5,6 +5,7 @@ import { MainScreen } from '~/screen/MainScreen';
 import { PlayScreen } from '~/screen/PlayScreen';
 import { SocketProvider } from '~/context/SocketProvider';
 import { AbletonProvider } from '~/context/AbletonProvider';
+import { AppErrorBoundary } from '~/component/AppErrorBoundary';
 
 // WOW-007B production cutover: the live-wired play-mode screen is now the
 // default entry. The legacy MainScreen UI is kept as an emergency show-day
@@ -20,10 +21,15 @@ window.addEventListener('hashchange', () => {
   window.location.reload();
 });
 
+// The boundary wraps the PROVIDERS too: a crash anywhere in the tree shows
+// the themed recovery screen instead of a bare black page (WOW-007D — a
+// kiosk has no one watching the console).
 const app = (
-  <SocketProvider>
-    <AbletonProvider>{isLegacy ? <MainScreen /> : <PlayScreen />}</AbletonProvider>
-  </SocketProvider>
+  <AppErrorBoundary>
+    <SocketProvider>
+      <AbletonProvider>{isLegacy ? <MainScreen /> : <PlayScreen />}</AbletonProvider>
+    </SocketProvider>
+  </AppErrorBoundary>
 );
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

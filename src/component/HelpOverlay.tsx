@@ -33,9 +33,10 @@ const ARROW_CLASS: Record<Arrow, string> = {
     'right-0 top-1/2 translate-x-full -translate-y-1/2 border-y-8 border-l-[10px] border-y-transparent border-l-gold-line',
 };
 
-// Copy + anchors for the five callouts (human spec 2026-07-20): a pillar
-// card, a volume tube, the cauldron, the settings band, and the Settings
-// button — the five surfaces a first-time visitor needs pointed out.
+// Copy + anchors for the four callouts (human spec 2026-07-20; Settings
+// button callout removed 2026-07-21): a pillar card, a volume tube, the
+// cauldron, and the settings band — the surfaces a first-time visitor needs
+// pointed out.
 const CALLOUTS: Callout[] = [
   {
     id: 'pillar',
@@ -60,12 +61,6 @@ const CALLOUTS: Callout[] = [
     copy: 'The lower grimoire bends time and key — twist the tempo, raise the pitch',
     style: { bottom: '11%', left: '50%', transform: 'translateX(-50%)' },
     arrow: 'down',
-  },
-  {
-    id: 'settings-button',
-    copy: 'Deeper magicks hide behind the Settings sigil',
-    style: { top: '4%', right: '3%' },
-    arrow: 'up',
   },
 ];
 
@@ -97,7 +92,11 @@ export const HelpOverlay = ({ open, onClose }: Props): JSX.Element => (
       aria-hidden='true'
       tabIndex={-1}
       data-testid='help-scrim'
-      className='fixed inset-0 cursor-default bg-[#0b0910]/80'
+      // Transparent (human, 2026-07-21): the callouts point at real controls,
+      // so the visitor must be able to SEE them — the old dimming layer hid
+      // exactly what Help was explaining. Still a full-screen tap target for
+      // dismissal.
+      className='fixed inset-0 cursor-default bg-transparent'
     />
     <div className='pointer-events-none fixed inset-0'>
       <button

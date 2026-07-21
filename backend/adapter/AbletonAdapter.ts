@@ -37,6 +37,15 @@ const sockets: socketio.Socket[] = [];
 // (only the overall timeout is exposed).
 let idleTimeoutMs = 60 * 3 * 1000; // three minutes
 let idleTimeoutEnabled = true;
+// WOW-007C item 4: while DJ mode is active on the frontend, the idle timeout
+// must never hand over to the Live-set attractor ("pause music") — a DJ
+// mid-set is supervised operation, not visitor idleness. Deliberately NOT
+// persisted (module-level `let`, reset to false on every backend restart) -
+// same failsafe posture as idleTimeoutEnabled/idleTimeoutMs above: if the
+// backend restarts mid-DJ-set, it comes back up in the safe default (timeout
+// armed), not silently stuck suppressed forever. The frontend re-asserts DJ
+// mode on every reconnect for exactly this reason (see PlayModeContainer).
+let djModeActive = false;
 const TIMEOUT_WARNING_IN_MILLISECONDS = 30 * 1000; // thirty seconds
 // One minute, deliberately ABOVE TIMEOUT_WARNING_IN_MILLISECONDS: at a
 // timeout equal to the warning offset the warning timer would arm with a
@@ -329,6 +338,16 @@ function startTimeoutTimer() {
     Logger.info('Idle timeout disabled - not arming timers');
     return;
   }
+  // WOW-007C item 4: DJ mode active - arm nothing (same shape as the
+  // idleTimeoutEnabled guard above). The idle handover must never fire while
+  // a DJ is supervising the installation; restartTimeoutTimer (called by
+  // setDjModeActive on every transition) always clears any already-armed
+  // timers first, so entering DJ mode also cancels a timer that was already
+  // ticking down.
+  if (djModeActive) {
+    Logger.info('DJ mode active - not arming idle timeout timers');
+    return;
+  }
   Logger.info('Starting timeout timer');
   function shouldShowTimeout() {
     return (
@@ -391,6 +410,58 @@ function setIdleTimeoutConfig(config: IdleTimeoutConfigType): IdleTimeoutConfigT
   restartTimeoutTimer();
   OutgoingEvents.emitEventWithoutResettingTimeout('idle_timeout_changed', getIdleTimeoutConfig());
   return getIdleTimeoutConfig();
+}
+
+function getDjModeActive(): boolean {
+  return djModeActive;
+}
+
+// WOW-007C item 4: validates and applies a DJ-mode transition, then re-arms
+// (or clears) the idle-timeout timers immediately via restartTimeoutTimer -
+// same "validate, assign, log, broadcast, re-arm" shape as
+// setIdleTimeoutConfig above, except djModeActive has no bounds to check,
+// only a type: a non-boolean payload (malformed client, stale contract) is
+// ignored (warn + no change) rather than coerced, same "no surprises"
+// posture as setTempo's NaN guard (WOW-020) and setIdleTimeoutConfig's
+// out-of-bounds guard. No ack (frozen per the ticket - the frontend pushes
+// this state and never reads it back; it has no `dj_mode_changed` listener
+// today). The broadcast exists for OTHER clients - lighting, logging, any
+// future observer - mirroring how every sibling setter here broadcasts its
+// state change (Copilot review, PR #58: wording tightened to not imply
+// current UI consumers).
+function setDjModeActive(active: boolean | undefined): boolean {
+  if (typeof active !== 'boolean') {
+    Logger.warn(`Ignoring setDjModeActive(${JSON.stringify(active)}): not a boolean`);
+    return djModeActive;
+  }
+  djModeActive = active;
+  Logger.info(`DJ mode: ${djModeActive}`);
+  OutgoingEvents.emitEventWithoutResettingTimeout('dj_mode_changed', { active: djModeActive });
+  // Re-arms (DJ mode ending, by any path - explicit exit or the frontend's
+  // own walk-away auto-exit) or clears (DJ mode starting) the timers
+  // immediately, without waiting for the next visitor-activity emission -
+  // same immediate-effect posture as setIdleTimeoutConfig.
+  restartTimeoutTimer();
+  return djModeActive;
+}
+
+// Failsafe symmetric to the non-persistence posture above (audio-ableton
+// delta review of the DJ-gate commit, finding 1): the suppression's entire
+// recovery chain — walk-away auto-exit, explicit Settings toggle — lives in
+// the FRONTEND, so if the last supervising UI dies while DJ mode is active
+// (browser crash, kiosk power loss), nothing would ever emit
+// `set_dj_mode {active:false}` and the attractor handover would stay
+// suppressed indefinitely. index.ts calls this when the last web client
+// disconnects: no supervising UI connected = timeout armed. A transient
+// drop/reconnect is harmless — the frontend re-asserts its mode on every
+// (re)connect (PlayModeContainer), restoring suppression within a second if
+// a DJ session is genuinely still running.
+function handleLastWebClientDisconnected(): void {
+  if (!djModeActive) return;
+  Logger.info(
+    'Last web client disconnected while DJ mode active — lifting idle-timeout suppression',
+  );
+  setDjModeActive(false);
 }
 
 function connectOscServer(server: nodeOSC.Server) {
@@ -1179,6 +1250,9 @@ export const AbletonAdapter = {
   restartTimeoutTimer,
   getIdleTimeoutConfig,
   setIdleTimeoutConfig,
+  getDjModeActive,
+  setDjModeActive,
+  handleLastWebClientDisconnected,
   getDrumRackClips,
   triggerRandomDrumSample,
   getCauldronVolume,

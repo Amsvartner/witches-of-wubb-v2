@@ -37,7 +37,7 @@ export const IconButton = ({
     disabled={disabled}
     onClick={onClick}
     style={style}
-    className={`flex items-center justify-center gap-1.5 rounded-lg border border-gold-line/40 bg-ink-btn text-parchment/85 disabled:cursor-default disabled:opacity-75 ${
+    className={`flex items-center justify-center gap-1.5 rounded-lg border border-gold-line/40 bg-ink-btn text-parchment/80 disabled:cursor-default disabled:opacity-75 ${
       className ?? ''
     }`}
   >

@@ -303,7 +303,19 @@ describe('SampleModal (WOW-007B list + WOW-007C draft/apply chips)', () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('renders a draft "queued" entry as a gold pressed chip labelled "Set … to play", and tapping it advances the cycle', () => {
+    // Two ways to close (human, 2026-07-21): the ✕ top-right and the footer
+    // Close button both call onClose.
+    it('closes via the ✕ top-right and via the footer Close button', () => {
+      const { getByRole, onClose } = renderModal();
+
+      fireEvent.click(getByRole('button', { name: 'Close sample selector' }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(getByRole('button', { name: 'Close' }));
+      expect(onClose).toHaveBeenCalledTimes(2);
+    });
+
+    it('renders a draft "queued" entry as an amber pressed chip labelled "Set … to play", and tapping it advances the cycle', () => {
       const draft = emptyDraft();
       draft[0].entries.push({ clip: CLIPS[0], state: 'queued' });
       const { getByRole, onTapChip } = renderModal({ draft });
@@ -311,7 +323,7 @@ describe('SampleModal (WOW-007B list + WOW-007C draft/apply chips)', () => {
       const chip = getByRole('button', { name: 'Set Vocal Hook 07 to play on pillar 1' });
       expect(chip).toHaveAttribute('aria-pressed', 'true');
       expect(chip).toBeEnabled();
-      expect(chip.className).toContain('bg-gold-line');
+      expect(chip.className).toContain('bg-amber-400');
 
       fireEvent.click(chip);
 

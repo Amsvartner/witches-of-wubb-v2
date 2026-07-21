@@ -529,6 +529,86 @@ describe('Simulator', () => {
     });
   });
 
+  // WOW-007C item 4: DJ mode suppresses the idle-timeout handover for as
+  // long as it's active, mirroring AbletonAdapter's djModeActive/
+  // setDjModeActive round-trip.
+  describe('DJ mode round-trip', () => {
+    it('defaults to inactive', () => {
+      expect(simulator.getDjModeActive()).toBe(false);
+    });
+
+    it('set_dj_mode updates state and emits dj_mode_changed', () => {
+      const result = simulator.setDjModeActive({ active: true });
+
+      expect(result).toBe(true);
+      expect(simulator.getDjModeActive()).toBe(true);
+      expect(lastEvent('dj_mode_changed')?.data).toEqual({ active: true });
+    });
+
+    it('activating suppresses the idle timeout: no timeout_warning even well past the deadline', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      simulator.setDjModeActive({ active: true });
+      events = [];
+
+      vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS * 2);
+
+      expect(eventNames()).not.toContain('timeout_warning');
+    });
+
+    it('deactivating re-arms the timeout: timeout_warning fires on schedule again', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      simulator.setDjModeActive({ active: true });
+
+      simulator.setDjModeActive({ active: false });
+      events = [];
+      vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS);
+
+      expect(eventNames()).toEqual(['timeout_warning']);
+    });
+
+    it('ignores a non-boolean active payload, leaving state unchanged', () => {
+      const before = simulator.getDjModeActive();
+
+      const result = simulator.setDjModeActive({ active: 'yes' as unknown as boolean });
+
+      expect(result).toBe(before);
+      expect(simulator.getDjModeActive()).toBe(before);
+    });
+
+    // Copilot review, PR #58: a null/missing payload must fall into the
+    // non-boolean guard, not throw on parameter destructuring.
+    it('ignores a null or missing payload without throwing', () => {
+      expect(() => simulator.setDjModeActive(null)).not.toThrow();
+      expect(() => simulator.setDjModeActive(undefined)).not.toThrow();
+      expect(simulator.getDjModeActive()).toBe(false);
+    });
+
+    // Mirrors AbletonAdapter.handleLastWebClientDisconnected (audio-ableton
+    // delta review finding 1): a dead last UI must not leave the timeout
+    // suppressed forever.
+    it('handleLastWebClientDisconnected lifts an active suppression and the warning fires on schedule again', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      simulator.setDjModeActive({ active: true });
+
+      simulator.handleLastWebClientDisconnected();
+
+      expect(simulator.getDjModeActive()).toBe(false);
+      expect(lastEvent('dj_mode_changed')?.data).toEqual({ active: false });
+      events = [];
+      vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS);
+      expect(eventNames()).toEqual(['timeout_warning']);
+    });
+
+    it('handleLastWebClientDisconnected is a no-op while DJ mode is inactive', () => {
+      events = [];
+
+      simulator.handleLastWebClientDisconnected();
+
+      expect(simulator.getDjModeActive()).toBe(false);
+      expect(eventNames()).not.toContain('dj_mode_changed');
+    });
+  });
+
   // WOW-007C (human request): a pillar's explicitly-set volume survives the
   // next clip that starts there, instead of always resetting to 0.6.
   describe('desired volume respected at clip start', () => {

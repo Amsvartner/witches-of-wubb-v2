@@ -26,6 +26,7 @@ function buildContextValue(overrides: Partial<AbletonContextState> = {}): Ableto
     changeCauldronVolume: vi.fn(),
     idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
     changeIdleTimeout: vi.fn(),
+    setDjMode: vi.fn(),
     ...overrides,
   };
 }

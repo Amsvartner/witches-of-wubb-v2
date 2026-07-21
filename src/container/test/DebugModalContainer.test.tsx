@@ -64,6 +64,7 @@ const abletonStub: AbletonContextState = {
   changeCauldronVolume: () => {},
   idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
   changeIdleTimeout: () => {},
+  setDjMode: () => {},
 };
 
 function renderModal(socket: Socket) {

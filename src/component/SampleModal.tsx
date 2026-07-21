@@ -261,11 +261,16 @@ const CHIP_ARIA_LABEL: Record<DraftChipStatus, (clipName: string, pillarNumber: 
 const CHIP_BASE_CLASS =
   'flex min-h-[40px] items-center justify-center rounded-md font-data text-xs uppercase tracking-[0.08em]';
 const CHIP_OUTLINED_CLASS = 'border border-gold-line/50 text-parchment/70 bg-transparent';
-const CHIP_PENDING_CLASS = 'bg-gold-line/80 text-ink-deep border border-transparent';
+// Amber per the human's three-state spec (2026-07-21): empty / QUEUED
+// (amber) / playing (green).
+const CHIP_PENDING_CLASS = 'bg-amber-400/90 text-ink-deep border border-transparent';
 // PLAYING gets its own green fill (human request 2026-07-20) — the same hue as
 // the pillar cards' playing status dot, so "green = audibly live" reads
 // consistently across the whole DJ surface.
-const CHIP_PLAYING_CLASS = 'bg-[#22c55e]/85 text-ink-deep border-transparent';
+// /90, not /85: 85 is absent from Tailwind's default opacity scale, so /85
+// silently generates no utility at all — the chip rendered dark-on-dark
+// ("goes black", the WOW-007C DJ bug report).
+const CHIP_PLAYING_CLASS = 'bg-[#22c55e]/90 text-ink-deep border-transparent';
 
 const CHIP_CLASS_BY_STATUS: Record<DraftChipStatus, string> = {
   outlined: CHIP_OUTLINED_CLASS,
@@ -344,9 +349,31 @@ export const SampleModal = ({
       <div className='fixed inset-0 bg-[#0b0910]/95' aria-hidden='true' />
       <div className='fixed inset-0 flex items-center justify-center p-6'>
         <Dialog.Panel className='flex max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-gold-line/40 bg-ink-panel p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]'>
-          <Dialog.Title className='font-display text-2xl tracking-[0.14em] text-gold-bright'>
-            Sample selector
-          </Dialog.Title>
+          <div className='flex items-start justify-between'>
+            <Dialog.Title className='font-display text-2xl tracking-[0.14em] text-gold-bright'>
+              Sample selector
+            </Dialog.Title>
+            {/* Cross in the top-right, alongside the footer Close button —
+                two ways to close (human, 2026-07-21). */}
+            <button
+              type='button'
+              aria-label='Close sample selector'
+              onClick={onClose}
+              className='flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gold-line/40 bg-ink-btn text-parchment/80 hover:text-parchment focus-visible:text-parchment'
+            >
+              <svg
+                viewBox='0 0 20 20'
+                className='h-5 w-5'
+                fill='none'
+                stroke='currentColor'
+                strokeWidth={2}
+                strokeLinecap='round'
+                aria-hidden='true'
+              >
+                <path d='M5 5l10 10M15 5L5 15' />
+              </svg>
+            </button>
+          </div>
 
           <div className='mt-4 flex shrink-0 flex-col gap-3'>
             <div className='flex min-h-[44px] items-center gap-2 rounded-lg border border-gold-line/40 bg-ink-inset px-3'>
@@ -513,17 +540,20 @@ export const SampleModal = ({
           )}
 
           <div className='mt-4 flex shrink-0 justify-end gap-2'>
+            {/* Close in the footer AND the ✕ top-right — two ways out
+                (human, 2026-07-21). Revert discards the draft back to the
+                live baseline; Apply sends its diff to the backend. Those two
+                stay disabled until the draft actually differs from reality
+                (WOW-007C) — the modal never stays open on a no-op tap of
+                either. */}
             <button
               type='button'
               onClick={onClose}
-              className='flex min-h-[44px] items-center rounded-lg border border-gold-line/50 bg-ink-btn px-5 font-data text-sm tracking-wide text-parchment/90'
+              aria-label='Close'
+              className='mr-auto flex min-h-[44px] items-center rounded-lg border border-gold-line/50 bg-ink-btn px-5 font-data text-sm tracking-wide text-parchment/90'
             >
               Close
             </button>
-            {/* Revert discards the draft back to the live baseline; Apply
-                sends its diff to the backend. Both stay disabled until the
-                draft actually differs from reality (WOW-007C) — the modal
-                never stays open on a no-op tap of either. */}
             <button
               type='button'
               onClick={onRevert}

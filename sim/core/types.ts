@@ -62,6 +62,10 @@ export type SetCauldronVolumeInputType = { volume: number };
 // `get_idle_timeout`/`set_idle_timeout`.
 export type IdleTimeoutConfigType = { enabled: boolean; timeoutMs: number };
 
+// WOW-007C item 4: mirrors backend/type/SetDjModeInputType.ts — the
+// `set_dj_mode` socket payload.
+export type SetDjModeInputType = { active: boolean };
+
 /** A simulator-emitted socket event, as the browser would receive it. */
 export type SimEmittedEvent = {
   eventName: string;

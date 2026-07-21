@@ -16,6 +16,7 @@ import {
   TagDetectionData,
   SetTrackVolumeInputType,
   SetCauldronVolumeInputType,
+  SetDjModeInputType,
   IdleTimeoutConfigType,
   buildMusicDatabase,
   buildScenarios,
@@ -87,7 +88,14 @@ simulator.onEvent(({ eventName, data }) => {
 
 io.on('connection', (socket) => {
   log(`Web client connected (${socket.id})`);
-  socket.on('disconnect', () => log(`Web client disconnected (${socket.id})`));
+  socket.on('disconnect', () => {
+    log(`Web client disconnected (${socket.id})`);
+    // Mirrors backend/index.ts: socket.io v4 removes the socket from the
+    // namespace before emitting 'disconnect', so size === 0 = last client.
+    if (io.of('/').sockets.size === 0) {
+      simulator.handleLastWebClientDisconnected();
+    }
+  });
 
   const logReceived = (eventName: string, payload?: unknown) => {
     log(`recv ${eventName} ${payload !== undefined ? JSON.stringify(payload) : ''}`);
@@ -170,6 +178,13 @@ io.on('connection', (socket) => {
   socket.on('set_idle_timeout', (config: IdleTimeoutConfigType, callback) => {
     logReceived('set_idle_timeout', config);
     callback?.(simulator.setIdleTimeoutConfig(config));
+  });
+
+  // WOW-007C item 4: DJ mode active/inactive — no ack, mirrors
+  // backend/event/IncomingEvents.ts's set_dj_mode handler exactly.
+  socket.on('set_dj_mode', (data: SetDjModeInputType) => {
+    logReceived('set_dj_mode', data);
+    simulator.setDjModeActive(data);
   });
 });
 

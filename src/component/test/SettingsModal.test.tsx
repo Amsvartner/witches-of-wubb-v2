@@ -11,9 +11,10 @@ class ResizeObserverStub {
 }
 global.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
 
-// djActive true by default: most tests exercise the DJ-only sections
-// (cauldron loudness / pause music / DJ auto-exit), which only render for a
-// DJ (WOW-007C human safety decision 2026-07-20).
+// Section gating (human decision 2026-07-21, revising the all-DJ-gated
+// 2026-07-20 decision): cauldron loudness renders in BOTH modes, pause music
+// in PLAY mode only (it never plays during a DJ set), DJ auto-exit in DJ
+// mode only. djActive true by default; pause-music tests pass false.
 const defaultProps = {
   open: true,
   onClose: vi.fn(),
@@ -31,49 +32,40 @@ const defaultProps = {
 };
 
 describe('SettingsModal (WOW-007C)', () => {
-  describe('DJ gating (human safety decision 2026-07-20)', () => {
-    it('hides cauldron loudness, pause music, and DJ auto-exit when djActive is false (visitor view)', () => {
-      const { queryByText, queryByRole, getByText, getByRole } = render(
+  describe('mode-based section gating (human decision 2026-07-21)', () => {
+    it('play mode (djActive false): cauldron loudness + pause music, no DJ auto-exit', () => {
+      const { queryByText, getByText, getByRole } = render(
         <SettingsModal {...defaultProps} djActive={false} />,
       );
 
-      expect(queryByText('Cauldron loudness')).not.toBeInTheDocument();
-      expect(queryByRole('slider', { name: 'Cauldron loudness' })).not.toBeInTheDocument();
-      expect(queryByText('Pause music')).not.toBeInTheDocument();
+      expect(getByText('Cauldron loudness')).toBeInTheDocument();
+      expect(getByRole('slider', { name: 'Cauldron loudness' })).toBeInTheDocument();
+      expect(getByText('Pause music')).toBeInTheDocument();
+      expect(getByRole('button', { name: 'Pause music' })).toBeInTheDocument();
+      expect(
+        getByText(
+          'After this long without interaction, all pillars stop and the pause music takes over.',
+        ),
+      ).toBeInTheDocument();
       expect(queryByText('DJ auto-exit')).not.toBeInTheDocument();
 
-      // Visitors keep Mode + Animations.
       expect(getByText('Mode')).toBeInTheDocument();
       expect(getByRole('button', { name: 'Animations' })).toBeInTheDocument();
     });
 
-    it('shows all three sections when djActive is true', () => {
-      const { getByText } = render(<SettingsModal {...defaultProps} djActive />);
+    it('DJ mode (djActive true): cauldron loudness + DJ auto-exit, no pause music — it never plays during a DJ set', () => {
+      const { getByText, queryByText, getByRole } = render(
+        <SettingsModal {...defaultProps} djActive />,
+      );
 
       expect(getByText('Cauldron loudness')).toBeInTheDocument();
-      expect(getByText('Pause music')).toBeInTheDocument();
+      expect(getByRole('slider', { name: 'Cauldron loudness' })).toBeInTheDocument();
+      expect(queryByText('Pause music')).not.toBeInTheDocument();
       expect(getByText('DJ auto-exit')).toBeInTheDocument();
+      expect(
+        getByText('DJ mode returns to play mode after this long without touches.'),
+      ).toBeInTheDocument();
     });
-  });
-
-  it('renders all three new sections: cauldron loudness, pause music, DJ auto-exit', () => {
-    const { getByText, getByRole } = render(<SettingsModal {...defaultProps} />);
-
-    expect(getByText('Cauldron loudness')).toBeInTheDocument();
-    expect(getByRole('slider', { name: 'Cauldron loudness' })).toBeInTheDocument();
-
-    expect(getByText('Pause music')).toBeInTheDocument();
-    expect(getByRole('button', { name: 'Pause music' })).toBeInTheDocument();
-    expect(
-      getByText(
-        'After this long without interaction, all pillars stop and the pause music takes over.',
-      ),
-    ).toBeInTheDocument();
-
-    expect(getByText('DJ auto-exit')).toBeInTheDocument();
-    expect(
-      getByText('DJ mode returns to play mode after this long without touches.'),
-    ).toBeInTheDocument();
   });
 
   it('shows the cauldron volume mapped to a 0-100% slider (0.42 / 0.7 ceiling)', () => {
@@ -100,6 +92,7 @@ describe('SettingsModal (WOW-007C)', () => {
     const { getByRole } = render(
       <SettingsModal
         {...defaultProps}
+        djActive={false}
         idleTimeout={{ enabled: true, timeoutMs: 120000 }}
         onIdleTimeoutChange={onIdleTimeoutChange}
       />,
@@ -113,7 +106,11 @@ describe('SettingsModal (WOW-007C)', () => {
   it('picking a pause-music minutes choice calls onIdleTimeoutChange with the new duration', () => {
     const onIdleTimeoutChange = vi.fn();
     const { getByRole } = render(
-      <SettingsModal {...defaultProps} onIdleTimeoutChange={onIdleTimeoutChange} />,
+      <SettingsModal
+        {...defaultProps}
+        djActive={false}
+        onIdleTimeoutChange={onIdleTimeoutChange}
+      />,
     );
 
     fireEvent.click(getByRole('button', { name: 'Pause music after 10 min' }));
@@ -123,7 +120,11 @@ describe('SettingsModal (WOW-007C)', () => {
 
   it('marks the current pause-music duration as pressed', () => {
     const { getByRole } = render(
-      <SettingsModal {...defaultProps} idleTimeout={{ enabled: true, timeoutMs: 3 * 60 * 1000 }} />,
+      <SettingsModal
+        {...defaultProps}
+        djActive={false}
+        idleTimeout={{ enabled: true, timeoutMs: 3 * 60 * 1000 }}
+      />,
     );
     expect(getByRole('button', { name: 'Pause music after 3 min' })).toHaveAttribute(
       'aria-pressed',
@@ -133,7 +134,11 @@ describe('SettingsModal (WOW-007C)', () => {
 
   it('disables the pause-music minutes buttons when the toggle is off', () => {
     const { getByRole } = render(
-      <SettingsModal {...defaultProps} idleTimeout={{ enabled: false, timeoutMs: 60000 }} />,
+      <SettingsModal
+        {...defaultProps}
+        djActive={false}
+        idleTimeout={{ enabled: false, timeoutMs: 60000 }}
+      />,
     );
     expect(getByRole('button', { name: 'Pause music after 1 min' })).toBeDisabled();
   });

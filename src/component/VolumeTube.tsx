@@ -22,6 +22,13 @@ type Props = {
 
 const GEM_WIDTH = 54;
 const KEY_STEP = 5;
+/**
+ * Empty-pillar slider handle (human, 2026-07-21): the amber gem art from the
+ * yellow/melody pillar theme, replacing the earlier CSS-drawn diamond — same
+ * asset and sizing as a categorised tube's gem, so empty and categorised
+ * sliders read identically.
+ */
+const EMPTY_HANDLE_SRC = '/images/slider-handle-amber.png';
 
 /**
  * Vertical potion-tube volume indicator built from the bespoke art assets
@@ -63,6 +70,12 @@ export const VolumeTube = ({
   // while it's actually interactive (otherwise there's no meaningful volume
   // to show — display-only empty pillars stay blank, as before).
   const showReadout = Boolean(assetSlug) || interactive;
+  // WOW-007C item 1: an interactive EMPTY pillar (no category art, so no
+  // lit-fill clip) still needs a slider affordance — the amber gem riding
+  // the fill line (see EMPTY_HANDLE_SRC), plus a subtle fill bar standing in
+  // for the missing lit-tube art. A categorised pillar keeps using its own
+  // theme's gem (rendered below) instead, whether interactive or not.
+  const showEmptyHandle = interactive && !assetSlug;
 
   const percentFromPointer = (event: PointerEvent<HTMLDivElement>): number => {
     const rect = trackRef.current?.getBoundingClientRect();
@@ -152,6 +165,26 @@ export const VolumeTube = ({
               alt=''
               aria-hidden='true'
               draggable={false}
+              style={gemPos}
+              className='pointer-events-none absolute left-1/2 -translate-x-1/2'
+            />
+          </>
+        )}
+        {showEmptyHandle && (
+          <>
+            {/* Fill stand-in: the empty-tube art has no lit variant to clip,
+                so a low-opacity bar approximates it behind the handle. */}
+            <div
+              aria-hidden='true'
+              style={{ height: `${clamped}%` }}
+              className='pointer-events-none absolute bottom-0 left-1/2 w-1.5 -translate-x-1/2 rounded bg-gold-line/50'
+            />
+            <img
+              src={EMPTY_HANDLE_SRC}
+              alt=''
+              aria-hidden='true'
+              draggable={false}
+              data-testid='volume-handle'
               style={gemPos}
               className='pointer-events-none absolute left-1/2 -translate-x-1/2'
             />

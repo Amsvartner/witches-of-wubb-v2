@@ -35,6 +35,8 @@ beforeAll(async () => {
       setCauldronVolume: vi.fn(() => Promise.resolve()),
       getIdleTimeoutConfig: vi.fn(),
       setIdleTimeoutConfig: vi.fn(),
+      // WOW-007C item 4
+      setDjModeActive: vi.fn(),
     },
   }));
   vi.doMock('../OutgoingEvents', () => ({
@@ -407,5 +409,41 @@ describe('set_idle_timeout (WOW-007C, WOW-014 crash-hardening)', () => {
 
     expect(callback).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(error, 'Error setting idle timeout config');
+  });
+});
+
+describe('set_dj_mode (WOW-007C item 4, WOW-014 crash-hardening)', () => {
+  it('applies the DJ mode state on success', () => {
+    createHandlerRegistry().get('set_dj_mode')!({ active: true });
+
+    expect(AbletonAdapter.setDjModeActive).toHaveBeenCalledWith(true);
+  });
+
+  it('has no ack callback (fire-and-forget, frozen contract)', () => {
+    expect(() => createHandlerRegistry().get('set_dj_mode')!({ active: false })).not.toThrow();
+  });
+
+  it('logs and does not throw when AbletonAdapter.setDjModeActive throws', () => {
+    const error = new Error('boom');
+    vi.mocked(AbletonAdapter.setDjModeActive).mockImplementationOnce(() => {
+      throw error;
+    });
+
+    expect(() => createHandlerRegistry().get('set_dj_mode')!({ active: true })).not.toThrow();
+
+    expect(errorSpy).toHaveBeenCalledWith(error, 'Error setting DJ mode');
+  });
+
+  // Copilot review, PR #58: parameter-position destructuring would throw on
+  // a null/missing payload BEFORE the try/catch — the payload is now pulled
+  // apart inside the handler, so the adapter's non-boolean guard sees
+  // undefined instead.
+  it('does not throw on a null or missing payload; forwards undefined to the adapter guard', () => {
+    const registry = createHandlerRegistry();
+
+    expect(() => registry.get('set_dj_mode')!(null)).not.toThrow();
+    expect(() => registry.get('set_dj_mode')!(undefined)).not.toThrow();
+
+    expect(AbletonAdapter.setDjModeActive).toHaveBeenCalledWith(undefined);
   });
 });

@@ -43,8 +43,9 @@ describe('VolumeTube', () => {
       // Visible (aria-hidden) percentage renders; no sr-only duplicate since
       // the slider role itself already carries aria-valuetext.
       expect(getAllByText('42%')).toHaveLength(1);
-      // No fill/gem overlay (no assetSlug) — only the desaturated base tube.
-      expect(container.querySelectorAll('img')).toHaveLength(1);
+      // No lit-fill overlay (no assetSlug) — the base tube plus the amber
+      // handle gem (human, 2026-07-21: gem art replaced the CSS diamond).
+      expect(container.querySelectorAll('img')).toHaveLength(2);
     });
 
     it('calls onPercentChange on arrow-key nudges', () => {
@@ -54,6 +55,29 @@ describe('VolumeTube', () => {
       );
       fireEvent.keyDown(getByRole('slider'), { key: 'ArrowUp' });
       expect(onPercentChange).toHaveBeenCalledWith(55);
+    });
+
+    // WOW-007C item 1 (human spec): a slider affordance on the empty tube —
+    // no lit-fill art exists for the empty category, so the amber (melody
+    // theme) gem + a fill bar stand in (human, 2026-07-21: gem art replaced
+    // the earlier CSS diamond).
+    it('renders the amber gem handle riding the fill line when interactive with no assetSlug', () => {
+      const { getByTestId } = render(<VolumeTube volumePercent={42} onPercentChange={vi.fn()} />);
+      const handle = getByTestId('volume-handle');
+      expect(handle).toBeInTheDocument();
+      expect(handle).toHaveAttribute('src', '/images/slider-handle-amber.png');
+    });
+
+    it('the handle is absent on a display-only empty pillar (no onPercentChange)', () => {
+      const { queryByTestId } = render(<VolumeTube volumePercent={42} />);
+      expect(queryByTestId('volume-handle')).not.toBeInTheDocument();
+    });
+
+    it('the handle is absent when assetSlug is present — the gem serves that case instead', () => {
+      const { queryByTestId } = render(
+        <VolumeTube volumePercent={42} assetSlug='amber' onPercentChange={vi.fn()} />,
+      );
+      expect(queryByTestId('volume-handle')).not.toBeInTheDocument();
     });
   });
 });

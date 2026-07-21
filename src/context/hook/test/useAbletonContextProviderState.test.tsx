@@ -413,3 +413,27 @@ describe('useAbletonContextProviderState WOW-007C (cauldron sample/volume, idle 
     expect(fake.handlerCount('idle_timeout_changed')).toBe(0);
   });
 });
+
+// WOW-007C item 4: DJ-mode idle-timeout suppression failsafe chain — this
+// hook's only responsibility is the fire-and-forget emit; PlayModeContainer
+// owns when it's called (mode change + reconnect).
+describe('useAbletonContextProviderState WOW-007C item 4 (DJ mode)', () => {
+  it('setDjMode emits set_dj_mode with { active } and no ack callback', () => {
+    const fake = createFakeSocket(true);
+    const { result } = renderHook(() => useAbletonContextProviderState(), {
+      wrapper: withSocket(fake as unknown as Socket),
+    });
+
+    act(() => {
+      result.current.setDjMode(true);
+    });
+
+    expect(fake.emit).toHaveBeenCalledWith('set_dj_mode', { active: true });
+
+    act(() => {
+      result.current.setDjMode(false);
+    });
+
+    expect(fake.emit).toHaveBeenCalledWith('set_dj_mode', { active: false });
+  });
+});

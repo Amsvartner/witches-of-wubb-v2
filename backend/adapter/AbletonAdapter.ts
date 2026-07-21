@@ -442,6 +442,25 @@ function setDjModeActive(active: boolean): boolean {
   return djModeActive;
 }
 
+// Failsafe symmetric to the non-persistence posture above (audio-ableton
+// delta review of the DJ-gate commit, finding 1): the suppression's entire
+// recovery chain — walk-away auto-exit, explicit Settings toggle — lives in
+// the FRONTEND, so if the last supervising UI dies while DJ mode is active
+// (browser crash, kiosk power loss), nothing would ever emit
+// `set_dj_mode {active:false}` and the attractor handover would stay
+// suppressed indefinitely. index.ts calls this when the last web client
+// disconnects: no supervising UI connected = timeout armed. A transient
+// drop/reconnect is harmless — the frontend re-asserts its mode on every
+// (re)connect (PlayModeContainer), restoring suppression within a second if
+// a DJ session is genuinely still running.
+function handleLastWebClientDisconnected(): void {
+  if (!djModeActive) return;
+  Logger.info(
+    'Last web client disconnected while DJ mode active — lifting idle-timeout suppression',
+  );
+  setDjModeActive(false);
+}
+
 function connectOscServer(server: nodeOSC.Server) {
   oscServer = server;
   oscServer.on('message', IncomingEvents.oscEventHandlers);
@@ -1230,6 +1249,7 @@ export const AbletonAdapter = {
   setIdleTimeoutConfig,
   getDjModeActive,
   setDjModeActive,
+  handleLastWebClientDisconnected,
   getDrumRackClips,
   triggerRandomDrumSample,
   getCauldronVolume,

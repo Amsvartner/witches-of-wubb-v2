@@ -573,4 +573,16 @@ export class Simulator {
     this.restartTimeoutTimer();
     return this.djModeActive;
   }
+
+  // Mirrors AbletonAdapter.handleLastWebClientDisconnected (audio-ableton
+  // delta review finding 1): the suppression's recovery chain lives in the
+  // frontend, so a dead last UI must not leave the idle timeout suppressed
+  // indefinitely. Called by sim/server.ts when the last client disconnects.
+  handleLastWebClientDisconnected(): void {
+    if (!this.djModeActive) return;
+    this.logger.info(
+      'Last web client disconnected while DJ mode active — lifting idle-timeout suppression',
+    );
+    this.setDjModeActive({ active: false });
+  }
 }

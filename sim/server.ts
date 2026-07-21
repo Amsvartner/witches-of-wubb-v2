@@ -88,7 +88,14 @@ simulator.onEvent(({ eventName, data }) => {
 
 io.on('connection', (socket) => {
   log(`Web client connected (${socket.id})`);
-  socket.on('disconnect', () => log(`Web client disconnected (${socket.id})`));
+  socket.on('disconnect', () => {
+    log(`Web client disconnected (${socket.id})`);
+    // Mirrors backend/index.ts: socket.io v4 removes the socket from the
+    // namespace before emitting 'disconnect', so size === 0 = last client.
+    if (io.of('/').sockets.size === 0) {
+      simulator.handleLastWebClientDisconnected();
+    }
+  });
 
   const logReceived = (eventName: string, payload?: unknown) => {
     log(`recv ${eventName} ${payload !== undefined ? JSON.stringify(payload) : ''}`);

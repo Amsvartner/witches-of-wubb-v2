@@ -842,6 +842,46 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
       expect(warnSpy).toHaveBeenCalled();
     });
 
+    // Audio-ableton delta review finding 1: the suppression's recovery chain
+    // (walk-away auto-exit -> set_dj_mode false) lives in the frontend, so a
+    // dead last UI must not leave the attractor handover suppressed forever.
+    it('handleLastWebClientDisconnected lifts an active suppression: broadcasts and the warning fires on schedule again', async () => {
+      vi.useFakeTimers();
+      try {
+        const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+        Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 });
+        Fresh.setDjModeActive(true);
+
+        Fresh.handleLastWebClientDisconnected();
+
+        expect(Fresh.getDjModeActive()).toBe(false);
+        expect(OutgoingEvents.emitEventWithoutResettingTimeout).toHaveBeenCalledWith(
+          'dj_mode_changed',
+          { active: false },
+        );
+        Fresh.playingClips[0] = { clipName: 'DJ Mode Test Clip', pillar: 0 } as never;
+        OutgoingEvents.emitEventWithoutResettingTimeout.mockClear();
+        vi.advanceTimersByTime(30_000);
+        expect(OutgoingEvents.emitEventWithoutResettingTimeout).toHaveBeenCalledWith(
+          'timeout_warning',
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('handleLastWebClientDisconnected is a no-op while DJ mode is inactive: no broadcast', async () => {
+      const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+
+      Fresh.handleLastWebClientDisconnected();
+
+      expect(Fresh.getDjModeActive()).toBe(false);
+      expect(OutgoingEvents.emitEventWithoutResettingTimeout).not.toHaveBeenCalledWith(
+        'dj_mode_changed',
+        expect.anything(),
+      );
+    });
+
     it('an idle timeout still armed while disabled stays disabled across a DJ mode transition (interaction with idleTimeoutEnabled)', async () => {
       vi.useFakeTimers();
       try {

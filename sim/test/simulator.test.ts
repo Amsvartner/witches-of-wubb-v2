@@ -574,6 +574,31 @@ describe('Simulator', () => {
       expect(result).toBe(before);
       expect(simulator.getDjModeActive()).toBe(before);
     });
+
+    // Mirrors AbletonAdapter.handleLastWebClientDisconnected (audio-ableton
+    // delta review finding 1): a dead last UI must not leave the timeout
+    // suppressed forever.
+    it('handleLastWebClientDisconnected lifts an active suppression and the warning fires on schedule again', () => {
+      simulator.handleNewTag({ rfid: drums.rfid, pillar: drums.pillar });
+      simulator.setDjModeActive({ active: true });
+
+      simulator.handleLastWebClientDisconnected();
+
+      expect(simulator.getDjModeActive()).toBe(false);
+      expect(lastEvent('dj_mode_changed')?.data).toEqual({ active: false });
+      events = [];
+      vi.advanceTimersByTime(TIMEOUT_IN_MILISECONDS - TIMEOUT_WARNING_IN_MILISECONDS);
+      expect(eventNames()).toEqual(['timeout_warning']);
+    });
+
+    it('handleLastWebClientDisconnected is a no-op while DJ mode is inactive', () => {
+      events = [];
+
+      simulator.handleLastWebClientDisconnected();
+
+      expect(simulator.getDjModeActive()).toBe(false);
+      expect(eventNames()).not.toContain('dj_mode_changed');
+    });
   });
 
   // WOW-007C (human request): a pillar's explicitly-set volume survives the

@@ -7,10 +7,12 @@ type Props = {
   /** Category tint hex — the leading pip + accents. */
   tintHex: string;
   /**
-   * Starts this pick now. Present on both row flavours (WOW-007C item 3,
-   * human spec): the pending row (WOW-007B pending-pick queue) starts a held
-   * pick, and the backend-queued row forces the clip that would otherwise
-   * self-start at the next phrase boundary to start immediately instead.
+   * Plays this pick, replacing the pillar's active clip. Present on both
+   * row flavours (WOW-007C item 3, human spec): the pending row (WOW-007B
+   * pending-pick queue) places a held pick, and the backend-queued row
+   * promotes the queued clip over whatever is playing. Either way the clip
+   * fires quantized — instantly only from global silence, otherwise at the
+   * next phrase boundary (see PillarCardContainer.playQueued).
    */
   onPlay?: () => void;
   /**
@@ -55,10 +57,10 @@ const RemoveGlyph = (): JSX.Element => (
  *
  * Two flavours share this component (WOW-007B pending-pick queue; WOW-007C
  * item 3: both now get `onPlay`):
- * - Backend-queued row: `onPlay` (forces the clip that would otherwise
- *   self-start at the next phrase boundary to start now) + `onRemove`,
+ * - Backend-queued row: `onPlay` (promotes the queued clip over the
+ *   pillar's active clip, instead of waiting behind it) + `onRemove`,
  *   confirm-gated (default) — removing it departs a real backend hold.
- * - Pending row: both `onPlay` (starts it now, via `/departed/tag` +
+ * - Pending row: both `onPlay` (places it, via `/departed/tag` +
  *   `/new/tag`) and `onRemove` (drops the local hold) with
  *   `confirmRemove={false}` — nothing live is affected by dropping a hold
  *   that was never emitted to the backend.

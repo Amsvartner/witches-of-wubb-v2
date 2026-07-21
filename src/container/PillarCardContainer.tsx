@@ -223,17 +223,20 @@ export const PillarCardContainer = ({
     emitGuarded('remove queued', '/departed/tag', { rfid: queuedClip.rfid, pillar: index });
   };
 
-  // Starts the backend-queued clip now (WOW-007C item 3, human spec): the
-  // backend already auto-fires a queued clip at the next phrase boundary,
-  // but the DJ can force it immediately, exactly like a pending pick's Play.
-  // Order mirrors PillarDraftUtil's diffForApply dance: (a) depart whatever
-  // is currently playing/stopping on this pillar, if anything, so the
-  // backend doesn't end up with two tags racing for one pillar; (b) depart
-  // the queued clip itself — the backend silently drops a bare /new/tag for
-  // an already-queued clip as a duplicate ("Clip X is already queued"), so
-  // it must be de-queued first; (c) re-place it with /new/tag, which starts
-  // it immediately since the pillar is now idle. All departeds precede the
-  // new, same guarantee as Apply.
+  // Starts the backend-queued clip (WOW-007C item 3, human spec), replacing
+  // whatever this pillar is playing rather than waiting behind it. Order
+  // mirrors PillarDraftUtil's diffForApply dance: (a) depart whatever is
+  // currently playing/stopping on this pillar, if anything, so the backend
+  // doesn't end up with two tags racing for one pillar; (b) depart the
+  // queued clip itself — the backend silently drops a bare /new/tag for an
+  // already-queued clip as a duplicate ("Clip X is already queued"), so it
+  // must be de-queued first; (c) re-place it with /new/tag. All departeds
+  // precede the new, same guarantee as Apply. Timing caveat (audio-ableton
+  // review): the backend only fires a /new/tag instantly from GLOBAL
+  // silence; with other pillars still playing the re-placed clip fires at
+  // the next phrase boundary — quantization-safe by design, so "play" here
+  // means "replace this pillar's active clip at the boundary", not
+  // "interrupt mid-phrase".
   const playQueued = (): void => {
     if (!queuedClip) return;
     if (activeClip) {

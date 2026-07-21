@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserClipInfoList } from 'backend/type/BrowserClipInfoList';
 import { ClipDatabaseUtil } from '~/util/ClipDatabaseUtil';
 import { useAbletonContext } from '~/context/hook/useAbletonContext';
@@ -223,6 +223,45 @@ export const PillarCardContainer = ({
     emitGuarded('remove queued', '/departed/tag', { rfid: queuedClip.rfid, pillar: index });
   };
 
+  // Starts the backend-queued clip now (WOW-007C item 3, human spec): the
+  // backend already auto-fires a queued clip at the next phrase boundary,
+  // but the DJ can force it immediately, exactly like a pending pick's Play.
+  // Order mirrors PillarDraftUtil's diffForApply dance: (a) depart whatever
+  // is currently playing/stopping on this pillar, if anything, so the
+  // backend doesn't end up with two tags racing for one pillar; (b) depart
+  // the queued clip itself — the backend silently drops a bare /new/tag for
+  // an already-queued clip as a duplicate ("Clip X is already queued"), so
+  // it must be de-queued first; (c) re-place it with /new/tag, which starts
+  // it immediately since the pillar is now idle. All departeds precede the
+  // new, same guarantee as Apply.
+  const playQueued = (): void => {
+    if (!queuedClip) return;
+    if (activeClip) {
+      emitGuarded('play queued (stop active)', '/departed/tag', {
+        rfid: activeClip.rfid,
+        pillar: index,
+      });
+    }
+    emitGuarded('play queued (dequeue)', '/departed/tag', {
+      rfid: queuedClip.rfid,
+      pillar: index,
+    });
+    emitGuarded('play queued', '/new/tag', { rfid: queuedClip.rfid, pillar: index });
+  };
+
+  // DJ mode ending — by ANY path, including the walk-away auto-exit timer —
+  // must take the sample selector down with it: the modal is a DJ surface,
+  // and without this it would survive the mode switch and sit fully
+  // operable on the visitor-facing play screen (observed live 2026-07-21
+  // when the auto-exit fired under an open selector). The stale draft drops
+  // with it; a later DJ re-entry starts from reality, per openSampleModal.
+  useEffect(() => {
+    if (!djMode) {
+      setIsSampleModalOpen(false);
+      setDraftEdits(null);
+    }
+  }, [djMode]);
+
   const openSampleModal = (): void => {
     // A fresh open always starts from reality (spec: draft := baseline copy
     // on open) — clearing here rather than on close keeps a mid-session
@@ -338,16 +377,29 @@ export const PillarCardContainer = ({
     setMuted(true);
   };
 
-  // Backend-queued clip first (self-starts at the next phrase boundary, so
-  // it only gets a remove action), then up to 2 pending picks (each with
-  // both Play and a non-confirm-gated remove) — PillarCard applies the
-  // 2-row display cap.
-  const queueRows: { id: string; name: string; onPlay?: () => void; onRemove?: () => void }[] = [];
+  // Backend-queued clip first, then up to 2 pending picks — PillarCard
+  // applies the 2-row display cap. WOW-007C item 3 (human spec): every row
+  // now gets a Play button, including the backend-queued one (previously
+  // remove-only, since it self-starts at the next phrase boundary anyway —
+  // this forces it now). `confirmRemove` is passed explicitly since
+  // `onPlay`'s presence can no longer distinguish the two row flavours: the
+  // backend-queued row's remove departs a real backend hold (confirm-gated),
+  // a pending pick's remove only drops a local hold that was never emitted
+  // (not confirm-gated).
+  const queueRows: {
+    id: string;
+    name: string;
+    onPlay?: () => void;
+    onRemove?: () => void;
+    confirmRemove?: boolean;
+  }[] = [];
   if (queuedClip) {
     queueRows.push({
       id: queuedClip.rfid ?? queuedClip.clipName,
       name: queuedClip.clipName,
+      onPlay: playQueued,
       onRemove: removeQueued,
+      confirmRemove: true,
     });
   }
   for (const [pickIndex, pick] of myPendingPicks.entries()) {
@@ -356,6 +408,7 @@ export const PillarCardContainer = ({
       name: pick.clipName,
       onPlay: () => playPending(pickIndex),
       onRemove: () => clearPending(pickIndex),
+      confirmRemove: false,
     });
   }
 

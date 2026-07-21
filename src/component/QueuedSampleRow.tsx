@@ -7,9 +7,10 @@ type Props = {
   /** Category tint hex — the leading pip + accents. */
   tintHex: string;
   /**
-   * Starts this pick now (WOW-007B pending-pick queue). Present on the
-   * pending row only — a backend-queued row self-starts at the next phrase
-   * boundary and has no play action.
+   * Starts this pick now. Present on both row flavours (WOW-007C item 3,
+   * human spec): the pending row (WOW-007B pending-pick queue) starts a held
+   * pick, and the backend-queued row forces the clip that would otherwise
+   * self-start at the next phrase boundary to start immediately instead.
    */
   onPlay?: () => void;
   /**
@@ -52,9 +53,11 @@ const RemoveGlyph = (): JSX.Element => (
  * One queued sample row — DJ mode only (human decision 2026-07-17: play mode
  * shows no queue and no sample names; queue management is a DJ surface).
  *
- * Two flavours share this component (WOW-007B pending-pick queue):
- * - Backend-queued row: `onRemove` only, confirm-gated (default) — the clip
- *   self-starts at the next phrase boundary, so there's no play action.
+ * Two flavours share this component (WOW-007B pending-pick queue; WOW-007C
+ * item 3: both now get `onPlay`):
+ * - Backend-queued row: `onPlay` (forces the clip that would otherwise
+ *   self-start at the next phrase boundary to start now) + `onRemove`,
+ *   confirm-gated (default) — removing it departs a real backend hold.
  * - Pending row: both `onPlay` (starts it now, via `/departed/tag` +
  *   `/new/tag`) and `onRemove` (drops the local hold) with
  *   `confirmRemove={false}` — nothing live is affected by dropping a hold
@@ -85,7 +88,7 @@ export const QueuedSampleRow = ({
         </IconButton>
       )}
       <span style={pip} className='ml-2 h-2 w-2 shrink-0 rounded-full' aria-hidden='true' />
-      <span className='flex-1 truncate font-data text-[15px] text-parchment/85'>{name}</span>
+      <span className='flex-1 truncate font-data text-[15px] text-parchment/80'>{name}</span>
       {onRemove && removeArmed && (
         <span className='font-data text-xs uppercase tracking-wide text-red-300' aria-hidden='true'>
           Confirm?

@@ -56,6 +56,7 @@ const createAbletonState = (overrides: Partial<AbletonContextState> = {}): Ablet
   changeCauldronVolume: vi.fn(),
   idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
   changeIdleTimeout: vi.fn(),
+  setDjMode: vi.fn(),
   ...overrides,
 });
 
@@ -182,6 +183,79 @@ describe('PillarCardContainer', () => {
       expect(socket.emit).toHaveBeenCalledWith('/departed/tag', { rfid: 'rfid-queued', pillar: 1 });
     });
 
+    // WOW-007C item 3 (human spec): every queue row gets Play, including the
+    // backend-queued one — forcing an immediate start instead of waiting for
+    // the next phrase boundary.
+    it('plays a backend-queued clip: departs the active clip, dequeues, then re-places it, in that order', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState({
+        playingClips: [
+          clipFixture(0, 'Vocal Hook 07', ClipTypes.Vox, 'rfid-active'),
+          null,
+          null,
+          null,
+        ],
+        queuedClips: [
+          clipFixture(0, 'Melody Loop', ClipTypes.Melody, 'rfid-queued'),
+          null,
+          null,
+          null,
+        ],
+      });
+
+      const { getByRole } = renderContainer(abletonState, socket, {
+        index: 0,
+        djMode: true,
+        isConnected: true,
+      });
+
+      fireEvent.click(getByRole('button', { name: 'Play Melody Loop' }));
+
+      expect(socket.emit).toHaveBeenNthCalledWith(1, '/departed/tag', {
+        rfid: 'rfid-active',
+        pillar: 0,
+      });
+      expect(socket.emit).toHaveBeenNthCalledWith(2, '/departed/tag', {
+        rfid: 'rfid-queued',
+        pillar: 0,
+      });
+      expect(socket.emit).toHaveBeenNthCalledWith(3, '/new/tag', {
+        rfid: 'rfid-queued',
+        pillar: 0,
+      });
+      expect(socket.emit).toHaveBeenCalledTimes(3);
+    });
+
+    it('plays a backend-queued clip with nothing active: dequeues then re-places it, no departed for an active clip', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState({
+        queuedClips: [
+          clipFixture(1, 'Bass Drop', ClipTypes.Bass, 'rfid-queued-idle'),
+          null,
+          null,
+          null,
+        ],
+      });
+
+      const { getByRole } = renderContainer(abletonState, socket, {
+        index: 0,
+        djMode: true,
+        isConnected: true,
+      });
+
+      fireEvent.click(getByRole('button', { name: 'Play Bass Drop' }));
+
+      expect(socket.emit).toHaveBeenNthCalledWith(1, '/departed/tag', {
+        rfid: 'rfid-queued-idle',
+        pillar: 0,
+      });
+      expect(socket.emit).toHaveBeenNthCalledWith(2, '/new/tag', {
+        rfid: 'rfid-queued-idle',
+        pillar: 0,
+      });
+      expect(socket.emit).toHaveBeenCalledTimes(2);
+    });
+
     it('does not emit and warns via Logger when disconnected', () => {
       const warnSpy = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
       const socket = createSocket(true);
@@ -250,6 +324,47 @@ describe('PillarCardContainer', () => {
         queryByRole('button', { name: `Play ${firstClip.clipName}`, hidden: true }),
       ).not.toBeInTheDocument();
       expect(getByRole('button', { name: 'Apply changes' })).toBeEnabled();
+    });
+
+    it('closes the modal and drops the draft when DJ mode ends (walk-away auto-exit path)', () => {
+      // The auto-exit timer flips PlayModeContainer's mode without touching
+      // this container directly — the djMode prop going false is the only
+      // signal. Without the effect under test, the selector survived the
+      // switch fully operable on the visitor-facing play screen (observed
+      // live 2026-07-21).
+      const socket = createSocket(true);
+      const abletonState = createAbletonState();
+      const pillars = PillarViewUtil.derivePillars(
+        abletonState.playingClips,
+        abletonState.queuedClips,
+        abletonState.stoppingClips,
+        abletonState.trackVolume,
+      );
+
+      const containerAt = (djMode: boolean) => (
+        <SocketContext.Provider value={socket}>
+          <AbletonContext.Provider value={abletonState}>
+            <PillarCardContainer
+              index={2}
+              pillar={pillars[2]}
+              djMode={djMode}
+              animationsEnabled
+              isConnected
+              pendingPicks={[[], [], [], []]}
+              onPendingPickChange={vi.fn()}
+            />
+          </AbletonContext.Provider>
+        </SocketContext.Provider>
+      );
+
+      const { getByRole, queryByRole, rerender } = render(containerAt(true));
+      fireEvent.click(getByRole('button', { name: 'Select sample' }));
+      expect(getByRole('dialog')).toBeInTheDocument();
+
+      rerender(containerAt(false));
+
+      expect(queryByRole('dialog')).not.toBeInTheDocument();
+      expect(socket.emit).not.toHaveBeenCalled();
     });
 
     it('Apply turns a gold (queued) draft entry into a pending row without emitting, keeps the modal open, and disarms', () => {
@@ -471,7 +586,7 @@ describe('PillarCardContainer', () => {
       fireEvent.click(getByRole('button', { name: queueChipLabel(first.clipName, 1) }));
       fireEvent.click(getByRole('button', { name: queueChipLabel(second.clipName, 1) }));
       fireEvent.click(getByRole('button', { name: 'Apply changes' }));
-      fireEvent.click(getByRole('button', { name: /^close$/i }));
+      fireEvent.click(getByRole('button', { name: 'Close sample selector' }));
 
       expect(socket.emit).not.toHaveBeenCalled();
       expect(getByRole('button', { name: `Play ${first.clipName}` })).toBeInTheDocument();
@@ -497,7 +612,7 @@ describe('PillarCardContainer', () => {
       fireEvent.click(getByRole('button', { name: 'Select sample' }));
       fireEvent.click(getByRole('button', { name: queueChipLabel(pick.clipName, 3) }));
       fireEvent.click(getByRole('button', { name: 'Apply changes' }));
-      fireEvent.click(getByRole('button', { name: /^close$/i }));
+      fireEvent.click(getByRole('button', { name: 'Close sample selector' }));
       expect(socket.emit).not.toHaveBeenCalled();
 
       fireEvent.click(getByRole('button', { name: `Play ${pick.clipName}` }));
@@ -526,7 +641,7 @@ describe('PillarCardContainer', () => {
       fireEvent.click(getByRole('button', { name: queueChipLabel(first.clipName, 1) }));
       fireEvent.click(getByRole('button', { name: queueChipLabel(second.clipName, 1) }));
       fireEvent.click(getByRole('button', { name: 'Apply changes' }));
-      fireEvent.click(getByRole('button', { name: /^close$/i }));
+      fireEvent.click(getByRole('button', { name: 'Close sample selector' }));
 
       fireEvent.click(getByRole('button', { name: `Remove ${first.clipName}` }));
 
@@ -657,6 +772,33 @@ describe('PillarCardContainer', () => {
       expect(abletonState.changeTrackVolume).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Ignored mute toggle'));
       warnSpy.mockRestore();
+    });
+
+    // WOW-007C item 2 (human decision): the DJ can mute an EMPTY pillar too,
+    // pre-setting it silent before any clip lands there — the backend
+    // persists desiredVolumes per pillar (resolveClipStartVolume), so the
+    // mute holds for whatever plays there next.
+    it('mutes an empty pillar in DJ mode: emits set_track_volume 0, then restores on unmute, and the button reflects state', () => {
+      const socket = createSocket(true);
+      const abletonState = createAbletonState({
+        trackVolume: [0.5, 0, 0, 0],
+      });
+
+      const { getByRole } = renderContainer(abletonState, socket, {
+        index: 0,
+        djMode: true,
+        isConnected: true,
+      });
+
+      expect(getByRole('button', { name: 'Mute' })).toBeInTheDocument();
+
+      fireEvent.click(getByRole('button', { name: 'Mute' }));
+      expect(abletonState.changeTrackVolume).toHaveBeenLastCalledWith({ pillar: 0, volume: 0 });
+      expect(getByRole('button', { name: 'Unmute' })).toBeInTheDocument();
+
+      fireEvent.click(getByRole('button', { name: 'Unmute' }));
+      expect(abletonState.changeTrackVolume).toHaveBeenLastCalledWith({ pillar: 0, volume: 0.5 });
+      expect(getByRole('button', { name: 'Mute' })).toBeInTheDocument();
     });
 
     it('clears mute when the volume is dragged/nudged to an audible level, with no separate unmute emit', () => {

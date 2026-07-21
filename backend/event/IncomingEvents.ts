@@ -8,6 +8,7 @@ import { BrowserClipInfo } from '../type/BrowserClipInfo';
 import { BrowserClipInfoList } from '../type/BrowserClipInfoList';
 import { IdleTimeoutConfigType } from '../type/IdleTimeoutConfigType';
 import { SetCauldronVolumeInputType } from '../type/SetCauldronVolumeInputType';
+import { SetDjModeInputType } from '../type/SetDjModeInputType';
 import { SetTrackVolumeInputType } from '../type/SetTrackVolumeInputType';
 import { TagDetectionData } from '../type/TagDetectionData';
 import { TrackVolumesType } from '../type/TrackVolumesType';
@@ -254,6 +255,18 @@ function addSocketEventsHandlers(socket: Socket) {
       }
     },
   );
+
+  // WOW-007C item 4: DJ mode active/inactive - suppresses (or restores) the
+  // idle timeout's handover to the Live-set attractor while a DJ is
+  // supervising the installation. No ack (frozen contract addition, fire-
+  // and-forget like set_track_volume/set_master-key above).
+  socket.on('set_dj_mode', ({ active }: SetDjModeInputType) => {
+    try {
+      AbletonAdapter.setDjModeActive(active);
+    } catch (err) {
+      Logger.error(err, 'Error setting DJ mode');
+    }
+  });
 
   return socket;
 }

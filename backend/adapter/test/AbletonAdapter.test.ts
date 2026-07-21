@@ -763,6 +763,108 @@ describe('AbletonAdapter WOW-007C (cauldron sample, cauldron volume, idle timeou
     });
   });
 
+  // WOW-007C item 4: DJ mode must suppress the idle-timeout handover to the
+  // Live-set attractor for as long as it's active, and stop suppressing it
+  // the moment it ends, by ANY path (explicit exit, walk-away auto-exit, a
+  // reconnect that re-asserts play mode).
+  describe('DJ mode (WOW-007C item 4)', () => {
+    it('defaults to inactive', async () => {
+      const { AbletonAdapter: Fresh } = await loadAdapter();
+      expect(Fresh.getDjModeActive()).toBe(false);
+    });
+
+    it('activating broadcasts dj_mode_changed via emitEventWithoutResettingTimeout', async () => {
+      const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+
+      const result = Fresh.setDjModeActive(true);
+
+      expect(result).toBe(true);
+      expect(Fresh.getDjModeActive()).toBe(true);
+      expect(OutgoingEvents.emitEventWithoutResettingTimeout).toHaveBeenCalledWith(
+        'dj_mode_changed',
+        { active: true },
+      );
+    });
+
+    // Behavioural, not vi.getTimerCount() (same posture as the idle-timeout
+    // config tests above, general review PR #56): what matters is that
+    // nothing FIRES while DJ mode is active, not how many timers exist.
+    it('activating clears an already-armed timer and blocks new arming — no timeout_warning fires even past the deadline', async () => {
+      vi.useFakeTimers();
+      try {
+        const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+        Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 });
+        Fresh.playingClips[0] = { clipName: 'DJ Mode Test Clip', pillar: 0 } as never;
+
+        Fresh.setDjModeActive(true);
+        OutgoingEvents.emitEventWithoutResettingTimeout.mockClear();
+        // Twice over the configured timeout — a stale armed timer would fire
+        // both the warning and the timeout handler in that span.
+        vi.advanceTimersByTime(120_000);
+
+        expect(OutgoingEvents.emitEventWithoutResettingTimeout).not.toHaveBeenCalledWith(
+          'timeout_warning',
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('deactivating re-arms the timers: the warning fires on schedule again', async () => {
+      vi.useFakeTimers();
+      try {
+        const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+        Fresh.setIdleTimeoutConfig({ enabled: true, timeoutMs: 60_000 });
+        Fresh.setDjModeActive(true);
+
+        Fresh.setDjModeActive(false);
+        Fresh.playingClips[0] = { clipName: 'DJ Mode Test Clip', pillar: 0 } as never;
+        OutgoingEvents.emitEventWithoutResettingTimeout.mockClear();
+        // Warning arms at timeoutMs - 30s = 30s with this config.
+        vi.advanceTimersByTime(30_000);
+
+        expect(OutgoingEvents.emitEventWithoutResettingTimeout).toHaveBeenCalledWith(
+          'timeout_warning',
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('ignores a non-boolean payload, leaves state unchanged, and logs a warning', async () => {
+      const { AbletonAdapter: Fresh, Logger: FreshLogger } = await loadAdapter();
+      const warnSpy = vi.spyOn(FreshLogger, 'warn').mockImplementation(() => undefined as never);
+
+      const result = Fresh.setDjModeActive('yes' as never);
+
+      expect(result).toBe(false);
+      expect(Fresh.getDjModeActive()).toBe(false);
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('an idle timeout still armed while disabled stays disabled across a DJ mode transition (interaction with idleTimeoutEnabled)', async () => {
+      vi.useFakeTimers();
+      try {
+        const { AbletonAdapter: Fresh, OutgoingEvents } = await loadAdapter();
+        Fresh.setIdleTimeoutConfig({ enabled: false, timeoutMs: 60_000 });
+        Fresh.playingClips[0] = { clipName: 'DJ Mode Test Clip', pillar: 0 } as never;
+
+        Fresh.setDjModeActive(true);
+        Fresh.setDjModeActive(false);
+        OutgoingEvents.emitEventWithoutResettingTimeout.mockClear();
+        vi.advanceTimersByTime(120_000);
+
+        // idleTimeoutEnabled is still false, so DJ mode ending must not
+        // resurrect a timeout the DJ separately turned off.
+        expect(OutgoingEvents.emitEventWithoutResettingTimeout).not.toHaveBeenCalledWith(
+          'timeout_warning',
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe('desired volumes respected at clip start', () => {
     it('resolveClipStartVolume falls back to 0.6 for a pillar whose volume was never explicitly set', async () => {
       const { AbletonAdapter: Fresh } = await loadAdapter();

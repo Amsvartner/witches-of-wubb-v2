@@ -21,17 +21,29 @@ type Props = {
     /** Present while a clip is playing/stopping. */
     onStop?: () => void;
     onSelectSample: () => void;
-    /** Present when the pillar has a category — nothing to mute otherwise. */
+    /**
+     * Mute toggle (WOW-007B; WOW-007C: available on an EMPTY pillar too —
+     * the backend persists desiredVolumes per pillar, so muting ahead of a
+     * clip landing there is meaningful, not just muting an audible category).
+     */
     muted?: boolean;
     onToggleMute?: () => void;
     /**
      * Rows to render in the Queued section (WOW-007B pending-pick queue;
-     * WOW-007C: up to 2 pending picks per pillar): the container composes at
-     * most one backend-queued row (remove only) followed by the pillar's
-     * pending picks (play + remove each). Same 2-row display cap as before,
-     * applied here rather than upstream.
+     * WOW-007C: up to 2 pending picks per pillar, and every row now gets its
+     * own `onPlay` — the container composes the backend-queued row (play +
+     * confirm-gated remove) followed by the pillar's pending picks (play +
+     * non-confirm-gated remove). Same 2-row display cap as before, applied
+     * here rather than upstream. `confirmRemove` lets the container tell the
+     * two row flavours apart now that `onPlay` presence no longer does.
      */
-    queueRows: { id: string; name: string; onPlay?: () => void; onRemove?: () => void }[];
+    queueRows: {
+      id: string;
+      name: string;
+      onPlay?: () => void;
+      onRemove?: () => void;
+      confirmRemove?: boolean;
+    }[];
   };
   /** Live volume interaction (both modes). Absent = display-only (tests/mock). */
   onVolumePercentChange?: (percent: number) => void;
@@ -164,23 +176,33 @@ export const PillarCard = ({
                 <h2 className='font-display text-2xl tracking-[0.14em] text-parchment/50'>
                   <span aria-hidden='true'>— </span>EMPTY<span aria-hidden='true'> —</span>
                 </h2>
-                <p className='font-data text-xs uppercase tracking-[0.18em] text-gold-line/80'>
-                  Awaiting ingredient
-                </p>
+                {/* Visitor-facing invitation only — the DJ knows what an
+                    empty pillar is (human, 2026-07-21: hidden in DJ mode). */}
+                {!dj && (
+                  <p className='font-data text-xs uppercase tracking-[0.18em] text-gold-line/80'>
+                    Awaiting ingredient
+                  </p>
+                )}
               </>
             )}
           </div>
           {/* DJ controls render regardless of category: an EMPTY pillar is
               exactly where the DJ needs Select-sample (the legacy debug modal
               allowed placing clips on any pillar). Stop only appears when a
-              clip is actually active (onStop present); Mute only appears when
-              the pillar has a category — there's nothing to mute otherwise. */}
+              clip is actually active (onStop present). Mute/unmute is now
+              passed through unconditionally too (WOW-007C human decision,
+              2026-07-21): the DJ can mute an EMPTY pillar ahead of a clip
+              landing there (the backend persists desiredVolumes per pillar,
+              so a mute set here holds), not just a categorised one. There's
+              no MUTED status label on an empty pillar (no category line to
+              carry it — see the tokens-branch above), so the button's own
+              pressed styling (DjPillarControls) is the only state cue there. */}
           {dj && (
             <DjPillarControls
               onStop={dj.onStop}
               onSelectSample={dj.onSelectSample}
-              muted={tokens ? dj.muted : undefined}
-              onToggleMute={tokens ? dj.onToggleMute : undefined}
+              muted={dj.muted}
+              onToggleMute={dj.onToggleMute}
             />
           )}
         </div>
@@ -226,10 +248,18 @@ export const PillarCard = ({
                 <SectionLabel>Queued</SectionLabel>
                 {visibleQueueRows.length > 0 ? (
                   <ul className='flex flex-col gap-1.5'>
-                    {/* A row with `onPlay` is the pending pick (WOW-007B):
-                        its remove isn't confirm-gated (dropping a local hold
-                        that was never emitted isn't destructive), unlike the
-                        backend-queued row. */}
+                    {/* WOW-007C item 3: every row gets a Play button now (the
+                        backend-queued row included), so `confirmRemove` can
+                        no longer be inferred from `onPlay`'s presence — the
+                        container passes it explicitly instead: the
+                        backend-queued row stays confirm-gated (removing it
+                        departs a real backend hold), the pending-pick rows
+                        stay non-confirm-gated (dropping a local hold that was
+                        never emitted isn't destructive). A row that omits
+                        `confirmRemove` falls back to the pre-item-3 heuristic
+                        (`!onPlay`) rather than QueuedSampleRow's own
+                        confirm-gated default, so callers that don't compose
+                        a Play action keep their prior behaviour unchanged. */}
                     {visibleQueueRows.map((row) => (
                       <QueuedSampleRow
                         key={row.id}
@@ -237,7 +267,7 @@ export const PillarCard = ({
                         tintHex={tokens?.tintHex ?? NEUTRAL_QUEUE_TINT_HEX}
                         onPlay={row.onPlay}
                         onRemove={row.onRemove}
-                        confirmRemove={!row.onPlay}
+                        confirmRemove={row.confirmRemove ?? !row.onPlay}
                       />
                     ))}
                   </ul>

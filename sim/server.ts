@@ -16,6 +16,7 @@ import {
   TagDetectionData,
   SetTrackVolumeInputType,
   SetCauldronVolumeInputType,
+  SetDjModeInputType,
   IdleTimeoutConfigType,
   buildMusicDatabase,
   buildScenarios,
@@ -170,6 +171,13 @@ io.on('connection', (socket) => {
   socket.on('set_idle_timeout', (config: IdleTimeoutConfigType, callback) => {
     logReceived('set_idle_timeout', config);
     callback?.(simulator.setIdleTimeoutConfig(config));
+  });
+
+  // WOW-007C item 4: DJ mode active/inactive — no ack, mirrors
+  // backend/event/IncomingEvents.ts's set_dj_mode handler exactly.
+  socket.on('set_dj_mode', (data: SetDjModeInputType) => {
+    logReceived('set_dj_mode', data);
+    simulator.setDjModeActive(data);
   });
 });
 

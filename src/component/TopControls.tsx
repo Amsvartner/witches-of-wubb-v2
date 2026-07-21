@@ -1,10 +1,6 @@
 type Props = {
   /** Opens the Settings modal (hosts the play/DJ mode switch + animations). */
   onOpenSettings: () => void;
-  /** True while DJ mode is active — shows the persistent Exit DJ control. */
-  djActive: boolean;
-  /** Drops back to play mode. */
-  onExitDj: () => void;
   /** True while the Help overlay is open — reflected via aria-pressed. */
   helpActive: boolean;
   /** Toggles the Help overlay open/closed. */
@@ -13,29 +9,14 @@ type Props = {
 
 /**
  * Visible Help + Settings controls (top-right), per the reference + wireframe.
- * Mode access lives behind Settings (ADR-006 amended 2026-07-15). While DJ
- * mode is active, a persistent "EXIT DJ" control renders first in the row —
- * the clearly-labelled, always-visible exit affordance for the elevated mode
- * (DESIGN_PROPOSAL §6.2). Settings is wired to the modal; Help toggles the
- * HelpOverlay (human spec 2026-07-20 — previously disabled pending content).
+ * Mode access lives behind Settings (ADR-006 amended 2026-07-15) — which is
+ * also the only way OUT of DJ mode since the separate EXIT DJ button was
+ * removed (human, 2026-07-21); the DJ auto-exit timer remains the walk-away
+ * failsafe. Settings is wired to the modal; Help toggles the HelpOverlay
+ * (human spec 2026-07-20 — previously disabled pending content).
  */
-export const TopControls = ({
-  onOpenSettings,
-  djActive,
-  onExitDj,
-  helpActive,
-  onToggleHelp,
-}: Props): JSX.Element => (
+export const TopControls = ({ onOpenSettings, helpActive, onToggleHelp }: Props): JSX.Element => (
   <div className='flex items-center gap-3'>
-    {djActive && (
-      <button
-        type='button'
-        onClick={onExitDj}
-        className='flex min-h-[44px] items-center gap-2 rounded-lg border border-red-300/60 bg-ink-btn px-4 font-data text-sm tracking-wide text-red-200'
-      >
-        EXIT DJ
-      </button>
-    )}
     <button
       type='button'
       onClick={onToggleHelp}

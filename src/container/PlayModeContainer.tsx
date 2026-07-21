@@ -57,7 +57,7 @@ type Mode = 'play' | 'dj';
  * tempo/key/volume controls emit onto the frozen socket contract, and DJ mode
  * (toggled via the Settings modal) reveals the extended per-pillar controls
  * that `PillarCardContainer` wires per pillar. Lays out the wireframe-
- * authoritative structure: wordmark + visible Help/Settings/Exit-DJ on top, a
+ * authoritative structure: wordmark + visible Help/Settings on top, a
  * 2×2 pillar grid around the central cauldron, then the settings band and
  * legend. Design-first at 1024×1280 (lg); reflows to a single column below
  * that (DESIGN_PROPOSAL_001 §5, responsive behaviour).
@@ -80,6 +80,7 @@ export const PlayModeContainer = (): JSX.Element => {
     changeCauldronVolume,
     idleTimeout,
     changeIdleTimeout,
+    setDjMode,
   } = useAbletonContext();
 
   const pillars = PillarViewUtil.derivePillars(
@@ -153,11 +154,34 @@ export const PlayModeContainer = (): JSX.Element => {
   }, [socket]);
 
   // Persists the mode on every change (WOW-007B) — including the DJ
-  // auto-exit timeout and the explicit EXIT DJ control below, since both
-  // just call `setMode`, same as the Settings modal's segmented control.
+  // auto-exit timeout, which just calls `setMode`, same as the Settings
+  // modal's segmented control (the separate EXIT DJ button was removed at
+  // the human's request, 2026-07-21 — Settings is the only mode switch).
   useEffect(() => {
     LocalStorageUtil.set(MODE_STORAGE_KEY, mode);
   }, [mode]);
+
+  // WOW-007C item 4: keeps the backend's DJ-mode idle-timeout suppression in
+  // sync with this screen's actual mode. Two triggers, both required:
+  //   - `mode` changes — including the DJ auto-exit walk-away timer above
+  //     (window.setTimeout(() => setMode('play'), djAutoExitMs)) calling
+  //     setMode('play'), which lands here and emits {active: false} —
+  //     restoring the idle timeout is the walk-away failsafe itself, not a
+  //     separate mechanism. Safety framing: DJ mode present = supervised
+  //     operation; the timeout resumes the moment DJ mode ends, by ANY path
+  //     (explicit Settings toggle or this auto-exit).
+  //   - `isConnected` flips to true — a (re)connected backend has forgotten
+  //     everything (djModeActive is deliberately NOT persisted server-side,
+  //     same failsafe posture as idleTimeoutEnabled — see
+  //     docs/ABLETON_INTEGRATION.md), so it must be told the current mode
+  //     again, not just future changes.
+  // Guarded on isConnected being true (not just changing) so this never
+  // fires against the pre-connect placeholder socket — a later reconnect
+  // re-runs this effect and catches the backend up then.
+  useEffect(() => {
+    if (!isConnected) return;
+    setDjMode(mode === 'dj');
+  }, [mode, isConnected, setDjMode]);
 
   // DJ auto-exit: resets a timer (djAutoExitMs, DJ-adjustable) on every
   // pointer interaction while DJ mode is active, and drops back to play mode
@@ -276,8 +300,6 @@ export const PlayModeContainer = (): JSX.Element => {
         <div className='flex justify-end'>
           <TopControls
             onOpenSettings={() => setIsSettingsOpen(true)}
-            djActive={mode === 'dj'}
-            onExitDj={() => setMode('play')}
             helpActive={isHelpOpen}
             onToggleHelp={() => setIsHelpOpen((open) => !open)}
           />
@@ -290,9 +312,9 @@ export const PlayModeContainer = (): JSX.Element => {
       </header>
 
       <div className='mt-3 grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_180px_1fr] lg:grid-rows-2'>
-        {/* Top-row cards (pillars 1 & 2): z-10 — below the cauldron (z-20),
-            per the stacking order the human specified 2026-07-20 (see the
-            cauldron comment below for the full z-index map). */}
+        {/* All four cards sit at z-10, above the z-0 cauldron (its art has
+            an opaque background — human, 2026-07-21; see the cauldron
+            comment below). */}
         <div className='relative z-10 min-w-0 lg:col-start-1 lg:row-start-1'>
           <PillarCardContainer
             index={0}
@@ -319,22 +341,19 @@ export const PlayModeContainer = (): JSX.Element => {
         </div>
         {/* Oversized focal cauldron, raised ~20% closer to the top of its
             column (lg:top-[30%], was lg:top-1/2 — human, 2026-07-20) so it
-            reads less like it's sinking into the settings band below.
-            Deliberately overlaps the pillar cards (human, 2026-07-17): its
-            wrapper sits at z-20, ABOVE the top-row cards (1 & 2, z-10) but
-            BELOW the bottom-row cards (3 & 4, z-30) — the human's spec is
-            that its handles overlap the top row but tuck under the bottom
-            row. The one-shot click ring can't be capped by this stacking
-            context, though: Cauldron portals it straight to document.body at
-            z-50 (see Cauldron.tsx) so it always renders in front of every
-            card regardless of this z-20. */}
-        <div className='relative z-20 flex items-center justify-center lg:col-start-2 lg:row-span-2 lg:row-start-1'>
+            reads less like it's sinking into the settings band below. Its
+            art carries an opaque background (human, 2026-07-21), so the
+            brief handles-over-the-top-row stacking is reverted: the wrapper
+            sits at z-0, BEHIND every pillar card again. The one-shot click
+            ring is unaffected — Cauldron portals it straight to
+            document.body at z-50 (see Cauldron.tsx), in front of every card
+            regardless of this wrapper's z-index. */}
+        <div className='relative z-0 flex items-center justify-center lg:col-start-2 lg:row-span-2 lg:row-start-1'>
           <div className='w-full max-w-[320px] lg:absolute lg:left-1/2 lg:top-[30%] lg:w-[405px] lg:max-w-none lg:-translate-x-1/2 lg:-translate-y-1/2'>
             <Cauldron animated={animationsEnabled} onTrigger={handleCauldronTrigger} />
           </div>
         </div>
-        {/* Bottom-row cards (pillars 3 & 4): z-30 — above the cauldron. */}
-        <div className='relative z-30 min-w-0 lg:col-start-1 lg:row-start-2'>
+        <div className='relative z-10 min-w-0 lg:col-start-1 lg:row-start-2'>
           <PillarCardContainer
             index={2}
             pillar={pillars[2]}
@@ -346,7 +365,7 @@ export const PlayModeContainer = (): JSX.Element => {
             helpActive={isHelpOpen}
           />
         </div>
-        <div className='relative z-30 min-w-0 lg:col-start-3 lg:row-start-2'>
+        <div className='relative z-10 min-w-0 lg:col-start-3 lg:row-start-2'>
           <PillarCardContainer
             index={3}
             pillar={pillars[3]}
@@ -361,10 +380,10 @@ export const PlayModeContainer = (): JSX.Element => {
       </div>
 
       {/* All four pillars empty, play mode, Help closed: a non-blocking nudge
-          (human spec 2026-07-20) — z-30, same layer as the bottom-row cards
-          but painted after them in DOM order so it sits visually on top;
-          pointer-events-none (baked into the component) so it can never
-          intercept a touch meant for a card or the cauldron beneath it. */}
+          (human spec 2026-07-20) — z-30, above the cards (z-10, all four
+          rows since the 2026-07-21 cauldron-behind revert); pointer-events-
+          none (baked into the component) so it can never intercept a touch
+          meant for a card or the cauldron beneath it. */}
       {showEmptyState && <EmptyStateOverlay animated={animationsEnabled} />}
 
       <div className='mt-4'>

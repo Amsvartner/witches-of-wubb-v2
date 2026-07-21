@@ -70,6 +70,24 @@ New socket events:
 
 `idle_timeout_changed` broadcasts via `emitEventWithoutResettingTimeout` — changing the setting is not itself visitor activity.
 
+### DJ-mode suppression (WOW-007C item 4)
+
+The idle timeout must never hand over to the Live-set attractor while a DJ is actively supervising the installation through the extended DJ controls — that's supervised operation, not visitor idleness. The frontend (`PlayModeContainer`) tells the backend whenever DJ mode is entered or exited via `set_dj_mode`; the backend tracks this in a module-level `djModeActive` flag and gates timer arming on it the same way it already gates on `idleTimeoutEnabled`:
+
+- `startTimeoutTimer` arms nothing while `djModeActive` is true (same early-return shape as the `!idleTimeoutEnabled` guard above it).
+- `setDjModeActive` validates the payload is a boolean (a non-boolean is ignored — warned, state unchanged, same "no surprises" posture as `setIdleTimeoutConfig`'s out-of-bounds guard), assigns, logs, broadcasts `dj_mode_changed` via `emitEventWithoutResettingTimeout`, then calls `restartTimeoutTimer()` — which always clears any already-armed timers first, so entering DJ mode also cancels a timer that was already ticking down, and leaving DJ mode re-arms it immediately rather than waiting for the next visitor activity.
+- `djModeActive` is **deliberately not persisted** — a plain module-level `let`, reset to `false` on every backend restart. Same failsafe posture as `idleTimeoutEnabled`/`idleTimeoutMs`: if the backend restarts mid-DJ-set, it comes back up with the timeout armed (the safe default), not silently stuck suppressed forever. This is why the frontend re-asserts the current mode on every `connect` event, not just on mode changes — a freshly (re)connected backend has forgotten DJ state entirely.
+- The DJ auto-exit walk-away timer (`PlayModeContainer`, drops back to play mode after an idle DJ-mode period) and an explicit Settings-modal mode switch both go through the same `setMode` → `set_dj_mode({active:false})` path — restoring the idle timeout on walk-away is that exact chain, not a separate mechanism.
+
+New socket events (frozen contract addition):
+
+| Event             | Direction    | Payload               | Ack |
+| ----------------- | ------------ | --------------------- | --- |
+| `set_dj_mode`     | UI → backend | `{ active: boolean }` | —   |
+| `dj_mode_changed` | backend → UI | `{ active: boolean }` | —   |
+
+`sim/core/simulator.ts` mirrors this exactly (`djModeActive`, `getDjModeActive`/`setDjModeActive`, the same `restartTimeoutTimer` early-return), per the ADR-001 sim-parity contract.
+
 ## Desired volume on clip start (WOW-007C, human request)
 
 Previously every clip start on a pillar hard-reset that pillar's volume to a hardcoded `0.6`. Now the backend remembers the last volume a caller explicitly asked for on each pillar (`desiredVolumes`, via `setTrackVolume`) and restores that instead (`resolveClipStartVolume`), falling back to `0.6` only for a pillar whose volume has never been explicitly set. This lets a DJ pre-set a pillar's level (including an empty one, in DJ mode) before anything plays there, without it being clobbered on the next clip start.

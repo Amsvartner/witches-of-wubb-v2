@@ -22,6 +22,12 @@ type Props = {
 
 const GEM_WIDTH = 54;
 const KEY_STEP = 5;
+/**
+ * Empty-pillar slider handle (WOW-007C item 1, human spec): a CSS-drawn
+ * neutral gold diamond matching SettingsBand's tempo-slider thumb (18px),
+ * scaled up for the taller tube track.
+ */
+const HANDLE_SIZE = 28;
 
 /**
  * Vertical potion-tube volume indicator built from the bespoke art assets
@@ -53,6 +59,13 @@ export const VolumeTube = ({
     width: GEM_WIDTH,
     bottom: `clamp(0px, calc(${clamped}% - ${GEM_WIDTH / 2}px), calc(100% - ${GEM_WIDTH}px))`,
   };
+  // Same clamp shape as the gem, sized for the handle instead — keeps the
+  // handle inside the track at the volume extremes too.
+  const handlePos: CSSProperties = {
+    width: HANDLE_SIZE,
+    height: HANDLE_SIZE,
+    bottom: `clamp(0px, calc(${clamped}% - ${HANDLE_SIZE / 2}px), calc(100% - ${HANDLE_SIZE}px))`,
+  };
 
   // WOW-007C: an empty pillar can be volume-interactive too (DJ mode
   // pre-setting a pillar's level before anything plays there) — interactivity
@@ -63,6 +76,12 @@ export const VolumeTube = ({
   // while it's actually interactive (otherwise there's no meaningful volume
   // to show — display-only empty pillars stay blank, as before).
   const showReadout = Boolean(assetSlug) || interactive;
+  // WOW-007C item 1: an interactive EMPTY pillar (no category art, so no gem
+  // and no lit-fill clip) still needs a slider affordance — a CSS handle
+  // riding the fill line, plus a subtle fill bar standing in for the missing
+  // lit-tube art. A categorised pillar keeps using the gem (rendered below)
+  // instead, whether interactive or not.
+  const showEmptyHandle = interactive && !assetSlug;
 
   const percentFromPointer = (event: PointerEvent<HTMLDivElement>): number => {
     const rect = trackRef.current?.getBoundingClientRect();
@@ -154,6 +173,23 @@ export const VolumeTube = ({
               draggable={false}
               style={gemPos}
               className='pointer-events-none absolute left-1/2 -translate-x-1/2'
+            />
+          </>
+        )}
+        {showEmptyHandle && (
+          <>
+            {/* Fill stand-in: the empty-tube art has no lit variant to clip,
+                so a low-opacity bar approximates it behind the handle. */}
+            <div
+              aria-hidden='true'
+              style={{ height: `${clamped}%` }}
+              className='pointer-events-none absolute bottom-0 left-1/2 w-1.5 -translate-x-1/2 rounded bg-gold-line/50'
+            />
+            <div
+              aria-hidden='true'
+              data-testid='volume-handle'
+              style={handlePos}
+              className='pointer-events-none absolute left-1/2 -translate-x-1/2 rotate-45 rounded-[4px] border border-gold-bright/80 bg-gradient-to-br from-gold-bright to-[#b98f38]'
             />
           </>
         )}

@@ -36,6 +36,7 @@ const abletonStub: AbletonContextState = {
   changeCauldronVolume: () => {},
   idleTimeout: { enabled: true, timeoutMs: 3 * 60 * 1000 },
   changeIdleTimeout: () => {},
+  setDjMode: () => {},
 };
 
 const TestProviders = ({ children }: PropsWithChildren) => (

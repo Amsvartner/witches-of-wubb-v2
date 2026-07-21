@@ -145,6 +145,17 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
     [socket],
   );
 
+  // WOW-007C item 4: fire-and-forget, no ack — mirrors triggerCauldronSample/
+  // changeMasterKey's guarded `socket?.emit` shape. No local state to update:
+  // DJ mode is owned by PlayModeContainer (`mode`), this only informs the
+  // backend so its idle-timeout suppression can track it.
+  const setDjMode = useCallback(
+    (active: boolean) => {
+      socket?.emit('set_dj_mode', { active });
+    },
+    [socket],
+  );
+
   useEffect(() => {
     // socket starts out as an unconnected placeholder ({} as Socket, see
     // useSocketContextProviderState) with no .on/.off at all - gate on their
@@ -260,6 +271,7 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
       masterKey,
       playingClips,
       queuedClips,
+      setDjMode,
       stoppingClips,
       tempo,
       trackVolume,
@@ -280,6 +292,7 @@ export const useAbletonContextProviderState = (): AbletonContextState => {
       masterKey,
       playingClips,
       queuedClips,
+      setDjMode,
       stoppingClips,
       tempo,
       trackVolume,

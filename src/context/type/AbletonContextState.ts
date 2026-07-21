@@ -24,4 +24,12 @@ export type AbletonContextState = {
   /** WOW-007C: idle-timeout ("pause music"/attractor handover) config. */
   idleTimeout: IdleTimeoutConfigType;
   changeIdleTimeout: (config: IdleTimeoutConfigType) => void;
+  /**
+   * WOW-007C item 4: tells the backend whether DJ mode is active, so the
+   * idle timeout can never hand over to the Live-set attractor while a DJ is
+   * supervising the installation. No ack (frozen contract, fire-and-forget)
+   * — PlayModeContainer is the sole caller, emitting on every mode change
+   * and on every (re)connect (backend-side state isn't persisted).
+   */
+  setDjMode: (active: boolean) => void;
 };

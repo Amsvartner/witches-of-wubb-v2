@@ -180,6 +180,32 @@ describe('PillarCard', () => {
       expect(onRemove).toHaveBeenCalledTimes(1);
     });
 
+    // WOW-007C item 3 (human spec): every queue row gets Play now, including
+    // the backend-queued one — `confirmRemove` (not `onPlay` presence) is
+    // what keeps its remove destructive-gated.
+    it('renders a backend-queued row with both Play and a confirm-gated remove when the container supplies both', () => {
+      const onPlay = vi.fn();
+      const onRemove = vi.fn();
+      const { getByRole } = render(
+        <PillarCard
+          pillar={playingVocals}
+          dj={{
+            onSelectSample: vi.fn(),
+            queueRows: [{ id: 'v1', name: 'Vocal Hook 07', onPlay, onRemove, confirmRemove: true }],
+          }}
+        />,
+      );
+
+      fireEvent.click(getByRole('button', { name: 'Play Vocal Hook 07' }));
+      expect(onPlay).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(getByRole('button', { name: 'Remove Vocal Hook 07' }));
+      expect(onRemove).not.toHaveBeenCalled();
+      expect(getByRole('button', { name: 'Confirm remove Vocal Hook 07' })).toBeInTheDocument();
+      fireEvent.click(getByRole('button', { name: 'Confirm remove Vocal Hook 07' }));
+      expect(onRemove).toHaveBeenCalledTimes(1);
+    });
+
     it('renders a pending-pick row with Play and a non-confirm-gated remove', () => {
       const onPlay = vi.fn();
       const onRemove = vi.fn();
@@ -311,14 +337,33 @@ describe('PillarCard', () => {
         expect(getByText('MUTED')).toBeInTheDocument();
       });
 
-      it('renders no Mute button on an empty pillar even when muted/onToggleMute are supplied', () => {
-        const { queryByRole } = render(
+      // WOW-007C human decision (2026-07-21): the DJ can mute an EMPTY
+      // pillar too, pre-setting it to silent before any clip lands there
+      // (the backend persists desiredVolumes per pillar) — Mute is no
+      // longer gated on the pillar having a category.
+      it('renders a Mute button on an empty pillar when muted/onToggleMute are supplied', () => {
+        const onToggleMute = vi.fn();
+        const { getByRole } = render(
           <PillarCard
             pillar={emptyPillar}
-            dj={{ onSelectSample: vi.fn(), queueRows: [], muted: false, onToggleMute: vi.fn() }}
+            dj={{ onSelectSample: vi.fn(), queueRows: [], muted: false, onToggleMute }}
           />,
         );
-        expect(queryByRole('button', { name: /mute/i })).not.toBeInTheDocument();
+
+        fireEvent.click(getByRole('button', { name: 'Mute' }));
+        expect(onToggleMute).toHaveBeenCalledTimes(1);
+      });
+
+      it('shows Unmute on an empty pillar when muted is true, with no MUTED status label (no category line to carry it)', () => {
+        const { getByRole, queryByText } = render(
+          <PillarCard
+            pillar={{ ...emptyPillar, muted: true }}
+            dj={{ onSelectSample: vi.fn(), queueRows: [], muted: true, onToggleMute: vi.fn() }}
+          />,
+        );
+
+        expect(getByRole('button', { name: 'Unmute' })).toBeInTheDocument();
+        expect(queryByText('MUTED')).not.toBeInTheDocument();
       });
     });
   });

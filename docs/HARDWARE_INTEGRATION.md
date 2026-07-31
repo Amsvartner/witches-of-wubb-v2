@@ -7,7 +7,7 @@ Status: observed from `Arduino/` sketches and backend code. **Entirely out of sc
 - Do not modify anything in `Arduino/` without explicit human approval — these sketches run on installed hardware.
 - Do not run commands that emit OSC, Art-Net/DMX, serial, or network messages to hardware. `yarn start-backend` counts (it opens an OSC client to the lighting server and connects to Ableton).
 - Do not change the pillar IP map, ports, WiFi settings, or event names/addresses.
-- The Arduino sketches contain committed WiFi credentials (`wubb-net`). Do not copy, log, or reuse them; rotation is an open decision.
+- WiFi credentials are **not** committed (WOW-028). Each sketch reads `WIFI_SSID`/`WIFI_PASSWORD` from a gitignored `secrets.h` — copy the sketch's `secrets.h.example` to `secrets.h` and fill in the real network credentials before flashing. Never commit `secrets.h`, log its contents, or paste real credentials into docs/PRs/commit messages.
 
 ## Pillars
 
@@ -18,8 +18,17 @@ Status: observed from `Arduino/` sketches and backend code. **Entirely out of sc
 ## RFID readers
 
 - M5Stack Core + UHF RFID unit (`Arduino/Unit_RFID_M5Core/`).
-- Connect over WiFi (`wubb-net`), send OSC over UDP to the backend (port 9000): `/new/tag [rfid]`, `/departed/tag [rfid]`. Sender IP identifies the pillar.
+- Connect over WiFi (network name lives in each device's local `secrets.h`, not in the repo — see "Rules for agents" above), send OSC over UDP to the backend (port 9000): `/new/tag [rfid]`, `/departed/tag [rfid]`. Sender IP identifies the pillar.
 - Tag IDs: 24-hex-char EPCs (see CSV). Polling interval, RF power, multi-tag behavior: TBD.
+
+## Flashing checklist (WOW-028)
+
+Before flashing either sketch onto a device:
+
+1. Copy the sketch's `secrets.h.example` to `secrets.h` in the same directory.
+2. Fill in the current (rotated) `WIFI_SSID` / `WIFI_PASSWORD` — get these from whoever last rotated the network credentials, not from git history.
+3. Confirm `secrets.h` is untracked (`git status` should not list it — `.gitignore` covers `Arduino/**/secrets.h`).
+4. Compile and flash as before; no other setup changed.
 
 ## Speakers / audio routing
 

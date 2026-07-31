@@ -27,7 +27,7 @@ Then take the first unblocked ticket matching your role (or the ticket the human
 
 ## Safety and scope
 
-- Frontend-only phase (ADR-004). `backend/`, `Arduino/`, `Music Database.csv` are read-only.
-- Allowed commands: `yarn dev`, `yarn test`, `yarn lint`, simulator scripts. Never `yarn start-backend`.
+- Full-product phase (ADR-007, gates relaxed 2026-07-21). `backend/`, `sim/`, `Music Database.csv`, and `Arduino/` are editable per your ticket's "Allowed files" (a human still flashes firmware; the Live set is edited by a human per spec). Socket-contract changes ship with doc + `sim/` parity in the same PR.
+- Allowed commands: `yarn dev`, `yarn test`, `yarn lint`, simulator scripts; `yarn start-backend` / live-connection scripts when the ticket calls for it (care while a real installation is live).
 - Do not merge, do not push to `main`, do not commit without explicit human instruction.
-- Stop and ask (via `docs/DECISIONS_NEEDED.md`) before: new dependencies, new/renamed socket events, architecture changes, anything ambiguous in scope.
+- Stop and ask (via `docs/DECISIONS_NEEDED.md`) before: new dependencies, raising volume/brightness ceilings or strobe-like behavior, anything ambiguous in product scope.

@@ -1,7 +1,7 @@
 # 004. Frontend-only scope for this project phase
 
 Date: 2026-07-09
-Status: accepted (amended 2026-07-12 — second backend-touching exception for the docs/TICKETS_002_BUGS.md batch)
+Status: superseded by 007 (2026-07-21 — full-product scope; previously: accepted, amended 2026-07-12 — second backend-touching exception for the docs/TICKETS_002_BUGS.md batch)
 
 ## Context
 

@@ -15,7 +15,7 @@ Run the reviewer lenses in parallel and converge on one verdict. All rules in `A
 
 ## 1. Seats
 
-Always: **reviewer** (scope, tests, hardcoding, docs drift) and **test-engineer** (coverage, hardware-free tests). Add **architecture-reviewer** when the diff touches structure, contexts, or the socket layer; **frontend-ui-designer** (a11y/UX lens) for visual work. **audio-ableton-reviewer** / **hardware-safety-reviewer** only if the diff touches the event contract, `backend/`, or `Arduino/` — that alone is a finding this phase (ADR-004).
+Always: **reviewer** (scope, tests, hardcoding, docs drift) and **test-engineer** (coverage, hardware-free tests). Add **architecture-reviewer** when the diff touches structure, contexts, or the socket layer; **frontend-ui-designer** (a11y/UX lens) for visual work. **audio-ableton-reviewer** / **hardware-safety-reviewer** when the diff touches the event contract, `backend/`, or `Arduino/` — discretionary seats under the relaxed full-product rules (ADR-007 amendment): add them when the diff is risky (loudness, timing, musical mapping), skip them for routine plumbing.
 
 Launch all seats as **parallel read-only subagents**, each given the diff, its profile, and the ticket. Subagents return findings; they never edit files.
 

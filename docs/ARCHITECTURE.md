@@ -2,7 +2,7 @@
 
 Status: **observed** — documented from code reading on 2026-07-09.
 
-> **Scope note (ADR-004):** current work is frontend-only. Everything below the socket.io boundary (backend, Ableton, OSC, hardware) is read-only reference, outside two scoped exceptions documented in ADR-004 (the WOW-011 conventions migration; the `docs/TICKETS_002_BUGS.md` WOW-014–WOW-032 batch). The socket.io event contract is the hard boundary the UI codes against; an offline simulator (ADR-001) stands in for the backend during development.
+> **Scope note (ADR-007, 2026-07-21):** work covers the **full product** — UI, backend, and simulator (ADR-004's frontend-only phase is superseded). The socket.io event contract remains the architectural boundary the UI codes against, now fully ticket-managed rather than frozen: contract changes (additions, renames, removals) ship with doc + simulator parity in the same change (ADR-001/ADR-007 amendment). The Live set itself is still edited by a human per spec; musical-assumption changes are made in-ticket and documented in `docs/ABLETON_INTEGRATION.md` in the same PR (relaxation 2026-07-21, `AGENTS.md` v0.7). The offline simulator (ADR-001) is still the agent-side stand-in for the backend during development.
 
 ## Observed architecture
 

@@ -1,29 +1,29 @@
 # AGENTS.md — Instructions for AI agents in this repository
 
-Version: 0.5
+Version: 0.7
 Status: Active
 Owner: Vidar
-Last updated: 2026-07-12
+Last updated: 2026-07-21
 
 This file is the root operating contract for any AI agent (Claude Code or otherwise) working in this repo. Read it fully before making changes.
 
-## Scope of current phase (ADR-004)
+## Scope of current phase (ADR-007 — full product)
 
-Work is **frontend-only**: `src/` (incl. colocated `test/` folders), docs, and the offline simulator (ADR-001). `backend/` and `Arduino/` are read-only reference. The socket.io event contract is the boundary; do not add/rename events without approval. End-to-end testing happens outside this repo; definition of done is "UI works frontend-side and sends the correct API calls."
+Work spans the **full product** (human decision 2026-07-21, ADR-007, superseding ADR-004's frontend-only phase): `src/` (incl. colocated `test/` folders), `backend/`, `sim/`, and docs. No per-batch scope exceptions are needed anymore; each ticket's own "Allowed files" list is the per-ticket boundary.
 
-**Exception — conventions migration (2026-07-10):** the dedicated migration ticket **WOW-011** (defined in `docs/TICKETS_001_INITIAL.md`, from the `docs/CODING_GUIDELINES.md` "Migration" section) may edit `backend/` to apply the new conventions: camelCase function renames, splitting `backend/types.ts` into `backend/type/`, grouping exports behind namespace objects, and the `event/` / `service/` / `adapter/` / `util/` restructure. Constraints:
+**Gates relaxed (human decision 2026-07-21, ADR-007 amended):** the per-change approval gates are lifted along with the scope gate.
 
-- Structure and naming only — **zero behavioral change**. Musical logic, timing, quantization, transposition tables, volume handling, the pillar IP map, and all emitted OSC/MIDI/Art-Net/socket payloads stay byte-for-byte equivalent; socket.io event names are frozen.
-- The physical-installation safety rules below apply in full; the diff requires audio-ableton-reviewer and hardware-safety-reviewer sign-off before merge.
-- This exception covers only that ticket. Outside it, `backend/` remains read-only.
+- Specialist reviewer passes (audio-ableton-reviewer, hardware-safety-reviewer) are **discretionary** — recommended on risky diffs, not required for gate.
+- Musical/timing assumptions (routing, clip-naming assumptions, transposition, quantization, phrase-leader/trigger order) may be changed inside a ticket; the same PR documents the change in `docs/ABLETON_INTEGRATION.md`.
+- The socket.io event contract is **fully ticket-managed**: additions, renames, and removals ship with contract-doc updates and `sim/` parity (ADR-001) in the same change.
+- `src/assets/Music Database.csv` is editable in-ticket — it remains production data: keep it parseable, call edits out in the PR.
+- `Arduino/` firmware is editable in-ticket; compiling, flashing, and bench-testing remain physically human tasks.
+- Agents may run `yarn start-backend` and other live-connection scripts (e.g. `yarn verify-liveset`) when a ticket calls for it — with care while a real installation is live (they drive Ableton and the lighting server; the backend hangs if Live isn't running).
+- The Ableton **Live set** is still edited in Ableton by a human, per a written spec (`docs/LIVE_SET_CHANGE_SPEC_*.md`) — agents cannot meaningfully edit `.als` files.
 
-**Exception — `docs/TICKETS_002_BUGS.md` batch (2026-07-12, ADR-004 amended):** the 19-ticket batch in `docs/TICKETS_002_BUGS.md` (WOW-014 through WOW-032, from the 2026-07-10 full-repo review) may edit `backend/` and `Arduino/`, scoped to each ticket's own "Allowed files" and safety-notes lines — not a blanket reopen. Constraints:
+Standing engineering constraints (protect visitors and hardware; not process gates — see "Physical-installation engineering constraints" below): keep existing volume clamps/ceilings, no sudden full-scale level jumps, no strobe/flicker, keep LED brightness ceilings.
 
-- Each ticket's own allowed-files list is the actual boundary; do not touch files a ticket doesn't name.
-- Tickets whose safety notes name audio-ableton-reviewer and/or hardware-safety-reviewer sign-off still require it before gate, same as WOW-011's exception.
-- `Music Database.csv` stays agent-read-only unless a specific ticket explicitly says otherwise.
-- Firmware tickets (`Arduino/`) still require a human to compile, flash, and bench-test — agents review only, never touch real hardware.
-- This exception covers only the `docs/TICKETS_002_BUGS.md` batch. Outside it, `backend/`/`Arduino/` remain read-only per the base rule above.
+Definition of done for backend-touching tickets: local, hardware-free tests plus simulator parity; live-Ableton verification may be agent-run when a ticket calls for it, otherwise human.
 
 ## Project context
 
@@ -31,7 +31,7 @@ Witches of Wubb is an interactive music art installation. Four physical pillars 
 
 Observed clip categories in code: `Vox`, `Melody`, `Bass`, `Drums` (`backend/type/ClipTypes.ts`). See `docs/DECISIONS_NEEDED.md` for the naming discrepancy with the brief.
 
-Current mandate: rework the UI design and add new features. This repo currently runs live installations — treat everything as production.
+Current mandate: full-product feature work (ADR-007) — UI, backend, and simulator together. This repo currently runs live installations — treat everything as production.
 
 Key docs (read before working):
 
@@ -43,6 +43,8 @@ Key docs (read before working):
 - `docs/DECISIONS_NEEDED.md` — open human decisions
 - `docs/TICKETS_001_INITIAL.md` — current tickets
 - `docs/TICKETS_002_BUGS.md` — bug tickets, WOW-014 onwards (2026-07-10 repo review + follow-ups)
+- `docs/TICKETS_003_DJ_FX.md` — DJ FX feature batch, WOW-039 onwards (first full-product batch, ADR-007)
+- `docs/LIVE_SET_CHANGE_SPEC_001_DJ_FX.md` — human-performed Ableton Live-set changes for the DJ FX batch
 
 ## Universal guardrails
 
@@ -54,14 +56,16 @@ Key docs (read before working):
 6. Update docs in the same change when behavior changes.
 7. If `git status` shows uncommitted human changes, do not overwrite them.
 
-## Physical-installation safety rules (non-negotiable)
+## Physical-installation engineering constraints (relaxed 2026-07-21 — constraints, not approval gates)
 
-- **Volume:** never change default volumes, gain staging, or volume-ramp behavior without explicit approval. Uncontrolled volume can damage speakers and hearing.
-- **Lights:** never introduce or modify strobe/flicker behavior without approval (photosensitivity risk). Do not change LED brightness ceilings.
-- **Live hardware:** never run commands that send MIDI, OSC, serial, Art-Net/DMX, or network messages to hardware or Ableton unless explicitly approved or a documented simulation mode is used. Starting `yarn start-backend` connects to Ableton and the lighting server — treat it as a live-hardware command.
-- **Mappings:** agents may not edit `src/assets/Music Database.csv` at all unless a human explicitly allows it in the ticket. Same for the pillar IP map in `backend/event/IncomingEvents.ts`.
-- **Ableton:** never change Ableton routing, clip naming assumptions, transposition logic (`backend/service/KeyTranspositionService.ts`), quantization, or the phrase-leader/trigger-order logic without approval.
-- **Arduino:** never modify `Arduino/` sketches (they run on installed hardware) without approval. They contain committed WiFi credentials — do not copy these anywhere else.
+These used to be approval gates ("non-negotiable safety rules"); since the 2026-07-21 relaxation (ADR-007 amendment) they are standing engineering constraints. Work on these areas freely inside a ticket, but the constraints themselves hold because they protect visitors and hardware:
+
+- **Volume:** keep the existing software clamps/ceilings (`[0, 0.7]`, `clampVolume`) unless a ticket explicitly raises them; no sudden full-scale level jumps or un-ramped volume behavior. Uncontrolled volume can damage speakers and hearing.
+- **Lights:** no strobe/flicker patterns (photosensitivity risk); keep LED brightness ceilings.
+- **Live hardware:** `yarn start-backend` and live-connection scripts may be run when the work calls for it — be deliberate while a real installation is live (they send OSC/MIDI/Art-Net/socket traffic to Ableton and the lighting server).
+- **Mappings:** `src/assets/Music Database.csv` and the pillar IP map are editable in-ticket; both are production data — keep them valid and call edits out in the PR.
+- **Ableton:** routing, clip-naming assumptions, transposition, quantization, and phrase-leader/trigger-order logic are changeable in-ticket; document every such change in `docs/ABLETON_INTEGRATION.md` in the same PR.
+- **Arduino:** sketches are editable in-ticket; a human compiles, flashes, and bench-tests. The committed WiFi credentials stay where they are — do not copy them anywhere else.
 - **Show operation:** never assume how the gallery/show is operated (startup order, network, staffing). Ask.
 
 ## Creative-intent rules
@@ -75,17 +79,16 @@ Key docs (read before working):
 Allowed without extra approval:
 
 - Docs, tickets, ADR drafts, agent-profile updates
-- Tests that run purely locally without contacting Ableton/hardware/network
-- UI changes inside an approved ticket, following `docs/CODING_GUIDELINES.md`
+- Backend, frontend, and simulator changes inside a ticket, following `docs/CODING_GUIDELINES.md`
+- Tests that run purely locally without contacting Ableton/hardware/network (the CI/default posture)
+- Socket-contract changes shipped with doc + `sim/` parity updates in the same PR
 - Reading any file
-- Running `yarn dev` (UI only) and `yarn test` — explicitly human-approved 2026-07-09. `yarn start-backend` remains forbidden (live Ableton/OSC).
+- Running `yarn dev`, `yarn test`, and — when the work calls for it — `yarn start-backend` / live-connection scripts (see the engineering constraints above)
 
 Requires explicit human approval:
 
-- Anything under "Physical-installation safety rules"
 - New dependencies, stack changes, build-tool changes
-- Data-model or CSV-schema changes
-- New network protocols, ports, or event names
+- Raising volume/brightness ceilings or introducing strobe-like light behavior
 - Deleting files
 
 ## Custom agents
@@ -214,7 +217,5 @@ Stop and ask the human when:
 
 - A task requires anything in the "requires approval" list.
 - Product scope, feature priority, or visual identity is ambiguous.
-- You'd need to change musical/timing/mapping assumptions.
-- Tests would require contacting Ableton, hardware, or the network.
 - You find data loss risk, security issues (e.g. committed credentials), or conflicting instructions.
 - Two docs contradict each other.

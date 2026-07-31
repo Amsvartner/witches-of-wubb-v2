@@ -1,6 +1,6 @@
 # Tech stack
 
-> Scope note (ADR-004): backend and Arduino stacks are reference-only this phase; active work uses the frontend stack plus a simulator built on the already-present socket.io.
+> Scope note (ADR-007, 2026-07-21): full-product scope — the backend stack is active work again alongside the frontend stack and simulator. `Arduino/` firmware is editable in-ticket (a human still flashes and bench-tests — relaxation 2026-07-21). Dependency changes still require human approval.
 
 ## Observed stack (from package files and code)
 

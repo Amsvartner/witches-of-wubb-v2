@@ -80,7 +80,7 @@ function handleNewTag(rfid: string, requestAddress: string) {
       });
       AbletonAdapter.queueClip({ ...clipMetadata, rfid }, pillar);
     } else {
-      Logger.warn("Couldn't find track from RFID tag");
+      Logger.warn(`Couldn't find track from RFID tag ${rfid}`);
     }
   } catch (err) {
     Logger.error(err, `Errored trying to find track from RFID tag ${rfid} (${requestAddress})`);
@@ -106,7 +106,7 @@ function handleDepartedTag(rfid: string, requestAddress: string) {
         Logger.error(err, `Error stopping or removing clip from queue on pillar ${pillar + 1}`),
       );
     } else {
-      Logger.warn("Couldn't find track from RFID tag");
+      Logger.warn(`Couldn't find track from RFID tag ${rfid}`);
     }
   } catch (err) {
     Logger.error(err, `Errored trying to find track from RFID tag ${rfid} (${requestAddress})`);

@@ -31,4 +31,7 @@ tsconfig.tsbuildinfo
 AGENTS.md
 CLAUDE.md
 .claude/
-docs/agent-prompts/
+
+# Project documentation — kept locally, not part of the handover
+# (PRD, architecture, ADRs, tickets, design assets, agent notes/prompts)
+docs/

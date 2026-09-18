@@ -1,6 +1,6 @@
 # PRD — UI rework and new features
 
-Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list). See ADR-001…005.
+Status: **confirmed scope v2** (human decisions 2026-07-09, incl. feature list). See ADR-001…007.
 
 ## Scope decision (ADR-007, supersedes ADR-004)
 

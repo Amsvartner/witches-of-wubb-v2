@@ -11,7 +11,7 @@ The human decided 2026-07-21: **"We're working with the full product from now on
 
 ## Decision
 
-- The frontend-only phase is over. Work may span `src/`, `backend/`, `sim/`, `docs/`, and (review-only, see below) `Arduino/`, without per-batch scope exceptions. ADR-004 and its exception mechanism are superseded.
+- The frontend-only phase is over. Work may span `src/`, `backend/`, `sim/`, `docs/`, and `Arduino/`, without per-batch scope exceptions. ADR-004 and its exception mechanism are superseded.
 - **Everything that made backend work safe under the exceptions is retained as the normal operating rules, not dropped with the scope gate:**
   - The physical-installation safety rules in `AGENTS.md` apply unchanged (volume/gain staging, strobe/flicker, live-hardware commands, `yarn start-backend` remains a live-hardware command agents never run unapproved).
   - Musical/timing assumptions (routing, clip naming, transposition, quantization, phrase-leader/trigger order) still require explicit human approval to change, and backend-touching diffs on the Ableton/hardware path still require audio-ableton-reviewer and/or hardware-safety-reviewer sign-off.

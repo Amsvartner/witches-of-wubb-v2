@@ -260,7 +260,7 @@ export class Simulator {
     this.logger.info(`New tag detected with ${data.rfid} from machine: ${requestAddress}`);
     const clipMetadata = this.database.rfidToClipMap[data.rfid];
     if (!clipMetadata) {
-      this.logger.warn("Couldn't find track from RFID tag");
+      this.logger.warn(`Couldn't find track from RFID tag ${data.rfid}`);
       return;
     }
     this.emit('ingredient_detected', {
@@ -284,7 +284,7 @@ export class Simulator {
     this.logger.info(`Departed tag detected with ${data.rfid} from machine: ${requestAddress}`);
     const clipMetadata = this.database.rfidToClipMap[data.rfid];
     if (!clipMetadata) {
-      this.logger.warn("Couldn't find track from RFID tag");
+      this.logger.warn(`Couldn't find track from RFID tag ${data.rfid}`);
       return;
     }
     // Note: unlike ingredient_detected, the real payload carries no rfid

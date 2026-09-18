@@ -25,3 +25,10 @@ dist-ssr
 *.sw?
 
 tsconfig.tsbuildinfo
+
+# AI agent tooling — kept locally, never committed
+# (agent contract, agent/skill profiles, generated per-ticket prompts)
+AGENTS.md
+CLAUDE.md
+.claude/
+docs/agent-prompts/

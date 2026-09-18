@@ -25,3 +25,13 @@ dist-ssr
 *.sw?
 
 tsconfig.tsbuildinfo
+
+# AI agent tooling — kept locally, never committed
+# (agent contract, agent/skill profiles, generated per-ticket prompts)
+AGENTS.md
+CLAUDE.md
+.claude/
+
+# Project documentation — kept locally, not part of the handover
+# (PRD, architecture, ADRs, tickets, design assets, agent notes/prompts)
+docs/

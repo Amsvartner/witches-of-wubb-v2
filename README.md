@@ -2,9 +2,9 @@
 
 ## Documentation
 
-Project docs live in [`docs/`](docs/). Start with the [project brief](docs/PROJECT_BRIEF.md) and [architecture](docs/ARCHITECTURE.md). AI agents must read [`AGENTS.md`](AGENTS.md) first; agent profiles live in [`.claude/agents/`](.claude/agents/README.md) and pipeline skills in `.claude/skills/`. Open questions for humans are tracked in [decisions needed](docs/DECISIONS_NEEDED.md); current work in [tickets](docs/TICKETS_001_INITIAL.md) and the [implementation plan](docs/IMPLEMENTATION_PLAN.md).
+Project documentation (`docs/` — brief, architecture, data model, Ableton and hardware integration, ADRs, tickets, design assets) and AI agent tooling (`AGENTS.md`, `.claude/`) are kept locally and are not committed — see `.gitignore`. Comments in the source that cite `docs/…` or `AGENTS.md` refer to those local files; ask the maintainer for a copy if you need them.
 
-⚠️ `yarn start-backend` connects to Ableton Live and the lighting server — see safety rules in `AGENTS.md` before running anything.
+⚠️ `yarn start-backend` connects to Ableton Live and the lighting server — read the installation safety rules in the local `AGENTS.md` before running anything.
 
 ## Setup
 
@@ -77,7 +77,7 @@ Two optional `.env` overrides (both have working defaults — see `.env`):
 
 #### Offline simulator (no Ableton/hardware needed)
 
-For UI development you don't need the real backend at all: the offline simulator ([ADR-001](docs/adr/001-offline-simulator-mock-backend.md)) implements the same socket.io contract on the same port (`3335`) with fake state and scripted scenarios built from real `Music Database.csv` rows. It cannot reach Ableton, OSC, or hardware — its only network surface is a listening socket on `localhost:3335`.
+For UI development you don't need the real backend at all: the offline simulator implements the same socket.io contract on the same port (`3335`) with fake state and scripted scenarios built from real `Music Database.csv` rows. It cannot reach Ableton, OSC, or hardware — its only network surface is a listening socket on `localhost:3335`.
 
 ```bash
 yarn sim [scenario]
